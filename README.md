@@ -1,12 +1,15 @@
 ## AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
 
+![Package](https://github.com/aws-actions/aws-cloudformation-github-deploy/workflows/Package/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Deploys AWS CloudFormation Stacks.
 
 ## Usage
 
 ```yaml
 - name: Deploy to AWS CloudFormation
-  uses: aws-actions/aws-cfn-deploy@v1
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
   with:
     name: MyStack
     template: myStack.yaml
@@ -59,6 +62,6 @@ This action requires the following minimum set of permissions:
 
 > The policy above prevents the stack to be deleted by a policy for production
 
-## License Summary
+## License
 
-This code is made available under the MIT license.
+[MIT](/LICENSE)

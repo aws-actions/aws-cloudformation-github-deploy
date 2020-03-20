@@ -18,7 +18,7 @@ jobs:
         run: |
           npm ci
           npm test
-          npm run package
+          npm run all
       - name: Commit
         run: |
           git config --global user.name "GitHub Actions"
