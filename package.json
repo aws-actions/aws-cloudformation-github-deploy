@@ -1,0 +1,39 @@
+{
+  "name": "aws-actions-aws-cfn-deploy",
+  "version": "1.0.0",
+  "description": "Deploys a AWS CloudFormation Stack",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint **.js",
+    "package": "ncc build index.js -o dist",
+    "test": "DEBUG=jest eslint **.js && jest --coverage --verbose"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aws-actions/aws-cfn-deploy.git"
+  },
+  "keywords": [
+    "AWS",
+    "GitHub",
+    "Actions",
+    "JavaScript"
+  ],
+  "author": "AWS",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/aws-actions/aws-cfn-deploy/issues"
+  },
+  "homepage": "https://github.com/aws-actions/aws-cfn-deploy#readme",
+  "dependencies": {
+    "@actions/core": "^1.2.3",
+    "aws-sdk": "^2.633.0"
+  },
+  "devDependencies": {
+    "@zeit/ncc": "^0.21.1",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.10.0",
+    "eslint-plugin-prettier": "^3.1.2",
+    "jest": "^25.1.0",
+    "prettier": "^1.19.1"
+  }
+}

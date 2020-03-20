@@ -1,0 +1,29 @@
+name: 'AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions'
+description: "Deploys a AWS CloudFormation stack"
+branding:
+  icon: "cloud"
+  color: "orange"
+inputs:
+  name:
+    description: "The name of the CloudFormation Stack"
+    required: true
+  template:
+    description: "The path to the CloudFormation Stack"
+    required: true
+  capabilities:
+    description: "The acknowledge stack template capabilities. Defaults to 'CAPABILITY_IAM'"
+    required: false
+    default: "CAPABILITY_IAM"
+  parameter-overrides:
+    description: "The parameters to override in the stack inputs"
+    required: false
+  no-fail-on-empty-changeset:
+    description: "If the CloudFormation Change Set is empty, do not fail. Default to '0'"
+    required: false
+    default: "0"
+outputs:
+  stack-id:
+    description: "The id of the deployed stack"
+runs:
+  using: "node12"
+  main: "dist/index.js"
