@@ -15,7 +15,7 @@ Deploys AWS CloudFormation Stacks.
     template: myStack.yaml
 ```
 
-The action can be passed a CloudFormation Stack `name` and a `template` file. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and throw an error.
+The action can be passed a CloudFormation Stack `name` and a `template` file. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
 
 See [action.yml](action.yml) for the full documentation for this action's inputs and outputs.
 
