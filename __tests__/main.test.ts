@@ -63,7 +63,13 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-fail-on-empty-changeset': '0'
+      'no-fail-on-empty-changeset': '0',
+      'disable-rollback': '0',
+      'timeout-in-minutes': '',
+      'notification-arns': '',
+      'role-arn': '',
+      tags: '',
+      'termination-protection': ''
     };
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -155,7 +161,7 @@ describe('Deploy CloudFormation Stack', () => {
     });
   });
 
-  test('deploys the stack', async () => {
+  test('deploys the stack with template', async () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
@@ -166,7 +172,254 @@ describe('Deploy CloudFormation Stack', () => {
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
-      ]
+      ],
+      DisableRollback: false,
+      EnableTerminationProtection: false
+    });
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('deploys the stack with template url', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      TemplateBody: undefined,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      DisableRollback: false,
+      EnableTerminationProtection: false
+    });
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('deploys the stack with termination protection', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1',
+      'termination-protection': '1'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      TemplateBody: undefined,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      DisableRollback: false,
+      EnableTerminationProtection: true
+    });
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('deploys the stack with disabling rollback', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1',
+      'disable-rollback': '1'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      TemplateBody: undefined,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      DisableRollback: true,
+      EnableTerminationProtection: false
+    });
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('deploys the stack with Notification ARNs', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1',
+      'notification-arns':
+        'arn:aws:sns:us-east-2:123456789012:MyTopic,arn:aws:sns:us-east-2:123456789012:MyTopic2'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      TemplateBody: undefined,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      NotificationARNs: [
+        'arn:aws:sns:us-east-2:123456789012:MyTopic',
+        'arn:aws:sns:us-east-2:123456789012:MyTopic2'
+      ],
+      DisableRollback: false,
+      EnableTerminationProtection: false
+    });
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('deploys the stack with Role ARN', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1',
+      'role-arn': 'arn:aws:iam::123456789012:role/my-role'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      TemplateBody: undefined,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      RoleARN: 'arn:aws:iam::123456789012:role/my-role',
+      DisableRollback: false,
+      EnableTerminationProtection: false
+    });
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('deploys the stack with tags', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1',
+      tags: '[{"Key":"Test","Value":"Value"}]'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      TemplateBody: undefined,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      Tags: [{ Key: 'Test', Value: 'Value' }],
+      DisableRollback: false,
+      EnableTerminationProtection: false
+    });
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('deploys the stack with timeout', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1',
+      'timeout-in-minutes': '10'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      TemplateBody: undefined,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      TimeoutInMinutes: 10,
+      DisableRollback: false,
+      EnableTerminationProtection: false
     });
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
@@ -186,8 +439,7 @@ describe('Deploy CloudFormation Stack', () => {
                 CreationTime: new Date('2013-08-23T01:02:15.422Z'),
                 Capabilities: [],
                 StackName: 'MockStack',
-                StackStatus: 'CREATE_COMPLETE',
-                DisableRollback: false
+                StackStatus: 'CREATE_COMPLETE'
               }
             ]
           });
@@ -206,7 +458,14 @@ describe('Deploy CloudFormation Stack', () => {
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
       ],
-      ChangeSetName: 'MockStack-CS'
+      ChangeSetName: 'MockStack-CS',
+      DisableRollback: false,
+      EnableTerminationProtection: false,
+      NotificationARNs: undefined,
+      RoleARN: undefined,
+      Tags: undefined,
+      TemplateURL: undefined,
+      TimeoutInMinutes: undefined
     });
     expect(mockDescribeChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',
@@ -279,7 +538,14 @@ describe('Deploy CloudFormation Stack', () => {
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
       ],
-      ChangeSetName: 'MockStack-CS'
+      ChangeSetName: 'MockStack-CS',
+      DisableRollback: false,
+      EnableTerminationProtection: false,
+      NotificationARNs: undefined,
+      RoleARN: undefined,
+      Tags: undefined,
+      TemplateURL: undefined,
+      TimeoutInMinutes: undefined
     });
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',
@@ -362,7 +628,14 @@ describe('Deploy CloudFormation Stack', () => {
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
       ],
-      ChangeSetName: 'MockStack-CS'
+      ChangeSetName: 'MockStack-CS',
+      DisableRollback: false,
+      EnableTerminationProtection: false,
+      NotificationARNs: undefined,
+      RoleARN: undefined,
+      Tags: undefined,
+      TemplateURL: undefined,
+      TimeoutInMinutes: undefined
     });
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',

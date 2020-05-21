@@ -3,6 +3,7 @@ import * as core from '@actions/core';
 import * as aws from 'aws-sdk';
 import * as fs from 'fs';
 import { deployStack } from './deploy';
+import { isUrl, parseTags, parseString, parseNumber, parseARNs } from './utils';
 
 export type CreateStackInput = aws.CloudFormation.Types.CreateStackInput;
 export type CreateChangeSetInput = aws.CloudFormation.Types.CreateChangeSetInput;
@@ -27,7 +28,7 @@ export async function run(): Promise<void> {
     const { GITHUB_WORKSPACE = __dirname } = process.env;
 
     // Get inputs
-    const templateFile = core.getInput('template', { required: true });
+    const template = core.getInput('template', { required: true });
     const stackName = core.getInput('name', { required: true });
     const capabilities = core.getInput('capabilities', {
       required: false
@@ -38,19 +39,60 @@ export async function run(): Promise<void> {
     const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
       required: false
     });
+    const disableRollback = !!+core.getInput('disable-rollback', {
+      required: false
+    });
+    const timeoutInMinutes = parseNumber(
+      core.getInput('timeout-in-minutes', {
+        required: false
+      })
+    );
+    const notificationARNs = parseARNs(
+      core.getInput('notification-arns', {
+        required: false
+      })
+    );
+    const roleARN = parseString(
+      core.getInput('role-arn', {
+        required: false
+      })
+    );
+    const tags = parseTags(
+      core.getInput('tags', {
+        required: false
+      })
+    );
+    const terminationProtections = !!+core.getInput('termination-protection', {
+      required: false
+    });
 
-    // Get CloudFormation Stack
-    core.debug('Loading CloudFormation Stack template');
-    const templateFilePath = path.isAbsolute(templateFile)
-      ? templateFile
-      : path.join(GITHUB_WORKSPACE, templateFile);
-    const templateBody = fs.readFileSync(templateFilePath, 'utf8');
+    // Setup CloudFormation Stack
+    let templateBody;
+    let templateUrl;
+
+    if (isUrl(template)) {
+      core.debug('Using CloudFormation Stack from Amazon S3 Bucket');
+      templateUrl = template;
+    } else {
+      core.debug('Loading CloudFormation Stack template');
+      const templateFilePath = path.isAbsolute(template)
+        ? template
+        : path.join(GITHUB_WORKSPACE, template);
+      templateBody = fs.readFileSync(templateFilePath, 'utf8');
+    }
 
     // CloudFormation Stack Parameter for the creation or update
     const params: CreateStackInput = {
       StackName: stackName,
       Capabilities: [...capabilities.split(',').map(cap => cap.trim())],
-      TemplateBody: templateBody
+      RoleARN: roleARN,
+      NotificationARNs: notificationARNs,
+      DisableRollback: disableRollback,
+      TimeoutInMinutes: timeoutInMinutes,
+      TemplateBody: templateBody,
+      TemplateURL: templateUrl,
+      Tags: tags,
+      EnableTerminationProtection: terminationProtections
     };
 
     if (parameterOverrides) {
