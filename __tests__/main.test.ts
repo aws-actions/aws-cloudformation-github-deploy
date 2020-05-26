@@ -459,8 +459,8 @@ describe('Deploy CloudFormation Stack', () => {
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
       ],
       ChangeSetName: 'MockStack-CS',
-      DisableRollback: false,
-      EnableTerminationProtection: false,
+      ResourceType: undefined,
+      RollbackConfiguration: undefined,
       NotificationARNs: undefined,
       RoleARN: undefined,
       Tags: undefined,
@@ -539,8 +539,8 @@ describe('Deploy CloudFormation Stack', () => {
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
       ],
       ChangeSetName: 'MockStack-CS',
-      DisableRollback: false,
-      EnableTerminationProtection: false,
+      ResourceTypes: undefined,
+      RollbackConfiguration: undefined,
       NotificationARNs: undefined,
       RoleARN: undefined,
       Tags: undefined,
@@ -629,9 +629,9 @@ describe('Deploy CloudFormation Stack', () => {
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
       ],
       ChangeSetName: 'MockStack-CS',
-      DisableRollback: false,
-      EnableTerminationProtection: false,
       NotificationARNs: undefined,
+      ResourceTypes: undefined,
+      RollbackConfiguration: undefined,
       RoleARN: undefined,
       Tags: undefined,
       TemplateURL: undefined,

@@ -92,8 +92,19 @@ export async function deployStack(
     cfn,
     stack,
     {
-      ...params,
-      ChangeSetName: `${params.StackName}-CS`
+      ChangeSetName: `${params.StackName}-CS`,
+      ...{
+        StackName: params.StackName,
+        TemplateBody: params.TemplateBody,
+        TemplateURL: params.TemplateURL,
+        Parameters: params.Parameters,
+        Capabilities: params.Capabilities,
+        ResourceTypes: params.ResourceTypes,
+        RoleARN: params.RoleARN,
+        RollbackConfiguration: params.RollbackConfiguration,
+        NotificationARNs: params.NotificationARNs,
+        Tags: params.Tags
+      }
     },
     noEmptyChangeSet
   );
