@@ -467,10 +467,6 @@ describe('Deploy CloudFormation Stack', () => {
       TemplateURL: undefined,
       TimeoutInMinutes: undefined
     });
-    expect(mockDescribeChangeSet).toHaveBeenNthCalledWith(1, {
-      ChangeSetName: 'MockStack-CS',
-      StackName: 'MockStack'
-    });
     expect(mockExecuteChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',
       StackName: 'MockStack'
@@ -527,6 +523,14 @@ describe('Deploy CloudFormation Stack', () => {
       };
     });
 
+    mockCfnWaiter.mockImplementation(() => {
+      return {
+        promise(): Promise<{}> {
+          return Promise.reject({});
+        }
+      };
+    });
+
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(1);
@@ -577,15 +581,23 @@ describe('Deploy CloudFormation Stack', () => {
                   'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
                 Tags: [],
                 Outputs: [],
-                StackStatusReason: '',
+                StackStatusReason: `The submitted information didn't contain changes`,
                 CreationTime: new Date('2013-08-23T01:02:15.422Z'),
                 Capabilities: [],
                 StackName: 'MockStack',
-                StackStatus: 'CREATE_COMPLETE',
+                StackStatus: 'FAILED',
                 DisableRollback: false
               }
             ]
           });
+        }
+      };
+    });
+
+    mockCfnWaiter.mockImplementation(() => {
+      return {
+        promise(): Promise<{}> {
+          return Promise.reject({});
         }
       };
     });
@@ -607,6 +619,103 @@ describe('Deploy CloudFormation Stack', () => {
             Status: 'FAILED',
             StatusReason:
               "The submitted information didn't contain changes. Submit different information to create a change set.",
+            NotificationARNs: [],
+            RollbackConfiguration: {},
+            Capabilities: ['CAPABILITY_IAM'],
+            Tags: null
+          });
+        }
+      };
+    });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateBody: mockTemplate,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      ChangeSetName: 'MockStack-CS',
+      NotificationARNs: undefined,
+      ResourceTypes: undefined,
+      RollbackConfiguration: undefined,
+      RoleARN: undefined,
+      Tags: undefined,
+      TemplateURL: undefined,
+      TimeoutInMinutes: undefined
+    });
+    expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
+      ChangeSetName: 'MockStack-CS',
+      StackName: 'MockStack'
+    });
+    expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0);
+  });
+
+  test('no error if updating fails with no updates to be performed', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template: 'template.yaml',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1'
+    };
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name];
+    });
+
+    mockDescribeStacks.mockImplementation(() => {
+      return {
+        promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
+          return Promise.resolve({
+            Stacks: [
+              {
+                StackId:
+                  'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+                Tags: [],
+                Outputs: [],
+                StackStatusReason: '',
+                CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+                Capabilities: [],
+                StackName: 'MockStack',
+                StackStatus: 'UPDATE_COMPLETE',
+                DisableRollback: false
+              }
+            ]
+          });
+        }
+      };
+    });
+
+    mockCfnWaiter.mockImplementation(() => {
+      return {
+        promise(): Promise<{}> {
+          return Promise.reject({});
+        }
+      };
+    });
+
+    mockDescribeChangeSet.mockImplementation(() => {
+      return {
+        promise(): Promise<aws.CloudFormation.Types.CreateChangeSetOutput> {
+          return Promise.resolve({
+            Changes: [],
+            ChangeSetName: 'MockStack-CS',
+            ChangeSetId:
+              'arn:aws:cloudformation:us-west-2:123456789012:changeSet/my-change-set/4eca1a01-e285-xmpl-8026-9a1967bfb4b0',
+            StackId: mockStackId,
+            StackName: 'MockStack',
+            Description: null,
+            Parameters: null,
+            CreationTime: '2019-10-02T05:20:56.651Z',
+            ExecutionStatus: 'AVAILABLE',
+            Status: 'FAILED',
+            StatusReason: 'No updates are to be performed',
             NotificationARNs: [],
             RollbackConfiguration: {},
             Capabilities: ['CAPABILITY_IAM'],

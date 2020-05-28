@@ -4,15 +4,17 @@ import { CreateChangeSetInput, CreateStackInput } from './main';
 
 export type Stack = aws.CloudFormation.Stack;
 
-export async function updateStack(
+export async function cleanupChangeSet(
   cfn: aws.CloudFormation,
   stack: Stack,
   params: CreateChangeSetInput,
   noEmptyChangeSet: boolean
 ): Promise<string | undefined> {
-  core.debug('Creating CloudFormation Change Set');
+  const knownErrorMessages = [
+    `No updates are to be performed`,
+    `The submitted information didn't contain changes`
+  ];
 
-  await cfn.createChangeSet(params).promise();
   const changeSetStatus = await cfn
     .describeChangeSet({
       ChangeSetName: params.ChangeSetName,
@@ -32,8 +34,8 @@ export async function updateStack(
 
     if (
       noEmptyChangeSet &&
-      changeSetStatus.StatusReason?.includes(
-        "The submitted information didn't contain changes"
+      knownErrorMessages.some(err =>
+        changeSetStatus.StatusReason?.includes(err)
       )
     ) {
       return stack.StackId;
@@ -43,15 +45,30 @@ export async function updateStack(
       `Failed to create Change Set: ${changeSetStatus.StatusReason}`
     );
   }
+}
+
+export async function updateStack(
+  cfn: aws.CloudFormation,
+  stack: Stack,
+  params: CreateChangeSetInput,
+  noEmptyChangeSet: boolean
+): Promise<string | undefined> {
+  core.debug('Creating CloudFormation Change Set');
+  await cfn.createChangeSet(params).promise();
+
+  try {
+    core.debug('Waiting for CloudFormation Change Set creation');
+    await cfn
+      .waitFor('changeSetCreateComplete', {
+        ChangeSetName: params.ChangeSetName,
+        StackName: params.StackName
+      })
+      .promise();
+  } catch (_) {
+    return cleanupChangeSet(cfn, stack, params, noEmptyChangeSet);
+  }
 
   core.debug('Executing CloudFormation Change Set');
-  await cfn
-    .waitFor('changeSetCreateComplete', {
-      ChangeSetName: params.ChangeSetName,
-      StackName: params.StackName
-    })
-    .promise();
-
   await cfn
     .executeChangeSet({
       ChangeSetName: params.ChangeSetName,
