@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as core from '@actions/core';
 import * as aws from 'aws-sdk';
 import * as fs from 'fs';
-import { deployStack } from './deploy';
+import { deployStack, getStackOutputs } from './deploy';
 import { isUrl, parseTags, parseString, parseNumber, parseARNs } from './utils';
 
 export type CreateStackInput = aws.CloudFormation.Types.CreateStackInput;
@@ -107,10 +107,15 @@ export async function run(): Promise<void> {
       ];
     }
 
-    core.setOutput(
-      'stack-id',
-      (await deployStack(cfn, params, noEmptyChangeSet)) || 'UNKOWN'
-    );
+    const stackId = await deployStack(cfn, params, noEmptyChangeSet);
+    core.setOutput('stack-id', stackId || 'UNKNOWN');
+
+    if (stackId) {
+      const outputs = await getStackOutputs(cfn, stackId);
+      for (const [key, value] of outputs) {
+        core.setOutput(key, value);
+      }
+    }
   } catch (err) {
     core.setFailed(err.message);
     core.debug(err.stack);

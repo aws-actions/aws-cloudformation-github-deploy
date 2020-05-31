@@ -144,13 +144,35 @@ describe('Deploy CloudFormation Stack', () => {
       };
     });
 
-    mockDescribeStacks.mockImplementation(() => {
-      const err: aws.AWSError = new Error(
-        'The stack does not exist.'
-      ) as aws.AWSError;
-      err.code = 'ValidationError';
-      throw err;
-    });
+    mockDescribeStacks
+      .mockImplementationOnce(() => {
+        const err: aws.AWSError = new Error(
+          'The stack does not exist.'
+        ) as aws.AWSError;
+        err.code = 'ValidationError';
+        throw err;
+      })
+      .mockImplementation(() => {
+        return {
+          promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
+            return Promise.resolve({
+              Stacks: [
+                {
+                  StackId:
+                    'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+                  Tags: [],
+                  Outputs: [],
+                  StackStatusReason: '',
+                  CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+                  Capabilities: [],
+                  StackName: 'MockStack',
+                  StackStatus: 'CREATE_COMPLETE'
+                }
+              ]
+            });
+          }
+        };
+      });
 
     mockCfnWaiter.mockImplementation(() => {
       return {
@@ -165,9 +187,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -179,7 +204,75 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+  });
+
+  test('sets the stack outputs as action outputs', async () => {
+    mockDescribeStacks.mockReset();
+    mockDescribeStacks
+      .mockImplementationOnce(() => {
+        const err: aws.AWSError = new Error(
+          'The stack does not exist.'
+        ) as aws.AWSError;
+        err.code = 'ValidationError';
+        throw err;
+      })
+      .mockImplementation(() => {
+        return {
+          promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
+            return Promise.resolve({
+              Stacks: [
+                {
+                  StackId:
+                    'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+                  Tags: [],
+                  Outputs: [
+                    {
+                      OutputKey: 'hello',
+                      OutputValue: 'world'
+                    },
+                    {
+                      OutputKey: 'foo',
+                      OutputValue: 'bar'
+                    }
+                  ],
+                  StackStatusReason: '',
+                  CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+                  Capabilities: [],
+                  StackName: 'MockStack',
+                  StackStatus: 'CREATE_COMPLETE'
+                }
+              ]
+            });
+          }
+        };
+      });
+
+    await run();
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
+    });
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateBody: mockTemplate,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      DisableRollback: false,
+      EnableTerminationProtection: false
+    });
+    expect(core.setOutput).toHaveBeenCalledTimes(3);
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
+    expect(core.setOutput).toHaveBeenNthCalledWith(2, 'hello', 'world');
+    expect(core.setOutput).toHaveBeenNthCalledWith(3, 'foo', 'bar');
   });
 
   test('deploys the stack with template url', async () => {
@@ -199,9 +292,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -215,6 +311,7 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
 
@@ -236,9 +333,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -252,6 +352,7 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: true
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
 
@@ -273,9 +374,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -289,6 +393,7 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: true,
       EnableTerminationProtection: false
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
 
@@ -311,9 +416,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -331,6 +439,7 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
 
@@ -352,9 +461,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -369,6 +481,7 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
 
@@ -390,9 +503,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -407,6 +523,7 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
 
@@ -428,9 +545,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
@@ -445,10 +565,12 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
   });
 
   test('successfully update the stack', async () => {
+    mockDescribeStacks.mockReset();
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -474,9 +596,12 @@ describe('Deploy CloudFormation Stack', () => {
     await run();
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenCalledTimes(0);
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
@@ -503,6 +628,7 @@ describe('Deploy CloudFormation Stack', () => {
   });
 
   test('error is caught updating if create change fails', async () => {
+    mockDescribeStacks.mockReset();
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -603,6 +729,7 @@ describe('Deploy CloudFormation Stack', () => {
       return inputs[name];
     });
 
+    mockDescribeStacks.mockReset();
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -664,9 +791,12 @@ describe('Deploy CloudFormation Stack', () => {
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
     expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenCalledTimes(0);
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
@@ -705,6 +835,7 @@ describe('Deploy CloudFormation Stack', () => {
       return inputs[name];
     });
 
+    mockDescribeStacks.mockReset();
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -765,9 +896,12 @@ describe('Deploy CloudFormation Stack', () => {
 
     expect(core.setFailed).toHaveBeenCalledTimes(0);
     expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
+    });
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
     });
     expect(mockCreateStack).toHaveBeenCalledTimes(0);
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
@@ -794,6 +928,7 @@ describe('Deploy CloudFormation Stack', () => {
   });
 
   test('error is caught by core.setFailed', async () => {
+    mockDescribeStacks.mockReset();
     mockDescribeStacks.mockImplementation(() => {
       throw new Error();
     });
