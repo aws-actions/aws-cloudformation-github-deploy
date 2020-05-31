@@ -84,15 +84,31 @@ export async function updateStack(
   return stack.StackId;
 }
 
+async function getStack(
+  cfn: aws.CloudFormation,
+  stackNameOrId: string
+): Promise<Stack | undefined> {
+  try {
+    const stacks = await cfn
+      .describeStacks({
+        StackName: stackNameOrId
+      })
+      .promise();
+    return stacks.Stacks?.[0];
+  } catch (e) {
+    if (e.code === 'ValidationError' && e.message.match(/does not exist/)) {
+      return undefined;
+    }
+    throw e;
+  }
+}
+
 export async function deployStack(
   cfn: aws.CloudFormation,
   params: CreateStackInput,
   noEmptyChangeSet: boolean
 ): Promise<string | undefined> {
-  const stacks = await cfn.describeStacks().promise();
-  const stack = stacks['Stacks']?.find(
-    stack => stack.StackName === params.StackName
-  );
+  const stack = await getStack(cfn, params.StackName);
 
   if (!stack) {
     core.debug(`Creating CloudFormation Stack`);
