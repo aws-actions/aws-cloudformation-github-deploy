@@ -5,41 +5,42 @@ branding:
   color: "orange"
 inputs:
   name:
-    description: "The name of the CloudFormation Stack"
+    description: "The name of the CloudFormation stack"
     required: true
   template:
-    description: "The path or URL to the CloudFormation Stack"
+    description: "The path or URL to the CloudFormation template"
     required: true
   capabilities:
-    description: "The acknowledge stack template capabilities. Defaults to 'CAPABILITY_IAM'"
+    description: "The comma-delimited list of stack template capabilities to acknowledge. Defaults to 'CAPABILITY_IAM'"
     required: false
     default: "CAPABILITY_IAM"
   parameter-overrides:
-    description: "The parameters to override in the stack inputs"
+    description: "The parameters to override in the stack inputs. The list is comma-delimited, with each entry formatted as <ParameterName>=<ParameterValue>."
     required: false
   no-fail-on-empty-changeset:
-    description: "If the CloudFormation Change Set is empty, do not fail. Default to '0'"
+    description: "If the CloudFormation change set is empty, do not fail. Defaults to '0' (will fail on empty change set)"
     required: false
     default: "0"
   disable-rollback:
-    description: "The rollback triggers for AWS CloudFormation to monitor during stack creation and updating operations, and for the specified monitoring period afterwards"
+    description: "Disable rollback of the stack if stack creation fails. Defaults to '0' (will rollback if stack creation fails). This input is only used for stack creation, not for stack update"
     required: false
     default: "0"
   timeout-in-minutes:
-    description: "The amount of time that can pass before the stack status becomes CREATE_FAILED"
+    description: "The amount of time that can pass before the stack status becomes CREATE_FAILED. This input is only used for stack creation, not for stack update"
     required: false
   notification-arns:
-    description: "In some cases, you must explicitly acknowledge that your stack template contains certain capabilities in order for AWS CloudFormation to create the stack.    CAPABILITY_IAM and CAPABILITY_NAMED_IAM  Some stack templates might include resources that can affect permissions in your AWS account; for example, by creating new AWS Identity and Access Management (IAM) users. For those stacks, you must explicitly acknowledge this by specifying one of these capabilities. The following IAM resources require you to specify either the CAPABILITY_IAM or CAPABILITY_NAMED_IAM capability.   If you have IAM resources, you can specify either capability.    If you have IAM resources with custom names, you must specify CAPABILITY_NAMED_IAM.    If you don't specify either of these capabilities, AWS CloudFormation returns an InsufficientCapabilities error.   If your stack template contains these resources, we recommend that you review all permissions associated with them and edit their permissions if necessary.     AWS::IAM::AccessKey      AWS::IAM::Group      AWS::IAM::InstanceProfile      AWS::IAM::Policy      AWS::IAM::Role      AWS::IAM::User      AWS::IAM::UserToGroupAddition    For more information, see Acknowledging IAM Resources in AWS CloudFormation Templates.    CAPABILITY_AUTO_EXPAND  Some template contain macros. Macros perform custom processing on templates; this can include simple actions like find-and-replace operations, all the way to extensive transformations of entire templates. Because of this, users typically create a change set from the processed template, so that they can review the changes resulting from the macros before actually creating the stack. If your stack template contains one or more macros, and you choose to create a stack directly from the processed template, without first reviewing the resulting changes in a change set, you must acknowledge this capability. This includes the AWS::Include and AWS::Serverless transforms, which are macros hosted by AWS CloudFormation. Change sets do not currently support nested stacks. If you want to create a stack from a stack template that contains macros and nested stacks, you must create the stack directly from the template using this capability.  You should only create stacks directly from a stack template that contains macros if you know what processing the macro performs. Each macro relies on an underlying Lambda service function for processing stack templates. Be aware that the Lambda function owner can update the function operation without AWS CloudFormation being notified"
+    description: "The comma-delimited list of Amazon SNS topic ARNs to publish stack related events"
     required: false
   role-arn:
     description: "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that AWS CloudFormation assumes to create the stack. AWS CloudFormation uses the role's credentials to make calls on your behalf. AWS CloudFormation always uses this role for all future operations on the stack. As long as users have permission to operate on the stack, AWS CloudFormation uses this role even if the users don't have permission to pass it. Ensure that the role grants least privilege. If you don't specify a value, AWS CloudFormation uses the role that was previously associated with the stack"
     required: false
   tags:
-    description: "Key-value pairs to associate with this stack."
+    description: 'Key-value pairs to associate with this stack. This input should be JSON-formatted, for example [ { "Key": "string", "Value": "string" } ]'
     required: false
   termination-protection:
-    description: "Whether to enable termination protection on the specified stack"
+    description: "Whether to enable termination protection on the specified stack. Defaults to '0' (terminated protection will be disabled) This input is only used for stack creation, not for stack update"
     required: false
+    default: "0"
 outputs:
   stack-id:
     description: "The id of the deployed stack"
