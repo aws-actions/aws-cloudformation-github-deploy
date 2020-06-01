@@ -142,3 +142,21 @@ export async function deployStack(
     noEmptyChangeSet
   );
 }
+
+export async function getStackOutputs(
+  cfn: aws.CloudFormation,
+  stackId: string
+): Promise<Map<string, string>> {
+  const outputs = new Map<string, string>();
+  const stack = await getStack(cfn, stackId);
+
+  if (stack && stack.Outputs) {
+    for (const output of stack.Outputs) {
+      if (output.OutputKey && output.OutputValue) {
+        outputs.set(output.OutputKey, output.OutputValue);
+      }
+    }
+  }
+
+  return outputs;
+}
