@@ -1,8 +1,8 @@
-import * as core from '@actions/core';
-import * as aws from 'aws-sdk';
-import { CreateChangeSetInput, CreateStackInput } from './main';
+import * as core from '@actions/core'
+import * as aws from 'aws-sdk'
+import { CreateChangeSetInput, CreateStackInput } from './main'
 
-export type Stack = aws.CloudFormation.Stack;
+export type Stack = aws.CloudFormation.Stack
 
 export async function cleanupChangeSet(
   cfn: aws.CloudFormation,
@@ -13,24 +13,24 @@ export async function cleanupChangeSet(
   const knownErrorMessages = [
     `No updates are to be performed`,
     `The submitted information didn't contain changes`
-  ];
+  ]
 
   const changeSetStatus = await cfn
     .describeChangeSet({
       ChangeSetName: params.ChangeSetName,
       StackName: params.StackName
     })
-    .promise();
+    .promise()
 
   if (changeSetStatus.Status === 'FAILED') {
-    core.debug('Deleting failed Change Set');
+    core.debug('Deleting failed Change Set')
 
     await cfn
       .deleteChangeSet({
         ChangeSetName: params.ChangeSetName,
         StackName: params.StackName
       })
-      .promise();
+      .promise()
 
     if (
       noEmptyChangeSet &&
@@ -38,12 +38,12 @@ export async function cleanupChangeSet(
         changeSetStatus.StatusReason?.includes(err)
       )
     ) {
-      return stack.StackId;
+      return stack.StackId
     }
 
     throw new Error(
       `Failed to create Change Set: ${changeSetStatus.StatusReason}`
-    );
+    )
   }
 }
 
@@ -53,35 +53,35 @@ export async function updateStack(
   params: CreateChangeSetInput,
   noEmptyChangeSet: boolean
 ): Promise<string | undefined> {
-  core.debug('Creating CloudFormation Change Set');
-  await cfn.createChangeSet(params).promise();
+  core.debug('Creating CloudFormation Change Set')
+  await cfn.createChangeSet(params).promise()
 
   try {
-    core.debug('Waiting for CloudFormation Change Set creation');
+    core.debug('Waiting for CloudFormation Change Set creation')
     await cfn
       .waitFor('changeSetCreateComplete', {
         ChangeSetName: params.ChangeSetName,
         StackName: params.StackName
       })
-      .promise();
+      .promise()
   } catch (_) {
-    return cleanupChangeSet(cfn, stack, params, noEmptyChangeSet);
+    return cleanupChangeSet(cfn, stack, params, noEmptyChangeSet)
   }
 
-  core.debug('Executing CloudFormation Change Set');
+  core.debug('Executing CloudFormation Change Set')
   await cfn
     .executeChangeSet({
       ChangeSetName: params.ChangeSetName,
       StackName: params.StackName
     })
-    .promise();
+    .promise()
 
-  core.debug('Updating CloudFormation Stack');
+  core.debug('Updating CloudFormation Stack')
   await cfn
     .waitFor('stackUpdateComplete', { StackName: stack.StackId })
-    .promise();
+    .promise()
 
-  return stack.StackId;
+  return stack.StackId
 }
 
 async function getStack(
@@ -93,13 +93,13 @@ async function getStack(
       .describeStacks({
         StackName: stackNameOrId
       })
-      .promise();
-    return stacks.Stacks?.[0];
+      .promise()
+    return stacks.Stacks?.[0]
   } catch (e) {
     if (e.code === 'ValidationError' && e.message.match(/does not exist/)) {
-      return undefined;
+      return undefined
     }
-    throw e;
+    throw e
   }
 }
 
@@ -108,17 +108,17 @@ export async function deployStack(
   params: CreateStackInput,
   noEmptyChangeSet: boolean
 ): Promise<string | undefined> {
-  const stack = await getStack(cfn, params.StackName);
+  const stack = await getStack(cfn, params.StackName)
 
   if (!stack) {
-    core.debug(`Creating CloudFormation Stack`);
+    core.debug(`Creating CloudFormation Stack`)
 
-    const stack = await cfn.createStack(params).promise();
+    const stack = await cfn.createStack(params).promise()
     await cfn
       .waitFor('stackCreateComplete', { StackName: params.StackName })
-      .promise();
+      .promise()
 
-    return stack.StackId;
+    return stack.StackId
   }
 
   return await updateStack(
@@ -140,23 +140,23 @@ export async function deployStack(
       }
     },
     noEmptyChangeSet
-  );
+  )
 }
 
 export async function getStackOutputs(
   cfn: aws.CloudFormation,
   stackId: string
 ): Promise<Map<string, string>> {
-  const outputs = new Map<string, string>();
-  const stack = await getStack(cfn, stackId);
+  const outputs = new Map<string, string>()
+  const stack = await getStack(cfn, stackId)
 
   if (stack && stack.Outputs) {
     for (const output of stack.Outputs) {
       if (output.OutputKey && output.OutputValue) {
-        outputs.set(output.OutputKey, output.OutputValue);
+        outputs.set(output.OutputKey, output.OutputValue)
       }
     }
   }
 
-  return outputs;
+  return outputs
 }

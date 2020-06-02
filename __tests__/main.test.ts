@@ -1,11 +1,11 @@
-import { run, Inputs } from '../src/main';
-import * as path from 'path';
-import * as core from '@actions/core';
-import * as fs from 'fs';
-import * as aws from 'aws-sdk';
+import { run, Inputs } from '../src/main'
+import * as path from 'path'
+import * as core from '@actions/core'
+import * as fs from 'fs'
+import * as aws from 'aws-sdk'
 
-jest.mock('@actions/core');
-jest.mock('fs');
+jest.mock('@actions/core')
+jest.mock('fs')
 
 const mockTemplate = `
 AWSTemplateFormatVersion: "2010-09-09"
@@ -26,19 +26,19 @@ Resources:
 Outputs:
     CFSNSTopicArn:
     Value: !Ref CFSNSTopic
-`;
+`
 
 const mockStackId =
-  'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896';
+  'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
 
-const mockCreateStack = jest.fn();
-const mockUpdateStack = jest.fn();
-const mockDescribeStacks = jest.fn();
-const mockCreateChangeSet = jest.fn();
-const mockDescribeChangeSet = jest.fn();
-const mockDeleteChangeSet = jest.fn();
-const mockExecuteChangeSet = jest.fn();
-const mockCfnWaiter = jest.fn();
+const mockCreateStack = jest.fn()
+const mockUpdateStack = jest.fn()
+const mockDescribeStacks = jest.fn()
+const mockCreateChangeSet = jest.fn()
+const mockDescribeChangeSet = jest.fn()
+const mockDeleteChangeSet = jest.fn()
+const mockExecuteChangeSet = jest.fn()
+const mockCfnWaiter = jest.fn()
 jest.mock('aws-sdk', () => {
   return {
     CloudFormation: jest.fn(() => ({
@@ -51,12 +51,12 @@ jest.mock('aws-sdk', () => {
       executeChangeSet: mockExecuteChangeSet,
       waitFor: mockCfnWaiter
     }))
-  };
-});
+  }
+})
 
 describe('Deploy CloudFormation Stack', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.clearAllMocks()
 
     const inputs: Inputs = {
       name: 'MockStack',
@@ -70,87 +70,87 @@ describe('Deploy CloudFormation Stack', () => {
       'role-arn': '',
       tags: '',
       'termination-protection': ''
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    process.env = Object.assign(process.env, { GITHUB_WORKSPACE: __dirname });
+    process.env = Object.assign(process.env, { GITHUB_WORKSPACE: __dirname })
 
     jest.spyOn(fs, 'readFileSync').mockImplementation((pathInput, encoding) => {
-      const { GITHUB_WORKSPACE = '' } = process.env;
+      const { GITHUB_WORKSPACE = '' } = process.env
 
       if (encoding != 'utf8') {
-        throw new Error(`Wrong encoding ${encoding}`);
+        throw new Error(`Wrong encoding ${encoding}`)
       }
 
       if (pathInput == path.join(GITHUB_WORKSPACE, 'template.yaml')) {
-        return mockTemplate;
+        return mockTemplate
       }
 
-      throw new Error(`Unknown path ${pathInput}`);
-    });
+      throw new Error(`Unknown path ${pathInput}`)
+    })
 
     mockCreateStack.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
           return Promise.resolve({
             StackId: mockStackId
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
     mockUpdateStack.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
           return Promise.resolve({
             StackId: mockStackId
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
     mockCreateChangeSet.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.resolve({});
+          return Promise.resolve({})
         }
-      };
-    });
+      }
+    })
 
     mockDescribeChangeSet.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.resolve({});
+          return Promise.resolve({})
         }
-      };
-    });
+      }
+    })
 
     mockDeleteChangeSet.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.resolve({});
+          return Promise.resolve({})
         }
-      };
-    });
+      }
+    })
 
     mockExecuteChangeSet.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.resolve({});
+          return Promise.resolve({})
         }
-      };
-    });
+      }
+    })
 
     mockDescribeStacks
       .mockImplementationOnce(() => {
         const err: aws.AWSError = new Error(
           'The stack does not exist.'
-        ) as aws.AWSError;
-        err.code = 'ValidationError';
-        throw err;
+        ) as aws.AWSError
+        err.code = 'ValidationError'
+        throw err
       })
       .mockImplementation(() => {
         return {
@@ -169,31 +169,31 @@ describe('Deploy CloudFormation Stack', () => {
                   StackStatus: 'CREATE_COMPLETE'
                 }
               ]
-            });
+            })
           }
-        };
-      });
+        }
+      })
 
     mockCfnWaiter.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.resolve({});
+          return Promise.resolve({})
         }
-      };
-    });
-  });
+      }
+    })
+  })
 
   test('deploys the stack with template', async () => {
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateBody: mockTemplate,
@@ -203,20 +203,20 @@ describe('Deploy CloudFormation Stack', () => {
       ],
       DisableRollback: false,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('sets the stack outputs as action outputs', async () => {
-    mockDescribeStacks.mockReset();
+    mockDescribeStacks.mockReset()
     mockDescribeStacks
       .mockImplementationOnce(() => {
         const err: aws.AWSError = new Error(
           'The stack does not exist.'
-        ) as aws.AWSError;
-        err.code = 'ValidationError';
-        throw err;
+        ) as aws.AWSError
+        err.code = 'ValidationError'
+        throw err
       })
       .mockImplementation(() => {
         return {
@@ -244,21 +244,21 @@ describe('Deploy CloudFormation Stack', () => {
                   StackStatus: 'CREATE_COMPLETE'
                 }
               ]
-            });
+            })
           }
-        };
-      });
+        }
+      })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateBody: mockTemplate,
@@ -268,12 +268,12 @@ describe('Deploy CloudFormation Stack', () => {
       ],
       DisableRollback: false,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(3);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-    expect(core.setOutput).toHaveBeenNthCalledWith(2, 'hello', 'world');
-    expect(core.setOutput).toHaveBeenNthCalledWith(3, 'foo', 'bar');
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(3)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(2, 'hello', 'world')
+    expect(core.setOutput).toHaveBeenNthCalledWith(3, 'foo', 'bar')
+  })
 
   test('deploys the stack with template url', async () => {
     const inputs: Inputs = {
@@ -283,22 +283,22 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateURL:
@@ -310,10 +310,10 @@ describe('Deploy CloudFormation Stack', () => {
       ],
       DisableRollback: false,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('deploys the stack with termination protection', async () => {
     const inputs: Inputs = {
@@ -324,22 +324,22 @@ describe('Deploy CloudFormation Stack', () => {
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
       'termination-protection': '1'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateURL:
@@ -351,10 +351,10 @@ describe('Deploy CloudFormation Stack', () => {
       ],
       DisableRollback: false,
       EnableTerminationProtection: true
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('deploys the stack with disabling rollback', async () => {
     const inputs: Inputs = {
@@ -365,22 +365,22 @@ describe('Deploy CloudFormation Stack', () => {
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
       'disable-rollback': '1'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateURL:
@@ -392,10 +392,10 @@ describe('Deploy CloudFormation Stack', () => {
       ],
       DisableRollback: true,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('deploys the stack with Notification ARNs', async () => {
     const inputs: Inputs = {
@@ -407,22 +407,22 @@ describe('Deploy CloudFormation Stack', () => {
       'no-fail-on-empty-changeset': '1',
       'notification-arns':
         'arn:aws:sns:us-east-2:123456789012:MyTopic,arn:aws:sns:us-east-2:123456789012:MyTopic2'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateURL:
@@ -438,10 +438,10 @@ describe('Deploy CloudFormation Stack', () => {
       ],
       DisableRollback: false,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('deploys the stack with Role ARN', async () => {
     const inputs: Inputs = {
@@ -452,22 +452,22 @@ describe('Deploy CloudFormation Stack', () => {
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
       'role-arn': 'arn:aws:iam::123456789012:role/my-role'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateURL:
@@ -480,10 +480,10 @@ describe('Deploy CloudFormation Stack', () => {
       RoleARN: 'arn:aws:iam::123456789012:role/my-role',
       DisableRollback: false,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('deploys the stack with tags', async () => {
     const inputs: Inputs = {
@@ -494,22 +494,22 @@ describe('Deploy CloudFormation Stack', () => {
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
       tags: '[{"Key":"Test","Value":"Value"}]'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateURL:
@@ -522,10 +522,10 @@ describe('Deploy CloudFormation Stack', () => {
       Tags: [{ Key: 'Test', Value: 'Value' }],
       DisableRollback: false,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('deploys the stack with timeout', async () => {
     const inputs: Inputs = {
@@ -536,22 +536,22 @@ describe('Deploy CloudFormation Stack', () => {
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
       'timeout-in-minutes': '10'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
+    })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateURL:
@@ -564,13 +564,13 @@ describe('Deploy CloudFormation Stack', () => {
       TimeoutInMinutes: 10,
       DisableRollback: false,
       EnableTerminationProtection: false
-    });
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId);
-  });
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
 
   test('successfully update the stack', async () => {
-    mockDescribeStacks.mockReset();
+    mockDescribeStacks.mockReset()
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -588,22 +588,22 @@ describe('Deploy CloudFormation Stack', () => {
                 StackStatus: 'CREATE_COMPLETE'
               }
             ]
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
-    expect(mockCreateStack).toHaveBeenCalledTimes(0);
+    })
+    expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateBody: mockTemplate,
@@ -619,16 +619,16 @@ describe('Deploy CloudFormation Stack', () => {
       Tags: undefined,
       TemplateURL: undefined,
       TimeoutInMinutes: undefined
-    });
+    })
     expect(mockExecuteChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',
       StackName: 'MockStack'
-    });
-    expect(mockCfnWaiter).toHaveBeenCalledTimes(2);
-  });
+    })
+    expect(mockCfnWaiter).toHaveBeenCalledTimes(2)
+  })
 
   test('error is caught updating if create change fails', async () => {
-    mockDescribeStacks.mockReset();
+    mockDescribeStacks.mockReset()
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -647,10 +647,10 @@ describe('Deploy CloudFormation Stack', () => {
                 DisableRollback: false
               }
             ]
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
     mockDescribeChangeSet.mockImplementation(() => {
       return {
@@ -672,27 +672,27 @@ describe('Deploy CloudFormation Stack', () => {
             RollbackConfiguration: {},
             Capabilities: ['CAPABILITY_IAM'],
             Tags: null
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
     mockCfnWaiter.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.reject({});
+          return Promise.reject({})
         }
-      };
-    });
+      }
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(1);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(1);
+    expect(core.setFailed).toHaveBeenCalledTimes(1)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(1)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
-    expect(mockCreateStack).toHaveBeenCalledTimes(0);
+    })
+    expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateBody: mockTemplate,
@@ -708,13 +708,13 @@ describe('Deploy CloudFormation Stack', () => {
       Tags: undefined,
       TemplateURL: undefined,
       TimeoutInMinutes: undefined
-    });
+    })
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',
       StackName: 'MockStack'
-    });
-    expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0);
-  });
+    })
+    expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0)
+  })
 
   test('no error if updating fails with empty change set', async () => {
     const inputs: Inputs = {
@@ -723,13 +723,13 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    mockDescribeStacks.mockReset();
+    mockDescribeStacks.mockReset()
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -748,18 +748,18 @@ describe('Deploy CloudFormation Stack', () => {
                 DisableRollback: false
               }
             ]
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
     mockCfnWaiter.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.reject({});
+          return Promise.reject({})
         }
-      };
-    });
+      }
+    })
 
     mockDescribeChangeSet.mockImplementation(() => {
       return {
@@ -782,23 +782,23 @@ describe('Deploy CloudFormation Stack', () => {
             RollbackConfiguration: {},
             Capabilities: ['CAPABILITY_IAM'],
             Tags: null
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
-    expect(mockCreateStack).toHaveBeenCalledTimes(0);
+    })
+    expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateBody: mockTemplate,
@@ -814,13 +814,13 @@ describe('Deploy CloudFormation Stack', () => {
       Tags: undefined,
       TemplateURL: undefined,
       TimeoutInMinutes: undefined
-    });
+    })
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',
       StackName: 'MockStack'
-    });
-    expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0);
-  });
+    })
+    expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0)
+  })
 
   test('no error if updating fails with no updates to be performed', async () => {
     const inputs: Inputs = {
@@ -829,13 +829,13 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1'
-    };
+    }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
-      return inputs[name];
-    });
+      return inputs[name]
+    })
 
-    mockDescribeStacks.mockReset();
+    mockDescribeStacks.mockReset()
     mockDescribeStacks.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
@@ -854,18 +854,18 @@ describe('Deploy CloudFormation Stack', () => {
                 DisableRollback: false
               }
             ]
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
     mockCfnWaiter.mockImplementation(() => {
       return {
         promise(): Promise<{}> {
-          return Promise.reject({});
+          return Promise.reject({})
         }
-      };
-    });
+      }
+    })
 
     mockDescribeChangeSet.mockImplementation(() => {
       return {
@@ -887,23 +887,23 @@ describe('Deploy CloudFormation Stack', () => {
             RollbackConfiguration: {},
             Capabilities: ['CAPABILITY_IAM'],
             Tags: null
-          });
+          })
         }
-      };
-    });
+      }
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(0);
-    expect(core.setOutput).toHaveBeenCalledTimes(1);
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2);
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
-    });
+    })
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
       StackName: mockStackId
-    });
-    expect(mockCreateStack).toHaveBeenCalledTimes(0);
+    })
+    expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
       TemplateBody: mockTemplate,
@@ -919,22 +919,22 @@ describe('Deploy CloudFormation Stack', () => {
       Tags: undefined,
       TemplateURL: undefined,
       TimeoutInMinutes: undefined
-    });
+    })
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
       ChangeSetName: 'MockStack-CS',
       StackName: 'MockStack'
-    });
-    expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0);
-  });
+    })
+    expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0)
+  })
 
   test('error is caught by core.setFailed', async () => {
-    mockDescribeStacks.mockReset();
+    mockDescribeStacks.mockReset()
     mockDescribeStacks.mockImplementation(() => {
-      throw new Error();
-    });
+      throw new Error()
+    })
 
-    await run();
+    await run()
 
-    expect(core.setFailed).toBeCalled();
-  });
-});
+    expect(core.setFailed).toBeCalled()
+  })
+})

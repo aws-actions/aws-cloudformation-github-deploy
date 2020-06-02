@@ -1,16 +1,14 @@
 {
   "name": "aws-actions-aws-cloudformation-github-deploy",
-  "version": "1.0.0",
-  "description": "Deploys a AWS CloudFormation Stack",
+  "version": "1.0.3",
+  "description": "Deploys a AWS CloudFormation stack",
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
-    "format": "prettier --write **/*.ts",
-    "format-check": "prettier --check **/*.ts",
-    "lint": "eslint src/**/*.ts",
     "pack": "ncc build",
+    "precommit": "lint-staged",
     "test": "DEBUG=jest eslint **/*.ts && jest --coverage --verbose",
-    "all": "npm run build && npm run format && npm run lint && npm run pack && npm test"
+    "all": "npm run build && npm run precommit && npm run pack && npm test"
   },
   "repository": {
     "type": "git",
@@ -30,8 +28,8 @@
   "homepage": "https://github.com/aws-actions/aws-cloudformation-github-deploy#readme",
   "husky": {
     "hooks": {
-      "pre-commit": "npm test && npm run format && npm run lint",
-      "pre-push": "npm test && npm run format && npm run lint"
+      "pre-commit": "npm run precommit",
+      "pre-push": "npm run test"
     }
   },
   "dependencies": {
@@ -41,18 +39,19 @@
   "devDependencies": {
     "@types/jest": "^25.2.1",
     "@types/node": "^13.9.8",
-    "@typescript-eslint/eslint-plugin": "^2.30.0",
-    "@typescript-eslint/parser": "^2.30.0",
+    "@typescript-eslint/eslint-plugin": "^2.25.0",
+    "@typescript-eslint/parser": "^2.25.0",
     "@zeit/ncc": "^0.21.1",
     "eslint": "^6.8.0",
-    "eslint-config-prettier": "^6.11.0",
+    "eslint-config-prettier": "^6.10.1",
     "eslint-plugin-github": "^3.4.1",
-    "eslint-plugin-jest": "^23.13.2",
+    "eslint-plugin-jest": "^23.8.2",
     "eslint-plugin-prettier": "^3.1.2",
     "husky": "^4.2.5",
     "jest": "^25.5.4",
     "jest-circus": "^25.5.3",
     "js-yaml": "^3.13.1",
+    "lint-staged": "^10.2.7",
     "prettier": "^1.19.1",
     "ts-jest": "^25.4.0",
     "typescript": "^3.9.3"
