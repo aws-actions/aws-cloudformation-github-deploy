@@ -1,7 +1,6 @@
-import { parseTags, isUrl } from '../src/utils'
+import { parseTags, isUrl, parseParameters } from '../src/utils'
 
 jest.mock('@actions/core')
-jest.mock('fs')
 
 describe('Determine a valid url', () => {
   beforeEach(() => {
@@ -34,5 +33,40 @@ describe('Parse Tags', () => {
   test('returns valid Array on valid JSON', async () => {
     const json = parseTags(JSON.stringify([{ Key: 'Test', Value: 'Value' }]))
     expect(json).toEqual([{ Key: 'Test', Value: 'Value' }])
+  })
+})
+
+describe('Parse Parameters', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('returns parameters list from string', async () => {
+    const json = parseParameters('MyParam1=myValue1,MyParam2=myValue2')
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2'
+      }
+    ])
+  })
+
+  test('returns parameters list from file', async () => {
+    const filename = 'file://__tests__/params.test.json'
+    const json = parseParameters(filename)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2'
+      }
+    ])
   })
 })
