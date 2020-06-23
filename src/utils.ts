@@ -38,7 +38,7 @@ export function parseNumber(s: string): number | undefined {
 
 export function parseParameters(parameterOverrides: string): Parameter[] {
   if (parameterOverrides.trim().startsWith('file://')) {
-    const path = parameterOverrides.trim().replace('file://', './')
+    const path = new URL(parameterOverrides.trim())
     if (!fs.existsSync(path)) {
       throw new Error('parameter input file does not exist')
     }

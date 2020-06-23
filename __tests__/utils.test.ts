@@ -1,4 +1,5 @@
 import { parseTags, isUrl, parseParameters } from '../src/utils'
+import * as path from 'path'
 
 jest.mock('@actions/core')
 
@@ -56,7 +57,7 @@ describe('Parse Parameters', () => {
   })
 
   test('returns parameters list from file', async () => {
-    const filename = 'file://__tests__/params.test.json'
+    const filename = 'file://' + path.join(__dirname, 'params.test.json')
     const json = parseParameters(filename)
     expect(json).toEqual([
       {
