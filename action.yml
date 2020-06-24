@@ -15,7 +15,7 @@ inputs:
     required: false
     default: "CAPABILITY_IAM"
   parameter-overrides:
-    description: "The parameters to override in the stack inputs. The list is comma-delimited, with each entry formatted as <ParameterName>=<ParameterValue>."
+    description: 'The parameters to override in the stack inputs. You can pass a comma-delimited list or a local JSON file. Comma-delimited list has each entry formatted as <ParameterName>=<ParameterValue>. A local JSON file should be named with "file://" prefix (e.g. file://params.json) and should look like: [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]'
     required: false
   no-fail-on-empty-changeset:
     description: "If the CloudFormation change set is empty, do not fail. Defaults to '0' (will fail on empty change set)"
