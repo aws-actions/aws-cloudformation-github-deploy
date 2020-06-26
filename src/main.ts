@@ -3,7 +3,14 @@ import * as core from '@actions/core'
 import * as aws from 'aws-sdk'
 import * as fs from 'fs'
 import { deployStack, getStackOutputs } from './deploy'
-import { isUrl, parseTags, parseString, parseNumber, parseARNs } from './utils'
+import {
+  isUrl,
+  parseTags,
+  parseString,
+  parseNumber,
+  parseARNs,
+  parseParameters
+} from './utils'
 
 export type CreateStackInput = aws.CloudFormation.Types.CreateStackInput
 export type CreateChangeSetInput = aws.CloudFormation.Types.CreateChangeSetInput
@@ -96,15 +103,7 @@ export async function run(): Promise<void> {
     }
 
     if (parameterOverrides) {
-      params.Parameters = [
-        ...parameterOverrides.split(',').map(parameter => {
-          const [key, value] = parameter.trim().split('=')
-          return {
-            ParameterKey: key,
-            ParameterValue: value
-          }
-        })
-      ]
+      params.Parameters = parseParameters(parameterOverrides)
     }
 
     const stackId = await deployStack(cfn, params, noEmptyChangeSet)
