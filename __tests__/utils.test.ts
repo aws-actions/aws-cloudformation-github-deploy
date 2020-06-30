@@ -70,4 +70,9 @@ describe('Parse Parameters', () => {
       }
     ])
   })
+
+  test('returns parameters list from file', async () => {
+    const filename = 'file://' + path.join(__dirname, 'params.tezt.json')
+    expect(() => parseParameters(filename)).toThrow()
+  })
 })

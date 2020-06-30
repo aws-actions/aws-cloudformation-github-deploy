@@ -103,7 +103,7 @@ export async function run(): Promise<void> {
     }
 
     if (parameterOverrides) {
-      params.Parameters = parseParameters(parameterOverrides)
+      params.Parameters = parseParameters(parameterOverrides.trim())
     }
 
     const stackId = await deployStack(cfn, params, noEmptyChangeSet)
