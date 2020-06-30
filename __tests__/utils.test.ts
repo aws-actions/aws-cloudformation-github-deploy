@@ -71,8 +71,14 @@ describe('Parse Parameters', () => {
     ])
   })
 
-  test('returns parameters list from file', async () => {
+  test('throws error if file is not found', async () => {
     const filename = 'file://' + path.join(__dirname, 'params.tezt.json')
+    expect(() => parseParameters(filename)).toThrow()
+  })
+
+  test('throws error if json in file cannot be parsed', async () => {
+    const filename =
+      'file://' + path.join(__dirname, 'params-invalid.test.json')
     expect(() => parseParameters(filename)).toThrow()
   })
 })
