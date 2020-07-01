@@ -33,7 +33,7 @@
     }
   },
   "dependencies": {
-    "@actions/core": "^1.2.3",
+    "@actions/core": "^1.2.4",
     "aws-sdk": "^2.639.0"
   },
   "devDependencies": {
