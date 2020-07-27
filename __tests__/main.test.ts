@@ -94,7 +94,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockCreateStack.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.CreateChangeSetOutput> {
           return Promise.resolve({
             StackId: mockStackId
           })
@@ -104,7 +104,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockUpdateStack.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.UpdateStackOutput> {
           return Promise.resolve({
             StackId: mockStackId
           })
@@ -114,7 +114,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockCreateChangeSet.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.CreateChangeSetOutput> {
           return Promise.resolve({})
         }
       }
@@ -122,7 +122,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockDescribeChangeSet.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.DescribeChangeSetOutput> {
           return Promise.resolve({})
         }
       }
@@ -130,7 +130,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockDeleteChangeSet.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.DeleteChangeSetOutput> {
           return Promise.resolve({})
         }
       }
@@ -138,7 +138,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockExecuteChangeSet.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.ExecuteChangeSetOutput> {
           return Promise.resolve({})
         }
       }
@@ -176,7 +176,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockCfnWaiter.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
           return Promise.resolve({})
         }
       }
@@ -679,7 +679,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockCfnWaiter.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<unknown> {
           return Promise.reject({})
         }
       }
@@ -755,7 +755,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockCfnWaiter.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.UpdateStackOutput> {
           return Promise.reject({})
         }
       }
@@ -861,7 +861,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     mockCfnWaiter.mockImplementation(() => {
       return {
-        promise(): Promise<{}> {
+        promise(): Promise<aws.CloudFormation.Types.UpdateStackOutput> {
           return Promise.reject({})
         }
       }
