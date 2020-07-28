@@ -46,6 +46,15 @@ export async function run(): Promise<void> {
     const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
       required: false
     })
+    const noExecuteChageSet = !!+core.getInput('no-execute-changeset', {
+      required: false
+    })
+    const noDeleteFailedChangeSet = !!+core.getInput(
+      'no-delete-failed-changeset',
+      {
+        required: false
+      }
+    )
     const disableRollback = !!+core.getInput('disable-rollback', {
       required: false
     })
@@ -106,7 +115,13 @@ export async function run(): Promise<void> {
       params.Parameters = parseParameters(parameterOverrides.trim())
     }
 
-    const stackId = await deployStack(cfn, params, noEmptyChangeSet)
+    const stackId = await deployStack(
+      cfn,
+      params,
+      noEmptyChangeSet,
+      noExecuteChageSet,
+      noDeleteFailedChangeSet
+    )
     core.setOutput('stack-id', stackId || 'UNKNOWN')
 
     if (stackId) {
