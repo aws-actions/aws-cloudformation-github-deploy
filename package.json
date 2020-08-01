@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@actions/core": "^1.2.4",
-    "aws-sdk": "^2.720.0"
+    "aws-sdk": "^2.725.0"
   },
   "devDependencies": {
     "@types/jest": "^26.0.7",
