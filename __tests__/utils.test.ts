@@ -56,6 +56,22 @@ describe('Parse Parameters', () => {
     ])
   })
 
+  test('returns parameters list from string', async () => {
+    const json = parseParameters(
+      'MyParam1=myValue1,MyParam2=myValue2,MyParam2=myValue3'
+    )
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2,myValue3'
+      }
+    ])
+  })
+
   test('returns parameters list from file', async () => {
     const filename = 'file://' + path.join(__dirname, 'params.test.json')
     const json = parseParameters(filename)

@@ -47,6 +47,7 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
       throw err
     }
   }
+
   const parameters = new Map<string, string>()
   parameterOverrides.split(',').forEach(parameter => {
     const [key, value] = parameter.trim().split('=')
