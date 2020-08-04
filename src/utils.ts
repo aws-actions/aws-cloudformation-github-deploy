@@ -37,15 +37,14 @@ export function parseNumber(s: string): number | undefined {
 }
 
 export function parseParameters(parameterOverrides: string): Parameter[] {
-  try {
-    const path = new URL(parameterOverrides)
-    const rawParameters = fs.readFileSync(path, 'utf-8')
 
-    return JSON.parse(rawParameters)
-  } catch (err) {
-    if (err.code !== 'ERR_INVALID_URL') {
-      throw err
-    }
+  if (parameterOverrides.trim().startsWith('file://')) {
+   const path = parameterOverrides.trim().replace('file://', './')
+   if (!fs.existsSync(path)) {
+     throw new Error('parameter-overrides input file does not exist')
+  }
+   const rawParameters = fs.readFileSync(path, 'utf-8')
+   return JSON.parse(rawParameters)
   }
 
   const parameters = new Map<string, string>()
