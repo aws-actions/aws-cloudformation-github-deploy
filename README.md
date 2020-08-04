@@ -9,7 +9,7 @@ Deploys AWS CloudFormation Stacks.
 
 ```yaml
 - name: Deploy to AWS CloudFormation
-  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
   with:
     name: MyStack
     template: myStack.yaml
