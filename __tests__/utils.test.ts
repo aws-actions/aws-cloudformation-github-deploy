@@ -73,7 +73,7 @@ describe('Parse Parameters', () => {
   })
 
   test('returns parameters list from file', async () => {
-    const filename = 'file://' + path.join(__dirname, 'params.test.json')
+    const filename = 'file://' + path.join('__tests__', 'params.test.json')
     const json = parseParameters(filename)
     expect(json).toEqual([
       {
