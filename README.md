@@ -67,8 +67,10 @@ This action requires the following minimum set of permissions:
 
 You want to run your microservices with [Amazon Elastic Kubernetes Services](https://aws.amazon.com/eks/) and leverage the best-practices to run the cluster? Using this GitHub Action you can customize and deploy the [modular and scalable Amazon EKS architecture](https://aws.amazon.com/quickstart/architecture/amazon-eks/) provided in an AWS Quick Start to your AWS Account. The following workflow enables you to create and update a Kubernetes cluster using a manual workflow trigger.
 
+You only have to create an [Amazon EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) to run this workflow.
+
 ```yaml
-name: cluster
+name: Deploy Cluster
 
 on:
   workflow_dispatch:
@@ -77,9 +79,12 @@ on:
         description: 'AWS Region'
         required: true
         default: 'eu-west-1'
+       keypair:
+        description: 'SSH Key Pair'
+        required: true
 
 jobs:
-  amplify:
+  cluster:
     name: Deploy stack to AWS
     runs-on: ubuntu-latest
     outputs:
@@ -105,7 +110,7 @@ jobs:
         echo "Environment name: $ENVIRONMENT"
         echo "::set-output name=environment::$ENVIRONMENT"
 
-    - name: Deploy to EKS Cluster
+    - name: Deploy Amazon EKS Cluster
       id: eks-cluster
       uses: aws-actions/aws-cloudformation-github-deploy@master
       with:
