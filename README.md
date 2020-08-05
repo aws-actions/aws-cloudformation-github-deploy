@@ -16,7 +16,7 @@ Deploys AWS CloudFormation Stacks.
     parameter-overrides: "MyParam1=myValue,MyParam2=${{ secrets.MY_SECRET_VALUE }}"
 ```
 
-The action can be passed a CloudFormation Stack `name` and a `template` file. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
+The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
 
 See [action.yml](action.yml) for the full documentation for this action's inputs and outputs.
 
@@ -62,6 +62,67 @@ This action requires the following minimum set of permissions:
 ```
 
 > The policy above prevents the stack to be deleted by a policy for production
+
+## Example
+
+You want to run your microservices with [Amazon Elastic Kubernetes Services](https://aws.amazon.com/eks/) and leverage the best-practices to run the cluster? Using this GitHub Action you can customize and deploy the [modular and scalable Amazon EKS architecture](https://aws.amazon.com/quickstart/architecture/amazon-eks/) provided in an AWS Quick Start to your AWS Account. The following workflow enables you to create and update a Kubernetes cluster using a manual workflow trigger.
+
+```yaml
+name: cluster
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'eu-west-1'
+
+jobs:
+  amplify:
+    name: Deploy stack to AWS
+    runs-on: ubuntu-latest
+    outputs:
+      env-name: ${{ steps.env-name.outputs.environment }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      id: creds
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ github.event.inputs.region}}
+
+    - name: Configure environment name
+      id: env-name
+      env:
+        REPO: ${{ github.repository }}
+      run: |
+        ENVIRONMENT=`echo $REPO | tr "/" "-"`
+        echo "Environment name: $ENVIRONMENT"
+        echo "::set-output name=environment::$ENVIRONMENT"
+
+    - name: Deploy to EKS Cluster
+      id: eks-cluster
+      uses: aws-actions/aws-cloudformation-github-deploy@master
+      with:
+        name: ${{ steps.env-name.outputs.environment }}-cluster
+        template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
+        no-fail-on-empty-changeset: "1"
+        parameter-overrides: >-
+          AvailabilityZones=${{ github.event.inputs.region }}a,
+          AvailabilityZones=${{ github.event.inputs.region }}c,
+          KeyPairName=${{ github.event.inputs.keypair }},
+          NumberOfAZs=2,
+          ProvisionBastionHost=Disabled,
+          EKSPublicAccessEndpoint=Enabled,
+          EKSPrivateAccessEndpoint=Enabled,
+          RemoteAccessCIDR=0.0.0.0/0
+
+```
 
 ## License
 
