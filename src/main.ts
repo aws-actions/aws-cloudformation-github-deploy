@@ -46,7 +46,7 @@ export async function run(): Promise<void> {
     const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
       required: false
     })
-    const noExecuteChageSet = !!+core.getInput('no-execute-changeset', {
+    const noExecuteChangeSet = !!+core.getInput('no-execute-changeset', {
       required: false
     })
     const noDeleteFailedChangeSet = !!+core.getInput(
@@ -119,7 +119,7 @@ export async function run(): Promise<void> {
       cfn,
       params,
       noEmptyChangeSet,
-      noExecuteChageSet,
+      noExecuteChangeSet,
       noDeleteFailedChangeSet
     )
     core.setOutput('stack-id', stackId || 'UNKNOWN')
