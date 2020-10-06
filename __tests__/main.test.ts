@@ -30,6 +30,8 @@ Outputs:
 
 const mockStackId =
   'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+const mockChangeSetId =
+  'arn:aws:cloudformation:us-west-2:123456789012:changeSet/my-change-set/4eca1a01-e285-xmpl-8026-9a1967bfb4b0'
 
 const mockCreateStack = jest.fn()
 const mockUpdateStack = jest.fn()
@@ -115,7 +117,9 @@ describe('Deploy CloudFormation Stack', () => {
     mockCreateChangeSet.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.CreateChangeSetOutput> {
-          return Promise.resolve({})
+          return Promise.resolve({
+            Id: mockChangeSetId
+          })
         }
       }
     })
@@ -123,7 +127,9 @@ describe('Deploy CloudFormation Stack', () => {
     mockDescribeChangeSet.mockImplementation(() => {
       return {
         promise(): Promise<aws.CloudFormation.Types.DescribeChangeSetOutput> {
-          return Promise.resolve({})
+          return Promise.resolve({
+            ChangeSetId: mockChangeSetId
+          })
         }
       }
     })
@@ -204,8 +210,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('sets the stack outputs as action outputs', async () => {
@@ -269,10 +280,15 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(3)
+    expect(core.setOutput).toHaveBeenCalledTimes(4)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
-    expect(core.setOutput).toHaveBeenNthCalledWith(2, 'hello', 'world')
-    expect(core.setOutput).toHaveBeenNthCalledWith(3, 'foo', 'bar')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
+    expect(core.setOutput).toHaveBeenNthCalledWith(3, 'hello', 'world')
+    expect(core.setOutput).toHaveBeenNthCalledWith(4, 'foo', 'bar')
   })
 
   test('deploys the stack with template url', async () => {
@@ -311,8 +327,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('deploys the stack with termination protection', async () => {
@@ -352,8 +373,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: true
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('deploys the stack with disabling rollback', async () => {
@@ -393,8 +419,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: true,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('deploys the stack with Notification ARNs', async () => {
@@ -439,8 +470,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('deploys the stack with Role ARN', async () => {
@@ -481,8 +517,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('deploys the stack with tags', async () => {
@@ -523,8 +564,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('deploys the stack with timeout', async () => {
@@ -565,8 +611,13 @@ describe('Deploy CloudFormation Stack', () => {
       DisableRollback: false,
       EnableTerminationProtection: false
     })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      'UNKNOWN'
+    )
   })
 
   test('successfully update the stack', async () => {
@@ -625,6 +676,14 @@ describe('Deploy CloudFormation Stack', () => {
       StackName: 'MockStack'
     })
     expect(mockCfnWaiter).toHaveBeenCalledTimes(2)
+
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      mockChangeSetId
+    )
   })
 
   test('no execute change set on update the stack', async () => {
@@ -692,6 +751,14 @@ describe('Deploy CloudFormation Stack', () => {
     })
     expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0)
     expect(mockCfnWaiter).toHaveBeenCalledTimes(1)
+
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      mockChangeSetId
+    )
   })
 
   test('error is caught updating if create change fails', async () => {
@@ -857,7 +924,13 @@ describe('Deploy CloudFormation Stack', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      mockChangeSetId
+    )
     expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
@@ -964,7 +1037,13 @@ describe('Deploy CloudFormation Stack', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      mockChangeSetId
+    )
     expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
@@ -1164,7 +1243,13 @@ describe('Deploy CloudFormation Stack', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenCalledTimes(2)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      2,
+      'change-set-id',
+      mockChangeSetId
+    )
     expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
     expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack'
