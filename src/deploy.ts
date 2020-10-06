@@ -4,13 +4,18 @@ import { CreateChangeSetInput, CreateStackInput } from './main'
 
 export type Stack = aws.CloudFormation.Stack
 
+interface IdOutputs {
+  StackId?: string
+  ChangeSetId?: string
+}
+
 export async function cleanupChangeSet(
   cfn: aws.CloudFormation,
   stack: Stack,
   params: CreateChangeSetInput,
   noEmptyChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
-): Promise<string | undefined> {
+): Promise<IdOutputs> {
   const knownErrorMessages = [
     `No updates are to be performed`,
     `The submitted information didn't contain changes`
@@ -41,12 +46,19 @@ export async function cleanupChangeSet(
         changeSetStatus.StatusReason?.includes(err)
       )
     ) {
-      return stack.StackId
+      return {
+        StackId: stack.StackId,
+        ChangeSetId: changeSetStatus.ChangeSetId
+      }
     }
 
     throw new Error(
       `Failed to create Change Set: ${changeSetStatus.StatusReason}`
     )
+  }
+  return {
+    StackId: stack.StackId,
+    ChangeSetId: changeSetStatus.ChangeSetId
   }
 }
 
@@ -57,9 +69,9 @@ export async function updateStack(
   noEmptyChangeSet: boolean,
   noExecuteChageSet: boolean,
   noDeleteFailedChangeSet: boolean
-): Promise<string | undefined> {
+): Promise<IdOutputs> {
   core.debug('Creating CloudFormation Change Set')
-  await cfn.createChangeSet(params).promise()
+  const createChangeSet = await cfn.createChangeSet(params).promise()
 
   try {
     core.debug('Waiting for CloudFormation Change Set creation')
@@ -81,7 +93,10 @@ export async function updateStack(
 
   if (noExecuteChageSet) {
     core.debug('Not executing the change set')
-    return stack.StackId
+    return {
+      StackId: stack.StackId,
+      ChangeSetId: createChangeSet.Id
+    }
   }
 
   core.debug('Executing CloudFormation change set')
@@ -97,7 +112,10 @@ export async function updateStack(
     .waitFor('stackUpdateComplete', { StackName: stack.StackId })
     .promise()
 
-  return stack.StackId
+  return {
+    StackId: stack.StackId,
+    ChangeSetId: createChangeSet.Id
+  }
 }
 
 async function getStack(
@@ -125,7 +143,7 @@ export async function deployStack(
   noEmptyChangeSet: boolean,
   noExecuteChageSet: boolean,
   noDeleteFailedChangeSet: boolean
-): Promise<string | undefined> {
+): Promise<IdOutputs> {
   const stack = await getStack(cfn, params.StackName)
 
   if (!stack) {
@@ -136,7 +154,9 @@ export async function deployStack(
       .waitFor('stackCreateComplete', { StackName: params.StackName })
       .promise()
 
-    return stack.StackId
+    return {
+      StackId: stack.StackId
+    }
   }
 
   return await updateStack(
