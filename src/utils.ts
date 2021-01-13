@@ -56,6 +56,12 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
       const [key, value] = parameter.trim().split('=')
       let param = parameters.get(key)
       param = !param ? value : [param, value].join(',')
+      if (
+        (param.startsWith("'") && param.endsWith("'")) ||
+        (param.startsWith('"') && param.endsWith('"'))
+      ) {
+        param = param.substring(1, param.length - 1)
+      }
       parameters.set(key, param)
     })
 
