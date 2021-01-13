@@ -49,12 +49,15 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
   }
 
   const parameters = new Map<string, string>()
-  parameterOverrides.split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g).forEach(parameter => {
-    const [key, value] = parameter.trim().split('=')
-    let param = parameters.get(key)
-    param = !param ? value : [param, value].join(',')
-    parameters.set(key, param)
-  })
+
+  parameterOverrides
+    .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)
+    .forEach(parameter => {
+      const [key, value] = parameter.trim().split('=')
+      let param = parameters.get(key)
+      param = !param ? value : [param, value].join(',')
+      parameters.set(key, param)
+    })
 
   return [...parameters.keys()].map(key => {
     return {
