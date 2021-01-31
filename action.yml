@@ -15,7 +15,7 @@ inputs:
     required: false
     default: "CAPABILITY_IAM"
   parameter-overrides:
-    description: 'The parameters to override in the stack inputs. You can pass a comma-delimited list or a file URL. Comma-delimited list has each entry formatted as <ParameterName>=<ParameterValue>. A JSON file can be a local file with a "file://" prefix or remote URL (e.g. file://file://${{ github.workspace }}/variables.json or http://example.com/variables.json). A local file needs to be specified with an absolute path to it. The file should look like: [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]'
+    description: 'The parameters to override in the stack inputs. You can pass a comma-delimited list or a file URL. Comma-delimited list has each entry formatted as <ParameterName>=<ParameterValue>. A JSON file can be a local file with a "file://" prefix or remote URL (e.g. file://${{ github.workspace }}/variables.json or http://example.com/variables.json). A local file needs to be specified with an absolute path to it. The file should look like: [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]'
     required: false
   no-execute-changeset:
     description: "Indicates whether to execute to the change set or have it reviewed. Default to '0' (will execute the change set)"
