@@ -79,7 +79,7 @@ on:
         description: 'AWS Region'
         required: true
         default: 'eu-west-1'
-       keypair:
+      keypair:
         description: 'SSH Key Pair'
         required: true
 
