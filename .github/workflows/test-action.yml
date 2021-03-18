@@ -1,0 +1,10 @@
+name: Check
+
+jobs:
+  action:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: echo
+        run: echo hello world
+         
