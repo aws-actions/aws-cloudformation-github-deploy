@@ -126,6 +126,11 @@ jobs:
           EKSPublicAccessEndpoint=Enabled,
           EKSPrivateAccessEndpoint=Enabled,
           RemoteAccessCIDR=0.0.0.0/0
+        tags: |
+          [
+          {"Key": "SystemTag", "Value": "AWS_CF_GH_DEPLOY"},
+          {"Key": "Environment", "Value": "prod"}
+          ]
 
 ```
 
