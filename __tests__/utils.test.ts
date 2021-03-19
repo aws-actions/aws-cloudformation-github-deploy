@@ -1,5 +1,6 @@
 import { parseTags, isUrl, parseParameters } from '../src/utils'
 import * as path from 'path'
+import * as fs from 'fs'
 
 jest.mock('@actions/core')
 
@@ -31,9 +32,39 @@ describe('Parse Tags', () => {
     expect(json).toBeUndefined()
   })
 
-  test('returns valid Array on valid JSON', async () => {
+  test('returns valid Array on valid JSON 1', async () => {
     const json = parseTags(JSON.stringify([{ Key: 'Test', Value: 'Value' }]))
     expect(json).toEqual([{ Key: 'Test', Value: 'Value' }])
+  })
+
+  test('returns valid Array on valid json 2', async () => {
+    const json = parseTags(JSON.stringify({ key1: 'val1', key2: 'val2' }))
+    expect(json).toEqual([
+      { Key: 'key1', Value: 'val1' },
+      { Key: 'key2', Value: 'val2' }
+    ])
+  })
+
+  test('returns valid Array on valid yaml 1', async () => {
+    const content = fs
+      .readFileSync(path.join(__dirname, 'tags1.yaml'))
+      .toString()
+    const yaml = parseTags(content)
+    expect(yaml).toEqual([
+      { Key: 'key1', Value: 'val1' },
+      { Key: 'key2', Value: 'val2' }
+    ])
+  })
+
+  test('returns valid Array on valid yaml 2', async () => {
+    const content = fs
+      .readFileSync(path.join(__dirname, 'tags2.yaml'))
+      .toString()
+    const yaml = parseTags(content)
+    expect(yaml).toEqual([
+      { Key: 'key1', Value: 'val1' },
+      { Key: 'key2', Value: 'val2' }
+    ])
   })
 })
 
