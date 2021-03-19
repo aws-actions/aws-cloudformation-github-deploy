@@ -18,6 +18,9 @@ Deploys AWS CloudFormation Stacks.
 
 The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
 
+> You can learn more about [AWS CloudFormation](https://aws.amazon.com/cloudformation/)
+
+
 ### Inputs
 
 A few inputs are highlighted below. See [action.yml](action.yml) for the full documentation for this action's inputs and outputs.
@@ -75,9 +78,6 @@ Key-value pairs to associate with this stack. This input can be in multiple form
           {"Key": "Environment", "Value": "prod"}
           ]
 ```
-
-
-> You can learn more about [AWS CloudFormation](https://aws.amazon.com/cloudformation/)
 
 ## Credentials and Region
 
