@@ -26,7 +26,7 @@ A few inputs are highlighted below. See [action.yml](action.yml) for the full do
 
 Key-value pairs to associate with this stack. This input can be in multiple formats. See all examples below.
 
-YAML Formatted String 
+- YAML Formatted String:
 ```
     - uses: aws-actions/aws-cloudformation-github-deploy@master
       with:
@@ -37,7 +37,7 @@ YAML Formatted String
           Environment: prod
 ```
 
-YAML Formatted String with Key and Value grouping
+- YAML Formatted String with Key and Value grouping:
 ```
     - uses: aws-actions/aws-cloudformation-github-deploy@master
       with:
@@ -50,7 +50,7 @@ YAML Formatted String with Key and Value grouping
             Value: prod
 ```
 
-JSON Formatted String 
+- JSON Formatted String:
 ```
     - uses: aws-actions/aws-cloudformation-github-deploy@master
       with:
@@ -63,7 +63,7 @@ JSON Formatted String
           }
 ```
 
-JSON Formatted String with Key and Value grouping
+- JSON Formatted String with Key and Value grouping:
 ```
     - uses: aws-actions/aws-cloudformation-github-deploy@master
       with:
