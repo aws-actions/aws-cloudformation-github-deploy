@@ -1,6 +1,6 @@
 ## AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
 
-![Package](https://github.com/aws-actions/aws-cloudformation-github-deploy/workflows/Package/badge.svg)
+![Package](https://github.com/chikin-4x/aws-cloudformation-github-deploy/workflows/Package/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Deploys AWS CloudFormation Stacks.
@@ -9,7 +9,7 @@ Deploys AWS CloudFormation Stacks.
 
 ```yaml
 - name: Deploy to AWS CloudFormation
-  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  uses: chikin-4x/aws-cloudformation-github-deploy@master
   with:
     name: MyStack
     template: myStack.yaml
@@ -31,7 +31,7 @@ Key-value pairs to associate with this stack. This input can be in multiple form
 
 - YAML Formatted String:
 ```
-    - uses: aws-actions/aws-cloudformation-github-deploy@master
+    - uses: chikin-4x/aws-cloudformation-github-deploy@master
       with:
         name: cloudformation-stack-name
         template: https://s3.amazonaws.com/some-template.yaml
@@ -42,7 +42,7 @@ Key-value pairs to associate with this stack. This input can be in multiple form
 
 - YAML Formatted String with Key and Value grouping:
 ```
-    - uses: aws-actions/aws-cloudformation-github-deploy@master
+    - uses: chikin-4x/aws-cloudformation-github-deploy@master
       with:
         name: cloudformation-stack-name
         template: https://s3.amazonaws.com/some-template.yaml
@@ -55,7 +55,7 @@ Key-value pairs to associate with this stack. This input can be in multiple form
 
 - JSON Formatted String:
 ```
-    - uses: aws-actions/aws-cloudformation-github-deploy@master
+    - uses: chikin-4x/aws-cloudformation-github-deploy@master
       with:
         name: cloudformation-stack-name
         template: https://s3.amazonaws.com/some-template.yaml
@@ -68,7 +68,7 @@ Key-value pairs to associate with this stack. This input can be in multiple form
 
 - JSON Formatted String with Key and Value grouping:
 ```
-    - uses: aws-actions/aws-cloudformation-github-deploy@master
+    - uses: chikin-4x/aws-cloudformation-github-deploy@master
       with:
         name: cloudformation-stack-name
         template: https://s3.amazonaws.com/some-template.yaml
@@ -82,7 +82,7 @@ Key-value pairs to associate with this stack. This input can be in multiple form
 ## Credentials and Region
 
 This action relies on the [default behavior of the AWS SDK for Javascript](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html) to determine AWS credentials and region.
-Use [the `aws-actions/configure-aws-credentials` action](https://github.com/aws-actions/configure-aws-credentials) to configure the GitHub Actions environment with environment variables containing AWS credentials and your desired region.
+Use [the `chikin-4x/configure-aws-credentials` action](https://github.com/aws-actions/configure-aws-credentials) to configure the GitHub Actions environment with environment variables containing AWS credentials and your desired region.
 
 We recommend following [Amazon IAM best practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html) for the AWS credentials used in GitHub Actions workflows, including:
 
@@ -147,29 +147,9 @@ jobs:
     outputs:
       env-name: ${{ steps.env-name.outputs.environment }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-
-    - name: Configure AWS credentials
-      id: creds
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ github.event.inputs.region}}
-
-    - name: Configure environment name
-      id: env-name
-      env:
-        REPO: ${{ github.repository }}
-      run: |
-        ENVIRONMENT=`echo $REPO | tr "/" "-"`
-        echo "Environment name: $ENVIRONMENT"
-        echo "::set-output name=environment::$ENVIRONMENT"
-
     - name: Deploy Amazon EKS Cluster
       id: eks-cluster
-      uses: aws-actions/aws-cloudformation-github-deploy@master
+      uses: chikin-4x/aws-cloudformation-github-deploy@master
       with:
         name: cloudformation-stack-name
         template: https://s3.amazonaws.com/some-template.yaml
