@@ -5,7 +5,12 @@ import * as fs from 'fs'
 import * as aws from 'aws-sdk'
 
 jest.mock('@actions/core')
-jest.mock('fs')
+jest.mock('fs', () => ({
+  promises: {
+    access: jest.fn()
+  },
+  readFileSync: jest.fn()
+}))
 
 const mockTemplate = `
 AWSTemplateFormatVersion: "2010-09-09"

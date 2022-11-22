@@ -131,7 +131,9 @@ export async function run(): Promise<void> {
       }
     }
   } catch (err) {
+    // @ts-expect-error: Object is of type 'unknown'
     core.setFailed(err.message)
+    // @ts-expect-error: Object is of type 'unknown'
     core.debug(err.stack)
   }
 }
