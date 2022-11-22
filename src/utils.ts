@@ -43,6 +43,7 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
 
     return JSON.parse(rawParameters)
   } catch (err) {
+    // @ts-expect-error: Object is of type 'unknown'
     if (err.code !== 'ERR_INVALID_URL') {
       throw err
     }

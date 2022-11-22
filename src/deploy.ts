@@ -112,6 +112,7 @@ async function getStack(
       .promise()
     return stacks.Stacks?.[0]
   } catch (e) {
+    // @ts-expect-error: Object is of type 'unknown'
     if (e.code === 'ValidationError' && e.message.match(/does not exist/)) {
       return undefined
     }
