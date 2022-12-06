@@ -55,7 +55,7 @@ export async function updateStack(
   stack: Stack,
   params: CreateChangeSetInput,
   noEmptyChangeSet: boolean,
-  noExecuteChageSet: boolean,
+  noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
 ): Promise<string | undefined> {
   core.debug('Creating CloudFormation Change Set')
@@ -79,7 +79,7 @@ export async function updateStack(
     )
   }
 
-  if (noExecuteChageSet) {
+  if (noExecuteChangeSet) {
     core.debug('Not executing the change set')
     return stack.StackId
   }
@@ -124,7 +124,7 @@ export async function deployStack(
   cfn: aws.CloudFormation,
   params: CreateStackInput,
   noEmptyChangeSet: boolean,
-  noExecuteChageSet: boolean,
+  noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
 ): Promise<string | undefined> {
   const stack = await getStack(cfn, params.StackName)
@@ -159,7 +159,7 @@ export async function deployStack(
       }
     },
     noEmptyChangeSet,
-    noExecuteChageSet,
+    noExecuteChangeSet,
     noDeleteFailedChangeSet
   )
 }
