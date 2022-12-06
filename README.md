@@ -43,21 +43,21 @@ This action requires the following minimum set of permissions:
 
 ```
 {
-    "Version":"2012-10-17",
-    "Statement":[{
-        "Effect":"Allow",
-        "Action":[
-            "cloudformation:*"
-        ],
-        "Resource":"*"
-    },
-    {
-        "Effect":"Deny",
-        "Action":[
-            "cloudformation:DeleteStack"
-        ],
-        "Resource":"arn:aws:cloudformation:us-east-1:123456789012:stack/MyProductionStack/*"
-    }]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:CreateStack",
+                "cloudformation:DescribeStacks",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:ExecuteChangeSet"
+            ],
+            "Resource": "*"
+        }
+    ]
 }
 ```
 
