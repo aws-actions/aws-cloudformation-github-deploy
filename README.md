@@ -39,7 +39,7 @@ We recommend following [Amazon IAM best practices](https://docs.aws.amazon.com/I
 
 This action requires the following minimum set of permissions:
 
-> We recommend to read [AWS CloudFormation Security Best Practices](https://aws.amazon.com/blogs/devops/aws-cloudformation-security-best-practices/)
+> We recommend to read [AWS CloudFormation Security Best Practices](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html)
 
 ```
 {
