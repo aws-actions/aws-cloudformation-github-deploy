@@ -72,6 +72,38 @@ describe('Parse Parameters', () => {
     ])
   })
 
+  test('returns parameters list with an extra equal', async () => {
+    const json = parseParameters(
+      'MyParam1=myValue1,MyParam2=myValue2=myValue3,MyParam2=myValue4'
+    )
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2=myValue3,myValue4'
+      }
+    ])
+  })
+
+  test('returns parameters list from multiple lists with quotes', async () => {
+    const json = parseParameters(
+      'MyParam1=myValue1,MyParam2="myValue2,myValue3",MyParam2=myValue4'
+    )
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2,myValue3,myValue4'
+      }
+    ])
+  })
+
   test('returns parameters list from file', async () => {
     const filename = 'file://' + path.join(__dirname, 'params.test.json')
     const json = parseParameters(filename)

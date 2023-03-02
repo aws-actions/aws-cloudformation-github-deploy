@@ -50,12 +50,24 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
   }
 
   const parameters = new Map<string, string>()
-  parameterOverrides.split(',').forEach(parameter => {
-    const [key, value] = parameter.trim().split('=')
-    let param = parameters.get(key)
-    param = !param ? value : [param, value].join(',')
-    parameters.set(key, param)
-  })
+  parameterOverrides
+    .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)
+    .forEach(parameter => {
+      const values = parameter.trim().split('=')
+      const key = values[0]
+      // Corrects values that have an = in the value
+      const value = values.slice(1).join('=')
+      let param = parameters.get(key)
+      param = !param ? value : [param, value].join(',')
+      // Remove starting and ending quotes
+      if (
+        (param.startsWith("'") && param.endsWith("'")) ||
+        (param.startsWith('"') && param.endsWith('"'))
+      ) {
+        param = param.substring(1, param.length - 1)
+      }
+      parameters.set(key, param)
+    })
 
   return [...parameters.keys()].map(key => {
     return {
