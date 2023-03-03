@@ -108,7 +108,7 @@ jobs:
       run: |
         ENVIRONMENT=`echo $REPO | tr "/" "-"`
         echo "Environment name: $ENVIRONMENT"
-        echo "::set-output name=environment::$ENVIRONMENT"
+        echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
 
     - name: Deploy Amazon EKS Cluster
       id: eks-cluster
