@@ -1,6 +1,7 @@
 import * as aws from 'aws-sdk'
 import * as fs from 'fs'
 import { Parameter } from 'aws-sdk/clients/cloudformation'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 export function isUrl(s: string): boolean {
   let url
@@ -75,4 +76,28 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
       ParameterValue: parameters.get(key)
     }
   })
+}
+
+export function configureProxy(proxyServer: string | undefined) {
+  const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy
+
+  if (proxyFromEnv || proxyServer) {
+    let proxyToSet = null
+
+    if (proxyServer) {
+      console.log(`Setting proxy from actions input: ${proxyServer}`)
+      proxyToSet = proxyServer
+    } else {
+      console.log(`Setting proxy from environment: ${proxyFromEnv}`)
+      proxyToSet = proxyFromEnv
+    }
+
+    if (proxyToSet) {
+      const proxy = new HttpsProxyAgent(proxyToSet)
+
+      aws.config.update({
+        httpOptions: { agent: proxy }
+      })
+    }
+  }
 }

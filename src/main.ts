@@ -9,7 +9,8 @@ import {
   parseString,
   parseNumber,
   parseARNs,
-  parseParameters
+  parseParameters,
+  configureProxy
 } from './utils'
 
 export type CreateStackInput = aws.CloudFormation.Types.CreateStackInput
@@ -31,7 +32,6 @@ const clientConfiguration = {
 
 export async function run(): Promise<void> {
   try {
-    const cfn = new aws.CloudFormation({ ...clientConfiguration })
     const { GITHUB_WORKSPACE = __dirname } = process.env
 
     // Get inputs
@@ -81,6 +81,16 @@ export async function run(): Promise<void> {
     const terminationProtections = !!+core.getInput('termination-protection', {
       required: false
     })
+    const httpProxy = parseString(
+      core.getInput('http-proxy', {
+        required: false
+      })
+    )
+
+    // Configures proxy
+    configureProxy(httpProxy)
+
+    const cfn = new aws.CloudFormation({ ...clientConfiguration })
 
     // Setup CloudFormation Stack
     let templateBody

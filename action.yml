@@ -49,6 +49,9 @@ inputs:
     description: "Whether to enable termination protection on the specified stack. Defaults to '0' (terminated protection will be disabled) This input is only used for stack creation, not for stack update"
     required: false
     default: "0"
+  http-proxy:
+    description: 'Proxy to use for the AWS SDK agent'
+    required: false
 outputs:
   stack-id:
     description: "The id of the deployed stack. In addition, any outputs declared in the deployed CloudFormation stack will also be set as outputs for the action, e.g. if the stack has a stack output named 'foo', this action will also have an output named 'foo'."

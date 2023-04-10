@@ -149,6 +149,31 @@ jobs:
 
 ```
 
+### Proxy Configuration
+
+If you run in self-hosted environments and in secured environment where you need use a specific proxy you can set it in the action manually.
+
+Additionally this action will always consider already configured proxy in the environment.
+
+Manually configured proxy:
+```yaml
+uses: aws-actions/aws-cloudformation-github-deploy@v1
+with:
+  name: eks-primary
+  template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
+  no-fail-on-empty-changeset: "1"
+  http-proxy: "http://companydomain.com:3128"
+```
+
+Proxy configured in the environment variable:
+
+```bash
+# Your environment configuration
+HTTP_PROXY="http://companydomain.com:3128"
+```
+
+The action will read the underlying proxy configuration from the environment and you don't need to configure it in the action.
+
 ## License
 
 [MIT](/LICENSE)
