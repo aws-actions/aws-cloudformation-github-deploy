@@ -227,6 +227,7 @@ let clientConfiguration = {
     customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
 };
 function run() {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const { GITHUB_WORKSPACE = __dirname } = process.env;
@@ -240,6 +241,9 @@ function run() {
                 .split(',')
                 .map(capability => capability.trim());
             const parameterOverrides = core.getInput('parameter-overrides', {
+                required: false
+            });
+            const envsPrefixForparameterOverrides = core.getInput('envs-prefix-for-parameter-overrides', {
                 required: false
             });
             const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
@@ -316,7 +320,15 @@ function run() {
             if (parameterOverrides) {
                 params.Parameters = (0, utils_1.parseParameters)(parameterOverrides.trim());
             }
-            const stackId = yield (0, deploy_1.deployStack)(cfn, params, changeSetName ? changeSetName : `${params.StackName}-CS`, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+            if (envsPrefixForparameterOverrides.length > 0) {
+                (_a = params.Parameters) === null || _a === void 0 ? void 0 : _a.concat(Object.keys(process.env)
+                    .filter(key => key.startsWith(envsPrefixForparameterOverrides))
+                    .map(key => ({
+                    ParameterKey: key,
+                    ParameterValue: process.env[key]
+                })));
+            }
+            const stackId = yield (0, deploy_1.deployStack)(cfn, params, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
             core.setOutput('stack-id', stackId || 'UNKNOWN');
             if (stackId) {
                 const outputs = yield (0, deploy_1.getStackOutputs)(cfn, stackId);
