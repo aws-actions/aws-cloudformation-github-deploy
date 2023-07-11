@@ -52,6 +52,9 @@ export async function run(): Promise<void> {
     const parameterOverrides = core.getInput('parameter-overrides', {
       required: false
     })
+    const envsPrefixForparameterOverrides = core.getInput('envs-prefix-for-parameter-overrides', {
+      required: false
+    })
     const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
       required: false
     })
@@ -148,6 +151,16 @@ export async function run(): Promise<void> {
 
     if (parameterOverrides) {
       params.Parameters = parseParameters(parameterOverrides.trim())
+    }
+
+    if (envsPrefixForparameterOverrides.length > 0) {
+      params.Parameters?.concat(
+        Object.keys(process.env)
+          .filter(key => key.startsWith(envsPrefixForparameterOverrides))
+          .map(key => ({
+            ParameterKey: key,
+            ParameterValue: process.env[key]
+          })))
     }
 
     const stackId = await deployStack(

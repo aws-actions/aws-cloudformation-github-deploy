@@ -17,6 +17,9 @@ inputs:
   parameter-overrides:
     description: 'The parameters to override in the stack inputs. You can pass a comma-delimited list or a file URL. Comma-delimited list has each entry formatted as <ParameterName>=<ParameterValue> or <ParameterName>="<ParameterValue>,<ParameterValue>". A JSON file can be a local file with a "file://" prefix or remote URL. The file should look like: [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]'
     required: false
+  envs-prefix-for-parameter-overrides:
+    description: 'Set environment variable key prefix to filter out and use as parameters to override. The prefix will be stripped.'
+    default: ""
   no-execute-changeset:
     description: "Indicates whether to execute to the change set or have it reviewed. Default to '0' (will execute the change set)"
     required: false
