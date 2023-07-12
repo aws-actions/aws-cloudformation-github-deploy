@@ -157,7 +157,7 @@ export async function run(): Promise<void> {
       params.Parameters = parseParameters(parameterOverrides.trim())
     }
 
-    if (envsPrefixForParameterOverrides.length > 0) {
+    if (envsPrefixForParameterOverrides) {
       const envParameters = parseParametersFromEnvs(
         envsPrefixForParameterOverrides,
         process.env

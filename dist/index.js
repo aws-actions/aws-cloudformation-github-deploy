@@ -319,7 +319,7 @@ function run() {
             if (parameterOverrides) {
                 params.Parameters = (0, utils_1.parseParameters)(parameterOverrides.trim());
             }
-            if (envsPrefixForParameterOverrides.length > 0) {
+            if (envsPrefixForParameterOverrides) {
                 const envParameters = (0, utils_1.parseParametersFromEnvs)(envsPrefixForParameterOverrides, process.env);
                 params.Parameters = params.Parameters
                     ? [...params.Parameters, ...envParameters]
