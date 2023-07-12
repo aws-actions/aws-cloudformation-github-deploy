@@ -227,7 +227,6 @@ let clientConfiguration = {
     customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
 };
 function run() {
-    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const { GITHUB_WORKSPACE = __dirname } = process.env;
@@ -243,7 +242,7 @@ function run() {
             const parameterOverrides = core.getInput('parameter-overrides', {
                 required: false
             });
-            const envsPrefixForparameterOverrides = core.getInput('envs-prefix-for-parameter-overrides', {
+            const envsPrefixForParameterOverrides = core.getInput('envs-prefix-for-parameter-overrides', {
                 required: false
             });
             const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
@@ -320,13 +319,11 @@ function run() {
             if (parameterOverrides) {
                 params.Parameters = (0, utils_1.parseParameters)(parameterOverrides.trim());
             }
-            if (envsPrefixForparameterOverrides.length > 0) {
-                (_a = params.Parameters) === null || _a === void 0 ? void 0 : _a.concat(Object.keys(process.env)
-                    .filter(key => key.startsWith(envsPrefixForparameterOverrides))
-                    .map(key => ({
-                    ParameterKey: key,
-                    ParameterValue: process.env[key]
-                })));
+            if (envsPrefixForParameterOverrides.length > 0) {
+                const envParameters = (0, utils_1.parseParametersFromEnvs)(envsPrefixForParameterOverrides, process.env);
+                params.Parameters = params.Parameters
+                    ? [...params.Parameters, ...envParameters]
+                    : envParameters;
             }
             const stackId = yield (0, deploy_1.deployStack)(cfn, params, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
             core.setOutput('stack-id', stackId || 'UNKNOWN');
@@ -383,7 +380,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.configureProxy = exports.parseParameters = exports.parseNumber = exports.parseString = exports.parseARNs = exports.parseTags = exports.isUrl = void 0;
+exports.configureProxy = exports.parseParametersFromEnvs = exports.parseParameters = exports.parseNumber = exports.parseString = exports.parseARNs = exports.parseTags = exports.isUrl = void 0;
+const aws = __importStar(__nccwpck_require__(71786));
 const fs = __importStar(__nccwpck_require__(57147));
 const https_proxy_agent_1 = __nccwpck_require__(77219);
 function isUrl(s) {
@@ -455,6 +453,16 @@ function parseParameters(parameterOverrides) {
     });
 }
 exports.parseParameters = parseParameters;
+function parseParametersFromEnvs(prefix, envs) {
+    const parameters = Object.keys(envs)
+        .filter(key => key.startsWith(prefix))
+        .map(key => ({
+        ParameterKey: key.substring(prefix.length),
+        ParameterValue: envs[key]
+    }));
+    return parameters;
+}
+exports.parseParametersFromEnvs = parseParametersFromEnvs;
 function configureProxy(proxyServer) {
     const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy;
     if (proxyFromEnv || proxyServer) {

@@ -1389,6 +1389,53 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 0)
   })
 
+  test('deploys the stack with template', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template: 'template.yaml',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'envs-prefix-for-parameter-overrides': 'CFD_',
+      'no-fail-on-empty-changeset': '0',
+      'disable-rollback': '0',
+      'timeout-in-minutes': '',
+      'notification-arns': '',
+      'role-arn': '',
+      tags: '',
+      'termination-protection': ''
+    }
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+
+    process.env = Object.assign(process.env, { CFD_AdminNickname: 'root' })
+
+    await run()
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack'
+    })
+    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
+      StackName: mockStackId
+    })
+    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateBody: mockTemplate,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' },
+        { ParameterKey: 'AdminNickname', ParameterValue: 'root' }
+      ],
+      DisableRollback: false,
+      EnableTerminationProtection: false
+    })
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
+
   test('error is caught by core.setFailed', async () => {
     mockCfnClient.reset().on(DescribeStacksCommand).rejects(new Error())
 
