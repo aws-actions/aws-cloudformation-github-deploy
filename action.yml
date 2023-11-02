@@ -52,6 +52,9 @@ inputs:
   http-proxy:
     description: 'Proxy to use for the AWS SDK agent'
     required: false
+  change-set-name:
+    description: "The name of the change set to create. Defaults to '<stack-name>-CS'"
+    required: false
 outputs:
   stack-id:
     description: "The id of the deployed stack. In addition, any outputs declared in the deployed CloudFormation stack will also be set as outputs for the action, e.g. if the stack has a stack output named 'foo', this action will also have an output named 'foo'."

@@ -86,6 +86,9 @@ export async function run(): Promise<void> {
         required: false
       })
     )
+    const changeSetName = core.getInput('change-set-name', {
+      required: false
+    })
 
     // Configures proxy
     configureProxy(httpProxy)
@@ -108,7 +111,7 @@ export async function run(): Promise<void> {
     }
 
     // CloudFormation Stack Parameter for the creation or update
-    const params: CreateStackInput = {
+    const params: CreateStackInput & CreateChangeSetInput = {
       StackName: stackName,
       Capabilities: [...capabilities.split(',').map(cap => cap.trim())],
       RoleARN: roleARN,
@@ -118,7 +121,8 @@ export async function run(): Promise<void> {
       TemplateBody: templateBody,
       TemplateURL: templateUrl,
       Tags: tags,
-      EnableTerminationProtection: terminationProtections
+      EnableTerminationProtection: terminationProtections,
+      ChangeSetName: changeSetName
     }
 
     if (parameterOverrides) {
