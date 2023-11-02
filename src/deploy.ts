@@ -122,7 +122,7 @@ async function getStack(
 
 export async function deployStack(
   cfn: aws.CloudFormation,
-  params: CreateStackInput,
+  params: CreateStackInput & CreateChangeSetInput,
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
@@ -144,7 +144,7 @@ export async function deployStack(
     cfn,
     stack,
     {
-      ChangeSetName: `${params.StackName}-CS`,
+      ChangeSetName: params.ChangeSetName || `${params.StackName}-CS`,
       ...{
         StackName: params.StackName,
         TemplateBody: params.TemplateBody,
