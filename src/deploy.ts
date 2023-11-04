@@ -132,7 +132,23 @@ export async function deployStack(
   if (!stack) {
     core.debug(`Creating CloudFormation Stack`)
 
-    const stack = await cfn.createStack(params).promise()
+    const stack = await cfn
+      .createStack({
+        StackName: params.StackName,
+        TemplateBody: params.TemplateBody,
+        TemplateURL: params.TemplateURL,
+        Parameters: params.Parameters,
+        Capabilities: params.Capabilities,
+        ResourceTypes: params.ResourceTypes,
+        RoleARN: params.RoleARN,
+        RollbackConfiguration: params.RollbackConfiguration,
+        NotificationARNs: params.NotificationARNs,
+        DisableRollback: params.DisableRollback,
+        Tags: params.Tags,
+        TimeoutInMinutes: params.TimeoutInMinutes,
+        EnableTerminationProtection: params.EnableTerminationProtection
+      })
+      .promise()
     await cfn
       .waitFor('stackCreateComplete', { StackName: params.StackName })
       .promise()
