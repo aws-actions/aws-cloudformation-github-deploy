@@ -29,7 +29,6 @@ export type Inputs = {
 const clientConfiguration = {
   customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
 }
-
 export async function run(): Promise<void> {
   try {
     const { GITHUB_WORKSPACE = __dirname } = process.env
@@ -37,6 +36,9 @@ export async function run(): Promise<void> {
     // Get inputs
     const template = core.getInput('template', { required: true })
     const stackName = core.getInput('name', { required: true })
+    const changeSetName = core.getInput('change-set-name', {
+      required: false
+    })
     const capabilities = core.getInput('capabilities', {
       required: false
     })
@@ -128,6 +130,7 @@ export async function run(): Promise<void> {
     const stackId = await deployStack(
       cfn,
       params,
+      changeSetName ? changeSetName : `${params.StackName}-CS`,
       noEmptyChangeSet,
       noExecuteChangeSet,
       noDeleteFailedChangeSet

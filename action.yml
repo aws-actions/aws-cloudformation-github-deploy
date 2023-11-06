@@ -7,6 +7,9 @@ inputs:
   name:
     description: "The name of the CloudFormation stack"
     required: true
+  change-set-name:
+    description: "The name of the change set. The name must be unique among all change sets that are associated with the specified stack."
+    required: false
   template:
     description: "The path or URL to the CloudFormation template"
     required: true
