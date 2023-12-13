@@ -86,9 +86,11 @@ export async function run(): Promise<void> {
         required: false
       })
     )
-    const changeSetName = core.getInput('change-set-name', {
-      required: false
-    })
+    const changeSetName = parseString(
+      core.getInput('change-set-name', {
+        required: false
+      })
+    )
 
     // Configures proxy
     configureProxy(httpProxy)
@@ -122,7 +124,7 @@ export async function run(): Promise<void> {
       TemplateURL: templateUrl,
       Tags: tags,
       EnableTerminationProtection: terminationProtections,
-      ChangeSetName: changeSetName
+      ChangeSetName: changeSetName || `${stackName}-CS`
     }
 
     if (parameterOverrides) {
