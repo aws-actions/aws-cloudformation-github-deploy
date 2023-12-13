@@ -124,7 +124,7 @@ export async function run(): Promise<void> {
       TemplateURL: templateUrl,
       Tags: tags,
       EnableTerminationProtection: terminationProtections,
-      ChangeSetName: changeSetName
+      ChangeSetName: changeSetName || `${stackName}-CS`
     }
 
     if (parameterOverrides) {
