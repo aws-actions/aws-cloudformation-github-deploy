@@ -36,9 +36,6 @@ export async function run(): Promise<void> {
     // Get inputs
     const template = core.getInput('template', { required: true })
     const stackName = core.getInput('name', { required: true })
-    const changeSetName = core.getInput('change-set-name', {
-      required: false
-    })
     const capabilities = core.getInput('capabilities', {
       required: false
     })
@@ -88,6 +85,9 @@ export async function run(): Promise<void> {
         required: false
       })
     )
+    const changeSetName = core.getInput('change-set-name', {
+      required: false
+    })
 
     // Configures proxy
     configureProxy(httpProxy)
