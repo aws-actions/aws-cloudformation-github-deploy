@@ -1215,8 +1215,8 @@ describe('Deploy CloudFormation Stack', () => {
     const inputs: Inputs = {
       name: 'MockStack',
       template: 'template.yaml',
-      'change-set-name': 'Build-213123123-CS',
       capabilities: 'CAPABILITY_IAM',
+      'change-set-name': 'Build-213123123-CS',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1'
     }
