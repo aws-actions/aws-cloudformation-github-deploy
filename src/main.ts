@@ -1,6 +1,6 @@
 import * as path from 'path'
 import * as core from '@actions/core'
-import * as aws from 'aws-sdk'
+import { CloudFormation } from '@aws-sdk/client-cloudformation'
 import * as fs from 'fs'
 import { deployStack, getStackOutputs } from './deploy'
 import {
@@ -13,8 +13,6 @@ import {
   configureProxy
 } from './utils'
 
-export type CreateStackInput = aws.CloudFormation.Types.CreateStackInput
-export type CreateChangeSetInput = aws.CloudFormation.Types.CreateChangeSetInput
 export type InputNoFailOnEmptyChanges = '1' | '0'
 export type InputCapabilities =
   | 'CAPABILITY_IAM'
@@ -94,7 +92,7 @@ export async function run(): Promise<void> {
     // Configures proxy
     configureProxy(httpProxy)
 
-    const cfn = new aws.CloudFormation({ ...clientConfiguration })
+    const cfn = new CloudFormation({ ...clientConfiguration })
 
     // Setup CloudFormation Stack
     let templateBody
