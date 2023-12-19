@@ -1,7 +1,7 @@
-import * as aws from 'aws-sdk'
 import * as fs from 'fs'
-import { Parameter } from 'aws-sdk/clients/cloudformation'
+import { Parameter } from '@aws-sdk/client-cloudformation'
 import { HttpsProxyAgent } from 'https-proxy-agent'
+import { Tag } from '@aws-sdk/client-cloudformation'
 
 export function isUrl(s: string): boolean {
   let url
@@ -15,7 +15,7 @@ export function isUrl(s: string): boolean {
   return url.protocol === 'https:'
 }
 
-export function parseTags(s: string): aws.CloudFormation.Tags | undefined {
+export function parseTags(s: string): Tag[] | undefined {
   let json
 
   try {
@@ -78,7 +78,9 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
   })
 }
 
-export function configureProxy(proxyServer: string | undefined) {
+export function configureProxy(
+  proxyServer: string | undefined
+): HttpsProxyAgent | undefined {
   const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy
 
   if (proxyFromEnv || proxyServer) {
@@ -93,11 +95,7 @@ export function configureProxy(proxyServer: string | undefined) {
     }
 
     if (proxyToSet) {
-      const proxy = new HttpsProxyAgent(proxyToSet)
-
-      aws.config.update({
-        httpOptions: { agent: proxy }
-      })
+      return new HttpsProxyAgent(proxyToSet)
     }
   }
 }

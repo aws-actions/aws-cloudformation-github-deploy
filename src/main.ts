@@ -1,6 +1,11 @@
 import * as path from 'path'
 import * as core from '@actions/core'
-import { CloudFormation } from '@aws-sdk/client-cloudformation'
+import {
+  CloudFormationClient,
+  CreateChangeSetCommandInput,
+  CreateStackCommandInput,
+  Capability
+} from '@aws-sdk/client-cloudformation'
 import * as fs from 'fs'
 import { deployStack, getStackOutputs } from './deploy'
 import {
@@ -12,7 +17,10 @@ import {
   parseParameters,
   configureProxy
 } from './utils'
+import { NodeHttpHandler } from '@smithy/node-http-handler'
 
+export type CreateStackInput = CreateStackCommandInput
+export type CreateChangeSetInput = CreateChangeSetCommandInput
 export type InputNoFailOnEmptyChanges = '1' | '0'
 export type InputCapabilities =
   | 'CAPABILITY_IAM'
@@ -24,7 +32,7 @@ export type Inputs = {
 }
 
 // The custom client configuration for the CloudFormation clients.
-const clientConfiguration = {
+let clientConfiguration = {
   customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
 }
 export async function run(): Promise<void> {
@@ -34,9 +42,12 @@ export async function run(): Promise<void> {
     // Get inputs
     const template = core.getInput('template', { required: true })
     const stackName = core.getInput('name', { required: true })
-    const capabilities = core.getInput('capabilities', {
-      required: false
-    })
+    const capabilities = core
+      .getInput('capabilities', {
+        required: false
+      })
+      .split(',') as Capability[]
+
     const parameterOverrides = core.getInput('parameter-overrides', {
       required: false
     })
@@ -90,9 +101,20 @@ export async function run(): Promise<void> {
     )
 
     // Configures proxy
-    configureProxy(httpProxy)
+    const agent = configureProxy(httpProxy)
+    if (agent) {
+      clientConfiguration = {
+        ...clientConfiguration,
+        ...{
+          requestHandler: new NodeHttpHandler({
+            httpAgent: agent,
+            httpsAgent: agent
+          })
+        }
+      }
+    }
 
-    const cfn = new CloudFormation({ ...clientConfiguration })
+    const cfn = new CloudFormationClient({ ...clientConfiguration })
 
     // Setup CloudFormation Stack
     let templateBody
@@ -112,7 +134,7 @@ export async function run(): Promise<void> {
     // CloudFormation Stack Parameter for the creation or update
     const params: CreateStackInput = {
       StackName: stackName,
-      Capabilities: [...capabilities.split(',').map(cap => cap.trim())],
+      Capabilities: capabilities,
       RoleARN: roleARN,
       NotificationARNs: notificationARNs,
       DisableRollback: disableRollback,

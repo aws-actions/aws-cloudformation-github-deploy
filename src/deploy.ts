@@ -1,11 +1,22 @@
 import * as core from '@actions/core'
-import * as aws from 'aws-sdk'
+import {
+  CloudFormationClient,
+  Stack,
+  DescribeChangeSetCommand,
+  DeleteChangeSetCommand,
+  waitUntilChangeSetCreateComplete,
+  waitUntilStackUpdateComplete,
+  waitUntilStackCreateComplete,
+  CreateChangeSetCommand,
+  ExecuteChangeSetCommand,
+  DescribeStacksCommand,
+  CreateStackCommand,
+  StackNotFoundException
+} from '@aws-sdk/client-cloudformation'
 import { CreateChangeSetInput, CreateStackInput } from './main'
 
-export type Stack = aws.CloudFormation.Stack
-
 export async function cleanupChangeSet(
-  cfn: aws.CloudFormation,
+  cfn: CloudFormationClient,
   stack: Stack,
   params: CreateChangeSetInput,
   noEmptyChangeSet: boolean,
@@ -16,23 +27,23 @@ export async function cleanupChangeSet(
     `The submitted information didn't contain changes`
   ]
 
-  const changeSetStatus = await cfn
-    .describeChangeSet({
+  const changeSetStatus = await cfn.send(
+    new DescribeChangeSetCommand({
       ChangeSetName: params.ChangeSetName,
       StackName: params.StackName
     })
-    .promise()
+  )
 
   if (changeSetStatus.Status === 'FAILED') {
     core.debug('Deleting failed Change Set')
 
     if (!noDeleteFailedChangeSet) {
-      await cfn
-        .deleteChangeSet({
+      cfn.send(
+        new DeleteChangeSetCommand({
           ChangeSetName: params.ChangeSetName,
           StackName: params.StackName
         })
-        .promise()
+      )
     }
 
     if (
@@ -51,7 +62,7 @@ export async function cleanupChangeSet(
 }
 
 export async function updateStack(
-  cfn: aws.CloudFormation,
+  cfn: CloudFormationClient,
   stack: Stack,
   params: CreateChangeSetInput,
   noEmptyChangeSet: boolean,
@@ -59,17 +70,19 @@ export async function updateStack(
   noDeleteFailedChangeSet: boolean
 ): Promise<string | undefined> {
   core.debug('Creating CloudFormation Change Set')
-  await cfn.createChangeSet(params).promise()
+  await cfn.send(new CreateChangeSetCommand(params))
 
   try {
     core.debug('Waiting for CloudFormation Change Set creation')
-    await cfn
-      .waitFor('changeSetCreateComplete', {
+
+    await waitUntilChangeSetCreateComplete(
+      { client: cfn, maxWaitTime: 30, minDelay: 10 },
+      {
         ChangeSetName: params.ChangeSetName,
         StackName: params.StackName
-      })
-      .promise()
-  } catch (_) {
+      }
+    )
+  } catch (err) {
     return cleanupChangeSet(
       cfn,
       stack,
@@ -85,35 +98,38 @@ export async function updateStack(
   }
 
   core.debug('Executing CloudFormation change set')
-  await cfn
-    .executeChangeSet({
+  await cfn.send(
+    new ExecuteChangeSetCommand({
       ChangeSetName: params.ChangeSetName,
       StackName: params.StackName
     })
-    .promise()
+  )
 
   core.debug('Updating CloudFormation stack')
-  await cfn
-    .waitFor('stackUpdateComplete', { StackName: stack.StackId })
-    .promise()
+  await waitUntilStackUpdateComplete(
+    { client: cfn, maxWaitTime: 30, minDelay: 10 },
+    {
+      StackName: params.StackName
+    }
+  )
 
   return stack.StackId
 }
 
 async function getStack(
-  cfn: aws.CloudFormation,
+  cfn: CloudFormationClient,
   stackNameOrId: string
 ): Promise<Stack | undefined> {
   try {
-    const stacks = await cfn
-      .describeStacks({
+    const stacks = await cfn.send(
+      new DescribeStacksCommand({
         StackName: stackNameOrId
       })
-      .promise()
+    )
+
     return stacks.Stacks?.[0]
   } catch (e) {
-    // @ts-expect-error: Object is of type 'unknown'
-    if (e.code === 'ValidationError' && e.message.match(/does not exist/)) {
+    if (e instanceof StackNotFoundException) {
       return undefined
     }
     throw e
@@ -121,22 +137,42 @@ async function getStack(
 }
 
 export async function deployStack(
-  cfn: aws.CloudFormation,
+  cfn: CloudFormationClient,
   params: CreateStackInput,
   changeSetName: string,
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
 ): Promise<string | undefined> {
-  const stack = await getStack(cfn, params.StackName)
+  const stack = await getStack(cfn, params.StackName || '')
 
   if (!stack) {
     core.debug(`Creating CloudFormation Stack`)
 
-    const stack = await cfn.createStack(params).promise()
-    await cfn
-      .waitFor('stackCreateComplete', { StackName: params.StackName })
-      .promise()
+    const stack = await cfn.send(
+      new CreateStackCommand({
+        StackName: params.StackName,
+        TemplateBody: params.TemplateBody,
+        TemplateURL: params.TemplateURL,
+        Parameters: params.Parameters,
+        Capabilities: params.Capabilities,
+        ResourceTypes: params.ResourceTypes,
+        RoleARN: params.RoleARN,
+        RollbackConfiguration: params.RollbackConfiguration,
+        NotificationARNs: params.NotificationARNs,
+        DisableRollback: params.DisableRollback,
+        Tags: params.Tags,
+        TimeoutInMinutes: params.TimeoutInMinutes,
+        EnableTerminationProtection: params.EnableTerminationProtection
+      })
+    )
+
+    await waitUntilStackCreateComplete(
+      { client: cfn, maxWaitTime: 30, minDelay: 10 },
+      {
+        StackName: params.StackName
+      }
+    )
 
     return stack.StackId
   }
@@ -166,7 +202,7 @@ export async function deployStack(
 }
 
 export async function getStackOutputs(
-  cfn: aws.CloudFormation,
+  cfn: CloudFormationClient,
   stackId: string
 ): Promise<Map<string, string>> {
   const outputs = new Map<string, string>()
