@@ -117,7 +117,7 @@ function getStack(cfn, stackNameOrId) {
         }
     });
 }
-function deployStack(cfn, params, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
+function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
     return __awaiter(this, void 0, void 0, function* () {
         const stack = yield getStack(cfn, params.StackName || '');
         if (!stack) {
@@ -142,7 +142,7 @@ function deployStack(cfn, params, noEmptyChangeSet, noExecuteChangeSet, noDelete
             });
             return stack.StackId;
         }
-        return yield updateStack(cfn, stack, Object.assign({ ChangeSetName: params.ChangeSetName || `${params.StackName}-CS` }, {
+        return yield updateStack(cfn, stack, Object.assign({ ChangeSetName: changeSetName }, {
             StackName: params.StackName,
             TemplateBody: params.TemplateBody,
             TemplateURL: params.TemplateURL,
@@ -310,13 +310,12 @@ function run() {
                 TemplateBody: templateBody,
                 TemplateURL: templateUrl,
                 Tags: tags,
-                EnableTerminationProtection: terminationProtections,
-                ChangeSetName: changeSetName || `${stackName}-CS`
+                EnableTerminationProtection: terminationProtections
             };
             if (parameterOverrides) {
                 params.Parameters = (0, utils_1.parseParameters)(parameterOverrides.trim());
             }
-            const stackId = yield (0, deploy_1.deployStack)(cfn, params, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+            const stackId = yield (0, deploy_1.deployStack)(cfn, params, changeSetName ? changeSetName : `${params.StackName}-CS`, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
             core.setOutput('stack-id', stackId || 'UNKNOWN');
             if (stackId) {
                 const outputs = yield (0, deploy_1.getStackOutputs)(cfn, stackId);
