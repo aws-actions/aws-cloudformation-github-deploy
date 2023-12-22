@@ -122,7 +122,8 @@ async function getStack(
 
 export async function deployStack(
   cfn: aws.CloudFormation,
-  params: CreateStackInput & CreateChangeSetInput,
+  params: CreateStackInput,
+  changeSetName: string,
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
@@ -132,23 +133,7 @@ export async function deployStack(
   if (!stack) {
     core.debug(`Creating CloudFormation Stack`)
 
-    const stack = await cfn
-      .createStack({
-        StackName: params.StackName,
-        TemplateBody: params.TemplateBody,
-        TemplateURL: params.TemplateURL,
-        Parameters: params.Parameters,
-        Capabilities: params.Capabilities,
-        ResourceTypes: params.ResourceTypes,
-        RoleARN: params.RoleARN,
-        RollbackConfiguration: params.RollbackConfiguration,
-        NotificationARNs: params.NotificationARNs,
-        DisableRollback: params.DisableRollback,
-        Tags: params.Tags,
-        TimeoutInMinutes: params.TimeoutInMinutes,
-        EnableTerminationProtection: params.EnableTerminationProtection
-      })
-      .promise()
+    const stack = await cfn.createStack(params).promise()
     await cfn
       .waitFor('stackCreateComplete', { StackName: params.StackName })
       .promise()
@@ -160,7 +145,7 @@ export async function deployStack(
     cfn,
     stack,
     {
-      ChangeSetName: params.ChangeSetName || `${params.StackName}-CS`,
+      ChangeSetName: changeSetName,
       ...{
         StackName: params.StackName,
         TemplateBody: params.TemplateBody,

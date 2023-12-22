@@ -29,7 +29,6 @@ export type Inputs = {
 const clientConfiguration = {
   customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
 }
-
 export async function run(): Promise<void> {
   try {
     const { GITHUB_WORKSPACE = __dirname } = process.env
@@ -113,7 +112,7 @@ export async function run(): Promise<void> {
     }
 
     // CloudFormation Stack Parameter for the creation or update
-    const params: CreateStackInput & CreateChangeSetInput = {
+    const params: CreateStackInput = {
       StackName: stackName,
       Capabilities: [...capabilities.split(',').map(cap => cap.trim())],
       RoleARN: roleARN,
@@ -123,8 +122,7 @@ export async function run(): Promise<void> {
       TemplateBody: templateBody,
       TemplateURL: templateUrl,
       Tags: tags,
-      EnableTerminationProtection: terminationProtections,
-      ChangeSetName: changeSetName || `${stackName}-CS`
+      EnableTerminationProtection: terminationProtections
     }
 
     if (parameterOverrides) {
@@ -134,6 +132,7 @@ export async function run(): Promise<void> {
     const stackId = await deployStack(
       cfn,
       params,
+      changeSetName ? changeSetName : `${params.StackName}-CS`,
       noEmptyChangeSet,
       noExecuteChangeSet,
       noDeleteFailedChangeSet

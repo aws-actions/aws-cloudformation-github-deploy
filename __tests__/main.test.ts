@@ -1211,4 +1211,57 @@ describe('Deploy CloudFormation Stack', () => {
 
     expect(core.setFailed).toBeCalled()
   })
+  test('deploy using a custom change-set name', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template: 'template.yaml',
+      capabilities: 'CAPABILITY_IAM',
+      'change-set-name': 'Build-213123123-CS',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '1'
+    }
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+    mockDescribeStacks.mockReset()
+    mockDescribeStacks.mockImplementation(() => {
+      return {
+        promise(): Promise<aws.CloudFormation.Types.DescribeStacksOutput> {
+          return Promise.resolve({
+            Stacks: [
+              {
+                StackId:
+                  'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+                Tags: [],
+                Outputs: [],
+                StackStatusReason: '',
+                CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+                Capabilities: [],
+                StackName: 'MockStack',
+                StackStatus: 'CREATE_COMPLETE'
+              }
+            ]
+          })
+        }
+      }
+    })
+    await run()
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
+      StackName: 'MockStack',
+      TemplateBody: mockTemplate,
+      Capabilities: ['CAPABILITY_IAM'],
+      Parameters: [
+        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+      ],
+      ChangeSetName: 'Build-213123123-CS',
+      NotificationARNs: undefined,
+      ResourceTypes: undefined,
+      RollbackConfiguration: undefined,
+      RoleARN: undefined,
+      Tags: undefined,
+      TemplateURL: undefined,
+      TimeoutInMinutes: undefined
+    })
+  })
 })
