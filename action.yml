@@ -58,6 +58,8 @@ inputs:
 outputs:
   stack-id:
     description: "The id of the deployed stack. In addition, any outputs declared in the deployed CloudFormation stack will also be set as outputs for the action, e.g. if the stack has a stack output named 'foo', this action will also have an output named 'foo'."
+  change-set-id:
+    description: "The id of the created change set. If no change set was created, defaults to 'UNKNOWN'"
 runs:
   using: "node16"
   main: "dist/index.js"

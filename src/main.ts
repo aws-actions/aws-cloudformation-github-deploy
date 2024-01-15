@@ -129,7 +129,7 @@ export async function run(): Promise<void> {
       params.Parameters = parseParameters(parameterOverrides.trim())
     }
 
-    const stackId = await deployStack(
+    const deployStackOutputs = await deployStack(
       cfn,
       params,
       changeSetName ? changeSetName : `${params.StackName}-CS`,
@@ -137,10 +137,11 @@ export async function run(): Promise<void> {
       noExecuteChangeSet,
       noDeleteFailedChangeSet
     )
-    core.setOutput('stack-id', stackId || 'UNKNOWN')
+    core.setOutput('stack-id', deployStackOutputs.StackId || 'UNKNOWN')
+    core.setOutput('change-set-id', deployStackOutputs.ChangeSetId || 'UNKNOWN')
 
-    if (stackId) {
-      const outputs = await getStackOutputs(cfn, stackId)
+    if (deployStackOutputs.StackId) {
+      const outputs = await getStackOutputs(cfn, deployStackOutputs.StackId)
       for (const [key, value] of outputs) {
         core.setOutput(key, value)
       }
