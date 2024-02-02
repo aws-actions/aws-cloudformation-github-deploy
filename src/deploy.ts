@@ -76,7 +76,7 @@ export async function updateStack(
     core.debug('Waiting for CloudFormation Change Set creation')
 
     await waitUntilChangeSetCreateComplete(
-      { client: cfn, maxWaitTime: 30, minDelay: 10 },
+      { client: cfn, maxWaitTime: 1800, minDelay: 10 },
       {
         ChangeSetName: params.ChangeSetName,
         StackName: params.StackName
@@ -107,7 +107,7 @@ export async function updateStack(
 
   core.debug('Updating CloudFormation stack')
   await waitUntilStackUpdateComplete(
-    { client: cfn, maxWaitTime: 30, minDelay: 10 },
+    { client: cfn, maxWaitTime: 43200, minDelay: 10 },
     {
       StackName: params.StackName
     }
@@ -168,7 +168,7 @@ export async function deployStack(
     )
 
     await waitUntilStackCreateComplete(
-      { client: cfn, maxWaitTime: 30, minDelay: 10 },
+      { client: cfn, maxWaitTime: 43200, minDelay: 10 },
       {
         StackName: params.StackName
       }
