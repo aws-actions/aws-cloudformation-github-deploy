@@ -75,7 +75,7 @@ function updateStack(cfn, stack, params, noEmptyChangeSet, noExecuteChangeSet, n
         yield cfn.send(new client_cloudformation_1.CreateChangeSetCommand(params));
         try {
             core.debug('Waiting for CloudFormation Change Set creation');
-            yield (0, client_cloudformation_1.waitUntilChangeSetCreateComplete)({ client: cfn, maxWaitTime: 30, minDelay: 10 }, {
+            yield (0, client_cloudformation_1.waitUntilChangeSetCreateComplete)({ client: cfn, maxWaitTime: 1800, minDelay: 10 }, {
                 ChangeSetName: params.ChangeSetName,
                 StackName: params.StackName
             });
@@ -93,7 +93,7 @@ function updateStack(cfn, stack, params, noEmptyChangeSet, noExecuteChangeSet, n
             StackName: params.StackName
         }));
         core.debug('Updating CloudFormation stack');
-        yield (0, client_cloudformation_1.waitUntilStackUpdateComplete)({ client: cfn, maxWaitTime: 30, minDelay: 10 }, {
+        yield (0, client_cloudformation_1.waitUntilStackUpdateComplete)({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
             StackName: params.StackName
         });
         return stack.StackId;
@@ -137,7 +137,7 @@ function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChan
                 TimeoutInMinutes: params.TimeoutInMinutes,
                 EnableTerminationProtection: params.EnableTerminationProtection
             }));
-            yield (0, client_cloudformation_1.waitUntilStackCreateComplete)({ client: cfn, maxWaitTime: 30, minDelay: 10 }, {
+            yield (0, client_cloudformation_1.waitUntilStackCreateComplete)({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
                 StackName: params.StackName
             });
             return stack.StackId;
