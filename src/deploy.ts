@@ -11,7 +11,7 @@ import {
   ExecuteChangeSetCommand,
   DescribeStacksCommand,
   CreateStackCommand,
-  StackNotFoundException
+  CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import { CreateChangeSetInput, CreateStackInput } from './main'
 
@@ -129,7 +129,7 @@ async function getStack(
 
     return stacks.Stacks?.[0]
   } catch (e) {
-    if (e instanceof StackNotFoundException) {
+    if (e instanceof CloudFormationServiceException) {
       return undefined
     }
     throw e
