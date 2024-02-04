@@ -110,7 +110,7 @@ function getStack(cfn, stackNameOrId) {
             return (_a = stacks.Stacks) === null || _a === void 0 ? void 0 : _a[0];
         }
         catch (e) {
-            if (e instanceof client_cloudformation_1.StackNotFoundException) {
+            if (e instanceof client_cloudformation_1.CloudFormationServiceException) {
                 return undefined;
             }
             throw e;
