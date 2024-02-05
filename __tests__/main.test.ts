@@ -1401,7 +1401,7 @@ describe('Deploy CloudFormation Stack', () => {
     const inputs: Inputs = {
       name: 'MockStack',
       template: 'template.yaml',
-      capabilities: 'CAPABILITY_IAM',
+      capabilities: 'CAPABILITY_IAM, CAPABILITY_AUTO_EXPAND',
       'change-set-name': 'Build-213123123-CS',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1'
@@ -1459,7 +1459,7 @@ describe('Deploy CloudFormation Stack', () => {
       {
         StackName: 'MockStack',
         TemplateBody: mockTemplate,
-        Capabilities: ['CAPABILITY_IAM'],
+        Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_AUTO_EXPAND'],
         Parameters: [
           { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
         ],
