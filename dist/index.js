@@ -237,7 +237,8 @@ function run() {
                 .getInput('capabilities', {
                 required: false
             })
-                .split(',');
+                .split(',')
+                .map(capability => capability.trim());
             const parameterOverrides = core.getInput('parameter-overrides', {
                 required: false
             });
