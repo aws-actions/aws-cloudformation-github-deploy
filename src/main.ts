@@ -46,7 +46,8 @@ export async function run(): Promise<void> {
       .getInput('capabilities', {
         required: false
       })
-      .split(',') as Capability[]
+      .split(',')
+      .map(capability => capability.trim()) as Capability[]
 
     const parameterOverrides = core.getInput('parameter-overrides', {
       required: false
