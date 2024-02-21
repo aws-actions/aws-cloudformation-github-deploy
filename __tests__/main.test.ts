@@ -1396,18 +1396,52 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'envs-prefix-for-parameter-overrides': 'CFD_',
-      'no-fail-on-empty-changeset': '0',
-      'disable-rollback': '0',
-      'timeout-in-minutes': '',
-      'notification-arns': '',
-      'role-arn': '',
-      tags: '',
-      'termination-protection': ''
+      'no-fail-on-empty-changeset': '1'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
       return inputs[name]
     })
+
+    mockCfnClient
+      .reset()
+      .on(DescribeStacksCommand)
+      .resolvesOnce({
+        Stacks: [
+          {
+            StackId:
+              'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: 'CREATE_COMPLETE'
+          }
+        ]
+      })
+      .resolves({
+        Stacks: [
+          {
+            StackId:
+              'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: StackStatus.UPDATE_COMPLETE
+          }
+        ]
+      })
+      .on(CreateChangeSetCommand)
+      .resolves({})
+      .on(ExecuteChangeSetCommand)
+      .resolves({})
+      .on(DescribeChangeSetCommand)
+      .resolves({ Status: ChangeSetStatus.CREATE_COMPLETE })
 
     process.env = Object.assign(process.env, { CFD_AdminNickname: 'root' })
 
@@ -1416,26 +1450,70 @@ describe('Deploy CloudFormation Stack', () => {
     delete process.env.CFD_AdminNickname
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
-    expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
-      StackName: 'MockStack'
-    })
-    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
-      StackName: mockStackId
-    })
-    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
-      StackName: 'MockStack',
-      TemplateBody: mockTemplate,
-      Capabilities: ['CAPABILITY_IAM'],
-      Parameters: [
-        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' },
-        { ParameterKey: 'AdminNickname', ParameterValue: 'root' }
-      ],
-      DisableRollback: false,
-      EnableTerminationProtection: false
-    })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 3)
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      1,
+      DescribeStacksCommand,
+      {
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      2,
+      CreateChangeSetCommand,
+      {
+        Capabilities: ['CAPABILITY_IAM'],
+        NotificationARNs: undefined,
+        Parameters: [
+          {
+            ParameterKey: 'AdminEmail',
+            ParameterValue: 'no-reply@amazon.com'
+          },
+          {
+            ParameterKey: 'AdminNickname',
+            ParameterValue: 'root'
+          }
+        ],
+        ResourceTypes: undefined,
+        RoleARN: undefined,
+        RollbackConfiguration: undefined,
+        StackName: 'MockStack',
+        Tags: undefined,
+        TemplateBody: mockTemplate,
+        TemplateURL: undefined
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      3,
+      DescribeChangeSetCommand,
+      {
+        ChangeSetName: 'MockStack-CS',
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      4,
+      ExecuteChangeSetCommand,
+      {
+        ChangeSetName: 'MockStack-CS',
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      5,
+      DescribeStacksCommand,
+      {
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      6,
+      DescribeStacksCommand,
+      {
+        StackName:
+          'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+      }
+    )
   })
 
   test('deploys the stack with prefixed envs but no envs are passed', async () => {
@@ -1445,41 +1523,118 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'envs-prefix-for-parameter-overrides': 'CFD_',
-      'no-fail-on-empty-changeset': '0',
-      'disable-rollback': '0',
-      'timeout-in-minutes': '',
-      'notification-arns': '',
-      'role-arn': '',
-      tags: '',
-      'termination-protection': ''
+      'no-fail-on-empty-changeset': '1'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
       return inputs[name]
     })
 
+    mockCfnClient
+      .reset()
+      .on(DescribeStacksCommand)
+      .resolvesOnce({
+        Stacks: [
+          {
+            StackId:
+              'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: 'CREATE_COMPLETE'
+          }
+        ]
+      })
+      .resolves({
+        Stacks: [
+          {
+            StackId:
+              'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: StackStatus.UPDATE_COMPLETE
+          }
+        ]
+      })
+      .on(CreateChangeSetCommand)
+      .resolves({})
+      .on(ExecuteChangeSetCommand)
+      .resolves({})
+      .on(DescribeChangeSetCommand)
+      .resolves({ Status: ChangeSetStatus.CREATE_COMPLETE })
+
     await run()
 
+    delete process.env.CFD_AdminNickname
+
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
-    expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
-      StackName: 'MockStack'
-    })
-    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
-      StackName: mockStackId
-    })
-    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
-      StackName: 'MockStack',
-      TemplateBody: mockTemplate,
-      Capabilities: ['CAPABILITY_IAM'],
-      Parameters: [
-        { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
-      ],
-      DisableRollback: false,
-      EnableTerminationProtection: false
-    })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 3)
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      1,
+      DescribeStacksCommand,
+      {
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      2,
+      CreateChangeSetCommand,
+      {
+        Capabilities: ['CAPABILITY_IAM'],
+        NotificationARNs: undefined,
+        Parameters: [
+          {
+            ParameterKey: 'AdminEmail',
+            ParameterValue: 'no-reply@amazon.com'
+          }
+        ],
+        ResourceTypes: undefined,
+        RoleARN: undefined,
+        RollbackConfiguration: undefined,
+        StackName: 'MockStack',
+        Tags: undefined,
+        TemplateBody: mockTemplate,
+        TemplateURL: undefined
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      3,
+      DescribeChangeSetCommand,
+      {
+        ChangeSetName: 'MockStack-CS',
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      4,
+      ExecuteChangeSetCommand,
+      {
+        ChangeSetName: 'MockStack-CS',
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      5,
+      DescribeStacksCommand,
+      {
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      6,
+      DescribeStacksCommand,
+      {
+        StackName:
+          'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+      }
+    )
   })
 
   test('deploys the stack with prefixed envs but no other parameter overrides are passed', async () => {
@@ -1488,18 +1643,52 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'envs-prefix-for-parameter-overrides': 'CFD_',
-      'no-fail-on-empty-changeset': '0',
-      'disable-rollback': '0',
-      'timeout-in-minutes': '',
-      'notification-arns': '',
-      'role-arn': '',
-      tags: '',
-      'termination-protection': ''
+      'no-fail-on-empty-changeset': '1'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
       return inputs[name]
     })
+
+    mockCfnClient
+      .reset()
+      .on(DescribeStacksCommand)
+      .resolvesOnce({
+        Stacks: [
+          {
+            StackId:
+              'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: 'CREATE_COMPLETE'
+          }
+        ]
+      })
+      .resolves({
+        Stacks: [
+          {
+            StackId:
+              'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896',
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: StackStatus.UPDATE_COMPLETE
+          }
+        ]
+      })
+      .on(CreateChangeSetCommand)
+      .resolves({})
+      .on(ExecuteChangeSetCommand)
+      .resolves({})
+      .on(DescribeChangeSetCommand)
+      .resolves({ Status: ChangeSetStatus.CREATE_COMPLETE })
 
     process.env = Object.assign(process.env, { CFD_AdminNickname: 'root' })
 
@@ -1508,23 +1697,66 @@ describe('Deploy CloudFormation Stack', () => {
     delete process.env.CFD_AdminNickname
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(mockDescribeStacks).toHaveBeenCalledTimes(2)
-    expect(mockDescribeStacks).toHaveBeenNthCalledWith(1, {
-      StackName: 'MockStack'
-    })
-    expect(mockDescribeStacks).toHaveBeenNthCalledWith(2, {
-      StackName: mockStackId
-    })
-    expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
-      StackName: 'MockStack',
-      TemplateBody: mockTemplate,
-      Capabilities: ['CAPABILITY_IAM'],
-      Parameters: [{ ParameterKey: 'AdminNickname', ParameterValue: 'root' }],
-      DisableRollback: false,
-      EnableTerminationProtection: false
-    })
-    expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 3)
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      1,
+      DescribeStacksCommand,
+      {
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      2,
+      CreateChangeSetCommand,
+      {
+        Capabilities: ['CAPABILITY_IAM'],
+        NotificationARNs: undefined,
+        Parameters: [
+          {
+            ParameterKey: 'AdminNickname',
+            ParameterValue: 'root'
+          }
+        ],
+        ResourceTypes: undefined,
+        RoleARN: undefined,
+        RollbackConfiguration: undefined,
+        StackName: 'MockStack',
+        Tags: undefined,
+        TemplateBody: mockTemplate,
+        TemplateURL: undefined
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      3,
+      DescribeChangeSetCommand,
+      {
+        ChangeSetName: 'MockStack-CS',
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      4,
+      ExecuteChangeSetCommand,
+      {
+        ChangeSetName: 'MockStack-CS',
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      5,
+      DescribeStacksCommand,
+      {
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      6,
+      DescribeStacksCommand,
+      {
+        StackName:
+          'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+      }
+    )
   })
 
   test('error is caught by core.setFailed', async () => {
