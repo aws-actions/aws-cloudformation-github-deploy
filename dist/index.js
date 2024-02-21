@@ -325,7 +325,7 @@ function run() {
                     ? [...params.Parameters, ...envParameters]
                     : envParameters;
             }
-            const stackId = yield (0, deploy_1.deployStack)(cfn, params, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+            const stackId = yield (0, deploy_1.deployStack)(cfn, params, changeSetName ? changeSetName : `${params.StackName}-CS`, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
             core.setOutput('stack-id', stackId || 'UNKNOWN');
             if (stackId) {
                 const outputs = yield (0, deploy_1.getStackOutputs)(cfn, stackId);
@@ -381,7 +381,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.configureProxy = exports.parseParametersFromEnvs = exports.parseParameters = exports.parseNumber = exports.parseString = exports.parseARNs = exports.parseTags = exports.isUrl = void 0;
-const aws = __importStar(__nccwpck_require__(71786));
 const fs = __importStar(__nccwpck_require__(57147));
 const https_proxy_agent_1 = __nccwpck_require__(77219);
 function isUrl(s) {
