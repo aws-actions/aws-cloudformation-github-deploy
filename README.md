@@ -44,7 +44,7 @@ Override parameters using a local JSON file: `"file:///${{ github.workspace }}/p
 
 #### envs-prefix-for-parameter-overrides (OPTIONAL)
 
-You can also override parameter values using environment variables with prefixed keys. Use `envs-prefix-for-parameter-overrides` parameter to define a prefix you want action to filter out and combine with other parameters while deploying. 
+You can also override parameter values using environment variables with prefixed keys. Use `envs-prefix-for-parameter-overrides` parameter to define a prefix you want action to filter out and combine with other parameters while deploying.
 
 The biggest advantage of this approach is that you don't need to think about escaping your variables (as long as Github UI/YAML accepts it).
 
