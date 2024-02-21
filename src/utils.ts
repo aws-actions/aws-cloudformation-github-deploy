@@ -93,7 +93,9 @@ export function parseParametersFromEnvs(
   return parameters
 }
 
-export function configureProxy(proxyServer: string | undefined) {
+export function configureProxy(
+  proxyServer: string | undefined
+): HttpsProxyAgent | undefined {
   const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy
 
   if (proxyFromEnv || proxyServer) {
