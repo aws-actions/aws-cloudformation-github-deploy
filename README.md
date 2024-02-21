@@ -42,6 +42,30 @@ Override parameters using a local JSON file: `"file:///${{ github.workspace }}/p
 
 > You can learn more about [AWS CloudFormation](https://aws.amazon.com/cloudformation/)
 
+#### envs-prefix-for-parameter-overrides (OPTIONAL)
+
+You can also override parameter values using environment variables with prefixed keys. Use `envs-prefix-for-parameter-overrides` parameter to define a prefix you want action to filter out and combine with other parameters while deploying.
+
+The biggest advantage of this approach is that you don't need to think about escaping your variables (as long as Github UI/YAML accepts it).
+
+The prefix of your choice will be stripped.
+
+Example:
+```yaml
+- name: Deploy to AWS CloudFormation
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+    parameter-overrides: "MyParam1=myValue,MyParam2=${{ secrets.MY_SECRET_VALUE }}"
+    envs-prefix-for-parameter-overrides: CFD_
+  env:
+    CFD_MyParam3: some value, that is automatically escaped
+    CFD_MyParam4: ${{ vars.MY_VAR_VALUE }}
+```
+
+This example will result in 4 parameter overrides: MyParam1, MyParam2, MyParam3 and MyParam4. The last two will be taken from environment variables.
+
 ## Credentials and Region
 
 This action relies on the [default behavior of the AWS SDK for Javascript](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html) to determine AWS credentials and region.

@@ -242,6 +242,9 @@ function run() {
             const parameterOverrides = core.getInput('parameter-overrides', {
                 required: false
             });
+            const envsPrefixForParameterOverrides = core.getInput('envs-prefix-for-parameter-overrides', {
+                required: false
+            });
             const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
                 required: false
             });
@@ -316,6 +319,12 @@ function run() {
             if (parameterOverrides) {
                 params.Parameters = (0, utils_1.parseParameters)(parameterOverrides.trim());
             }
+            if (envsPrefixForParameterOverrides) {
+                const envParameters = (0, utils_1.parseParametersFromEnvs)(envsPrefixForParameterOverrides, process.env);
+                params.Parameters = params.Parameters
+                    ? [...params.Parameters, ...envParameters]
+                    : envParameters;
+            }
             const stackId = yield (0, deploy_1.deployStack)(cfn, params, changeSetName ? changeSetName : `${params.StackName}-CS`, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
             core.setOutput('stack-id', stackId || 'UNKNOWN');
             if (stackId) {
@@ -371,7 +380,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.configureProxy = exports.parseParameters = exports.parseNumber = exports.parseString = exports.parseARNs = exports.parseTags = exports.isUrl = void 0;
+exports.configureProxy = exports.parseParametersFromEnvs = exports.parseParameters = exports.parseNumber = exports.parseString = exports.parseARNs = exports.parseTags = exports.isUrl = void 0;
 const fs = __importStar(__nccwpck_require__(57147));
 const https_proxy_agent_1 = __nccwpck_require__(77219);
 function isUrl(s) {
@@ -443,6 +452,16 @@ function parseParameters(parameterOverrides) {
     });
 }
 exports.parseParameters = parseParameters;
+function parseParametersFromEnvs(prefix, envs) {
+    const parameters = Object.keys(envs)
+        .filter(key => key.startsWith(prefix))
+        .map(key => ({
+        ParameterKey: key.substring(prefix.length),
+        ParameterValue: envs[key]
+    }));
+    return parameters;
+}
+exports.parseParametersFromEnvs = parseParametersFromEnvs;
 function configureProxy(proxyServer) {
     const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy;
     if (proxyFromEnv || proxyServer) {

@@ -15,7 +15,8 @@ import {
   parseNumber,
   parseARNs,
   parseParameters,
-  configureProxy
+  configureProxy,
+  parseParametersFromEnvs
 } from './utils'
 import { NodeHttpHandler } from '@smithy/node-http-handler'
 
@@ -52,6 +53,12 @@ export async function run(): Promise<void> {
     const parameterOverrides = core.getInput('parameter-overrides', {
       required: false
     })
+    const envsPrefixForParameterOverrides = core.getInput(
+      'envs-prefix-for-parameter-overrides',
+      {
+        required: false
+      }
+    )
     const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
       required: false
     })
@@ -148,6 +155,16 @@ export async function run(): Promise<void> {
 
     if (parameterOverrides) {
       params.Parameters = parseParameters(parameterOverrides.trim())
+    }
+
+    if (envsPrefixForParameterOverrides) {
+      const envParameters = parseParametersFromEnvs(
+        envsPrefixForParameterOverrides,
+        process.env
+      )
+      params.Parameters = params.Parameters
+        ? [...params.Parameters, ...envParameters]
+        : envParameters
     }
 
     const stackId = await deployStack(

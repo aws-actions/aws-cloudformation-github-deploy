@@ -78,6 +78,21 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
   })
 }
 
+type Envs = { [k: string]: string | undefined }
+
+export function parseParametersFromEnvs(
+  prefix: string,
+  envs: Envs
+): Parameter[] {
+  const parameters: Parameter[] = Object.keys(envs)
+    .filter(key => key.startsWith(prefix))
+    .map(key => ({
+      ParameterKey: key.substring(prefix.length),
+      ParameterValue: envs[key]
+    }))
+  return parameters
+}
+
 export function configureProxy(
   proxyServer: string | undefined
 ): HttpsProxyAgent | undefined {

@@ -1,4 +1,9 @@
-import { parseTags, isUrl, parseParameters } from '../src/utils'
+import {
+  parseTags,
+  isUrl,
+  parseParameters,
+  parseParametersFromEnvs
+} from '../src/utils'
 import * as path from 'path'
 
 jest.mock('@actions/core')
@@ -107,6 +112,30 @@ describe('Parse Parameters', () => {
   test('returns parameters list from file', async () => {
     const filename = 'file://' + path.join(__dirname, 'params.test.json')
     const json = parseParameters(filename)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2'
+      }
+    ])
+  })
+
+  test('returns parameters list from envs if envsPrefixForParameterOverrides is defined', async () => {
+    const mockEnvs = {
+      CFD_MyParam1: 'myValue1',
+      CFD_MyParam2: 'myValue2',
+      USER: 'test',
+      PATH: '/bin:/usr/local/bin',
+      HOME: '/home/test',
+      AWS_PAGER: ''
+    }
+    const envsPrefix = 'CFD_'
+
+    const json = parseParametersFromEnvs(envsPrefix, mockEnvs)
     expect(json).toEqual([
       {
         ParameterKey: 'MyParam1',
