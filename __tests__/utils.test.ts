@@ -1,7 +1,9 @@
-import { parseTags, isUrl, parseParameters } from '../src/utils'
+import { configureProxy, parseTags, isUrl, parseParameters } from '../src/utils'
 import * as path from 'path'
 
 jest.mock('@actions/core')
+
+const oldEnv = process.env
 
 describe('Determine a valid url', () => {
   beforeEach(() => {
@@ -40,6 +42,11 @@ describe('Parse Tags', () => {
 describe('Parse Parameters', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    process.env = { ...oldEnv }
+  })
+
+  afterAll(() => {
+    process.env = oldEnv
   })
 
   test('returns parameters list from string', async () => {
@@ -88,7 +95,23 @@ describe('Parse Parameters', () => {
     ])
   })
 
-  test('returns parameters list from multiple lists with quotes', async () => {
+  test('returns parameters list from multiple lists with single quotes', async () => {
+    const json = parseParameters(
+      "MyParam1=myValue1,MyParam2='myValue2,myValue3',MyParam2=myValue4"
+    )
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2,myValue3,myValue4'
+      }
+    ])
+  })
+
+  test('returns parameters list from multiple lists with double quotes', async () => {
     const json = parseParameters(
       'MyParam1=myValue1,MyParam2="myValue2,myValue3",MyParam2=myValue4'
     )
@@ -128,5 +151,28 @@ describe('Parse Parameters', () => {
     const filename =
       'file://' + path.join(__dirname, 'params-invalid.test.json')
     expect(() => parseParameters(filename)).toThrow()
+  })
+})
+
+describe('Configure Proxy', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    process.env = { ...oldEnv }
+  })
+
+  it('returns undefined on no proxy', () => {
+    const agent = configureProxy('')
+    expect(agent).toBeUndefined()
+  })
+
+  it('returns agent on proxy', () => {
+    const agent = configureProxy('http://localhost:8080')
+    expect(agent).toBeDefined()
+  })
+
+  it('returns agent on proxy from env', () => {
+    process.env.HTTP_PROXY = 'http://localhost:8080'
+    const agent = configureProxy('')
+    expect(agent).toBeDefined()
   })
 })

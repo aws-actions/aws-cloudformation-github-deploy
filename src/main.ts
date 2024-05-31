@@ -19,7 +19,11 @@ import {
 } from './utils'
 import { NodeHttpHandler } from '@smithy/node-http-handler'
 
-export type CreateStackInput = CreateStackCommandInput
+// Validated by core.getInput() which throws if not set
+export type CreateStackInputWithName = CreateStackCommandInput & {
+  StackName: string
+}
+
 export type CreateChangeSetInput = CreateChangeSetCommandInput
 export type InputNoFailOnEmptyChanges = '1' | '0'
 export type InputCapabilities =
@@ -37,6 +41,7 @@ let clientConfiguration = {
 }
 export async function run(): Promise<void> {
   try {
+    /* istanbul ignore next */
     const { GITHUB_WORKSPACE = __dirname } = process.env
 
     // Get inputs
@@ -133,7 +138,7 @@ export async function run(): Promise<void> {
     }
 
     // CloudFormation Stack Parameter for the creation or update
-    const params: CreateStackInput = {
+    const params: CreateStackInputWithName = {
       StackName: stackName,
       Capabilities: capabilities,
       RoleARN: roleARN,

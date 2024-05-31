@@ -13,7 +13,7 @@ import {
   CreateStackCommand,
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
-import { CreateChangeSetInput, CreateStackInput } from './main'
+import { CreateChangeSetInput, CreateStackInputWithName } from './main'
 
 export async function cleanupChangeSet(
   cfn: CloudFormationClient,
@@ -127,9 +127,19 @@ async function getStack(
       })
     )
 
-    return stacks.Stacks?.[0]
+    if (stacks.Stacks?.[0]) {
+      return stacks.Stacks[0]
+    }
+
+    throw new Error(
+      `Stack ${stackNameOrId} not found, but CloudFormation did not throw an exception. This is an unexpected situation, has the SDK changed unexpectedly?`
+    )
   } catch (e) {
-    if (e instanceof CloudFormationServiceException) {
+    if (
+      e instanceof CloudFormationServiceException &&
+      e.$metadata.httpStatusCode === 400 &&
+      e.name === 'ValidationError'
+    ) {
       return undefined
     }
     throw e
@@ -138,13 +148,13 @@ async function getStack(
 
 export async function deployStack(
   cfn: CloudFormationClient,
-  params: CreateStackInput,
+  params: CreateStackInputWithName,
   changeSetName: string,
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
 ): Promise<string | undefined> {
-  const stack = await getStack(cfn, params.StackName || '')
+  const stack = await getStack(cfn, params.StackName)
 
   if (!stack) {
     core.debug(`Creating CloudFormation Stack`)
