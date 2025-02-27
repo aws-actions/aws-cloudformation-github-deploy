@@ -84,6 +84,50 @@ describe('Parse Parameters', () => {
     process.env = oldEnv
   })
 
+  test('returns parameters empty string', async () => {
+    const json = parseParameters('')
+    expect(json).toEqual([])
+  })
+
+  test('returns parameters empty YAML', async () => {
+    const json = parseParameters('0')
+    expect(json).toEqual([])
+  })
+
+  type CFParameterValue = string | string[] | boolean
+  type CFParameterObject = Record<string, CFParameterValue>
+
+  test('handles empty parameter overrides object', () => {
+    const parameterOverrides: CFParameterObject = {}
+    const result = parseParameters(parameterOverrides)
+    expect(result).toEqual([])
+  })
+
+  test('handles undefined values in parameter overrides object', () => {
+    const parameterOverrides: CFParameterObject = {
+      ValidParam: 'value',
+      EmptyParam: '',
+      ListParam: ['value1', 'value2']
+    }
+
+    const result = parseParameters(parameterOverrides)
+
+    expect(result).toEqual([
+      {
+        ParameterKey: 'ValidParam',
+        ParameterValue: 'value'
+      },
+      {
+        ParameterKey: 'EmptyParam',
+        ParameterValue: ''
+      },
+      {
+        ParameterKey: 'ListParam',
+        ParameterValue: 'value1,value2'
+      }
+    ])
+  })
+
   test('returns parameters list from string', async () => {
     const json = parseParameters('MyParam1=myValue1,MyParam2=myValue2')
     expect(json).toEqual([
@@ -116,7 +160,7 @@ describe('Parse Parameters', () => {
 
   test('returns parameters list with an extra equal', async () => {
     const json = parseParameters(
-      'MyParam1=myValue1,MyParam2=myValue2=myValue3,MyParam2=myValue4'
+      'MyParam1=myValue1,MyParam2=myValue2=myValue3,MyParam2=myValue4 '
     )
     expect(json).toEqual([
       {
@@ -177,6 +221,85 @@ describe('Parse Parameters', () => {
     ])
   })
 
+  test('returns parameters list from YAML array format', async () => {
+    const yaml = `
+- ParameterKey: MyParam1
+  ParameterValue: myValue1
+- ParameterKey: MyParam2
+  ParameterValue: myValue2
+`
+    const json = parseParameters(yaml)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2'
+      }
+    ])
+  })
+
+  test('handles YAML with nested values', async () => {
+    const yaml = `
+MyParam1: myValue1
+MyParam2:
+  - item1
+  - item2
+MyParam3:
+  key: value
+MyParam4: {"key":"value"}
+`
+    const json = parseParameters(yaml)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'item1,item2'
+      },
+      {
+        ParameterKey: 'MyParam3',
+        ParameterValue: '{"key":"value"}'
+      },
+      {
+        ParameterKey: 'MyParam4',
+        ParameterValue: '{"key":"value"}'
+      }
+    ])
+  })
+
+  test('handles YAML with boolean and number values', async () => {
+    const yaml = `
+BoolParam: true
+NumberParam: 123
+StringParam: 'hello'
+NullParam: null
+`
+    const json = parseParameters(yaml)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'BoolParam',
+        ParameterValue: 'true'
+      },
+      {
+        ParameterKey: 'NumberParam',
+        ParameterValue: '123'
+      },
+      {
+        ParameterKey: 'StringParam',
+        ParameterValue: 'hello'
+      },
+      {
+        ParameterKey: 'NullParam',
+        ParameterValue: ''
+      }
+    ])
+  })
+
   test('throws error if file is not found', async () => {
     const filename = 'file://' + path.join(__dirname, 'params.tezt.json')
     expect(() => parseParameters(filename)).toThrow()
@@ -186,6 +309,155 @@ describe('Parse Parameters', () => {
     const filename =
       'file://' + path.join(__dirname, 'params-invalid.test.json')
     expect(() => parseParameters(filename)).toThrow()
+  })
+})
+
+describe('Parse Tags', () => {
+  test('parses tags from YAML array format', () => {
+    const yaml = `
+- Key: Environment
+  Value: Production
+- Key: Project
+  Value: MyApp
+- Key: CostCenter
+  Value: '12345'
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: 'Production'
+      },
+      {
+        Key: 'Project',
+        Value: 'MyApp'
+      },
+      {
+        Key: 'CostCenter',
+        Value: '12345'
+      }
+    ])
+  })
+
+  test('parses tags from YAML object format', () => {
+    const yaml = `
+Environment: Production
+Project: MyApp
+CostCenter: '12345'
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: 'Production'
+      },
+      {
+        Key: 'Project',
+        Value: 'MyApp'
+      },
+      {
+        Key: 'CostCenter',
+        Value: '12345'
+      }
+    ])
+  })
+
+  test('handles empty YAML input', () => {
+    expect(parseTags('')).toEqual(undefined)
+    expect(parseTags('0')).toEqual(undefined)
+  })
+
+  test('handles YAML with different value types', () => {
+    const yaml = `
+Environment: Production
+IsProduction: true
+InstanceCount: 5
+FloatValue: 3.14
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: 'Production'
+      },
+      {
+        Key: 'IsProduction',
+        Value: 'true'
+      },
+      {
+        Key: 'InstanceCount',
+        Value: '5'
+      },
+      {
+        Key: 'FloatValue',
+        Value: '3.14'
+      }
+    ])
+  })
+
+  test('handles malformed YAML', () => {
+    const malformedYaml = `
+    This is not valid YAML
+    - Key: Missing Value
+    `
+    expect(parseTags(malformedYaml)).toEqual(undefined)
+  })
+
+  test('handles array format with missing required fields', () => {
+    const yaml = `
+- Key: ValidTag
+  Value: ValidValue
+- Value: MissingKey
+- Key: MissingValue
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'ValidTag',
+        Value: 'ValidValue'
+      }
+    ])
+  })
+
+  test('handles object format with empty values', () => {
+    const yaml = `
+Environment:
+Project: MyApp
+EmptyString: ''
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: ''
+      },
+      {
+        Key: 'Project',
+        Value: 'MyApp'
+      },
+      {
+        Key: 'EmptyString',
+        Value: ''
+      }
+    ])
+  })
+
+  test('preserves whitespace in tag values', () => {
+    const yaml = `
+Description: This is a long description with spaces
+Path: /path/to/something
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Description',
+        Value: 'This is a long description with spaces'
+      },
+      {
+        Key: 'Path',
+        Value: '/path/to/something'
+      }
+    ])
   })
 })
 
