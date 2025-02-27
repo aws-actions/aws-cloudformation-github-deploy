@@ -24,11 +24,21 @@ A few inputs are highlighted below. See [action.yml](action.yml) for the full do
 
 #### parameter-overrides (OPTIONAL)
 
-To override parameter values in the template you can provide a string or a file that is either local or an URL.
+To override parameter values in the template you can provide a string, a file that is either local or an URL, or a native YAML object.
 
 Override multiple parameters separated by commas: `"MyParam1=myValue1,MyParam2=myValue2"`
 
 Override a comma delimited list: `"MyParam1=myValue1,MyParam1=myValue2"` or `MyParam1="myValue1,myValue2"`
+
+Override parameters using a native YAML object:
+```yaml
+parameter-overrides:
+  MyParam1: myValue1
+  MyParam2: myValue2
+  MyListParam:
+    - item1
+    - item2
+```
 
 Override parameters using a local JSON file: `"file:///${{ github.workspace }}/parameters.json"` with a file named `parameters.json` at the root of the repository:
 ```json

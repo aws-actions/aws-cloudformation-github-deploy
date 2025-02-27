@@ -37,7 +37,24 @@ export function parseNumber(s: string): number | undefined {
   return parseInt(s) || undefined
 }
 
-export function parseParameters(parameterOverrides: string): Parameter[] {
+export function parseParameters(parameterOverrides: string | Record<string, any>): Parameter[] {
+  // Case 1: Handle native YAML objects
+  if (parameterOverrides && typeof parameterOverrides !== 'string') {
+    return Object.keys(parameterOverrides).map(key => {
+      const value = parameterOverrides[key]
+      return {
+        ParameterKey: key,
+        ParameterValue: typeof value === 'string' ? value : JSON.stringify(value)
+      }
+    })
+  }
+  
+  // Case 2: Empty string
+  if (!parameterOverrides) {
+    return []
+  }
+
+  // Case 3: URL to JSON file
   try {
     const path = new URL(parameterOverrides)
     const rawParameters = fs.readFileSync(path, 'utf-8')
@@ -50,6 +67,7 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
     }
   }
 
+  // Case 4: String format "key=value,key2=value2"
   const parameters = new Map<string, string>()
   parameterOverrides
     .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)
