@@ -37,6 +37,41 @@ describe('Parse Tags', () => {
     const json = parseTags(JSON.stringify([{ Key: 'Test', Value: 'Value' }]))
     expect(json).toEqual([{ Key: 'Test', Value: 'Value' }])
   })
+
+  test('returns valid Array from YAML key-value object format', async () => {
+    const yaml = `
+Key1: Value1
+Key2: Value2
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      { Key: 'Key1', Value: 'Value1' },
+      { Key: 'Key2', Value: 'Value2' }
+    ])
+  })
+
+  test('returns valid Array from YAML array format', async () => {
+    const yaml = `
+- Key: keyname1
+  Value: value1
+- Key: keyname2
+  Value: value2
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      { Key: 'keyname1', Value: 'value1' },
+      { Key: 'keyname2', Value: 'value2' }
+    ])
+  })
+
+  test('returns undefined for invalid YAML', async () => {
+    const invalidYaml = `
+    Key1: 'Value1
+    Key2: Value2
+    `
+    const result = parseTags(invalidYaml)
+    expect(result).toBeUndefined()
+  })
 })
 
 describe('Parse Parameters', () => {
