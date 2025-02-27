@@ -59,8 +59,12 @@ export async function run(): Promise<void> {
     const rawParameterOverrides = core.getInput('parameter-overrides', {
       required: false
     })
+
+    type CFParameterValue = string | string[] | boolean
+    type CFParameterObject = Record<string, CFParameterValue>
     // Try to parse as JSON in case it's a YAML object that was auto-converted to JSON
-    let parameterOverrides: string | Record<string, any> = rawParameterOverrides
+    let parameterOverrides: string | Record<string, CFParameterObject> =
+      rawParameterOverrides
     try {
       if (rawParameterOverrides) {
         const possibleObject = JSON.parse(rawParameterOverrides)
