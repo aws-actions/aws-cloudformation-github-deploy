@@ -2,7 +2,7 @@ import * as fs from 'fs'
 import { Parameter } from '@aws-sdk/client-cloudformation'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { Tag } from '@aws-sdk/client-cloudformation'
-import { yaml } from 'js-yaml'
+import * as yaml from 'js-yaml'
 
 export function isUrl(s: string): boolean {
   let url
@@ -16,22 +16,11 @@ export function isUrl(s: string): boolean {
   return url.protocol === 'https:'
 }
 
-export function parseTags(s: string): Tag[] | undefined {
-  if (!s || s.trim() === '') {
+export function parseTags(s: string | undefined): Tag[] | undefined {
+  if (!s) {
     return undefined
   }
 
-  let tags
-
-  // Try to parse as JSON first (backward compatibility)
-  try {
-    tags = JSON.parse(s)
-    return tags
-  } catch (_) {
-    // JSON parsing failed, try to parse as YAML
-  }
-
-  // If JSON parsing fails, try to handle as YAML
   try {
     const parsed = yaml.load(s)
 
@@ -39,20 +28,24 @@ export function parseTags(s: string): Tag[] | undefined {
       return undefined
     }
 
-    // Handle the two YAML structure formats
     if (Array.isArray(parsed)) {
-      // Already in the format [{Key: 'key', Value: 'value'}, ...]
+      // Handle array format [{Key: 'key', Value: 'value'}, ...]
       return parsed
+        .filter(item => item.Key && item.Value !== undefined)
+        .map(item => ({
+          Key: String(item.Key),
+          Value: String(item.Value)
+        }))
     } else if (typeof parsed === 'object') {
-      // Convert from {Key1: 'Value1', Key2: 'Value2'} format
-      return Object.entries(parsed).map(([Key, Value]) => ({ Key, Value }))
+      // Handle object format {key1: 'value1', key2: 'value2'}
+      return Object.entries(parsed).map(([Key, Value]) => ({
+        Key,
+        Value: String(Value ?? '')
+      }))
     }
   } catch (_) {
-    // YAML parsing failed
     return undefined
   }
-
-  return undefined
 }
 
 export function parseARNs(s: string): string[] | undefined {
@@ -70,16 +63,16 @@ export function parseNumber(s: string): number | undefined {
 type CFParameterValue = string | string[] | boolean
 type CFParameterObject = Record<string, CFParameterValue>
 export function parseParameters(
-  parameterOverrides: string | Record<string, CFParameterObject>
+  parameterOverrides: string | CFParameterObject
 ): Parameter[] {
-  // Case 1: Handle native YAML objects
+  // Case 1: Handle native YAML/JSON objects
   if (parameterOverrides && typeof parameterOverrides !== 'string') {
     return Object.keys(parameterOverrides).map(key => {
       const value = parameterOverrides[key]
       return {
         ParameterKey: key,
         ParameterValue:
-          typeof value === 'string' ? value : JSON.stringify(value)
+          typeof value === 'string' ? value : formatParameterValue(value)
       }
     })
   }
@@ -89,11 +82,34 @@ export function parseParameters(
     return []
   }
 
-  // Case 3: URL to JSON file
+  // Case 3: Try parsing as YAML
+  try {
+    const parsed = yaml.load(parameterOverrides)
+    if (!parsed) {
+      return []
+    }
+
+    if (Array.isArray(parsed)) {
+      // Handle array format
+      return parsed.map(param => ({
+        ParameterKey: param.ParameterKey,
+        ParameterValue: formatParameterValue(param.ParameterValue)
+      }))
+    } else if (typeof parsed === 'object') {
+      // Handle object format
+      return Object.entries(parsed).map(([key, value]) => ({
+        ParameterKey: key,
+        ParameterValue: formatParameterValue(value)
+      }))
+    }
+  } catch (_) {
+    // YAML parsing failed, continue to other cases
+  }
+
+  // Case 4: Try URL to JSON file
   try {
     const path = new URL(parameterOverrides)
     const rawParameters = fs.readFileSync(path, 'utf-8')
-
     return JSON.parse(rawParameters)
   } catch (err) {
     // @ts-expect-error: Object is of type 'unknown'
@@ -102,18 +118,17 @@ export function parseParameters(
     }
   }
 
-  // Case 4: String format "key=value,key2=value2"
+  // Case 5: String format "key=value,key2=value2"
   const parameters = new Map<string, string>()
   parameterOverrides
+    .trim()
     .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)
     .forEach(parameter => {
       const values = parameter.trim().split('=')
       const key = values[0]
-      // Corrects values that have an = in the value
       const value = values.slice(1).join('=')
       let param = parameters.get(key)
       param = !param ? value : [param, value].join(',')
-      // Remove starting and ending quotes
       if (
         (param.startsWith("'") && param.endsWith("'")) ||
         (param.startsWith('"') && param.endsWith('"'))
@@ -123,12 +138,26 @@ export function parseParameters(
       parameters.set(key, param)
     })
 
-  return [...parameters.keys()].map(key => {
-    return {
-      ParameterKey: key,
-      ParameterValue: parameters.get(key)
-    }
-  })
+  return [...parameters.keys()].map(key => ({
+    ParameterKey: key,
+    ParameterValue: parameters.get(key)
+  }))
+}
+
+function formatParameterValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(',')
+  }
+
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+
+  return String(value)
 }
 
 export function configureProxy(
