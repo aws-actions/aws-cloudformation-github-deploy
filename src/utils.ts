@@ -2,6 +2,7 @@ import * as fs from 'fs'
 import { Parameter } from '@aws-sdk/client-cloudformation'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { Tag } from '@aws-sdk/client-cloudformation'
+import { yaml } from 'js-yaml'
 
 export function isUrl(s: string): boolean {
   let url
@@ -17,42 +18,41 @@ export function isUrl(s: string): boolean {
 
 export function parseTags(s: string): Tag[] | undefined {
   if (!s || s.trim() === '') {
-    return undefined;
+    return undefined
   }
 
-  let tags;
+  let tags
 
   // Try to parse as JSON first (backward compatibility)
   try {
-    tags = JSON.parse(s);
-    return tags;
+    tags = JSON.parse(s)
+    return tags
   } catch (_) {
     // JSON parsing failed, try to parse as YAML
   }
 
   // If JSON parsing fails, try to handle as YAML
   try {
-    const yaml = require('js-yaml');
-    const parsed = yaml.load(s);
-    
+    const parsed = yaml.load(s)
+
     if (!parsed) {
-      return undefined;
+      return undefined
     }
 
     // Handle the two YAML structure formats
     if (Array.isArray(parsed)) {
       // Already in the format [{Key: 'key', Value: 'value'}, ...]
-      return parsed;
+      return parsed
     } else if (typeof parsed === 'object') {
       // Convert from {Key1: 'Value1', Key2: 'Value2'} format
-      return Object.entries(parsed).map(([Key, Value]) => ({ Key, Value }));
+      return Object.entries(parsed).map(([Key, Value]) => ({ Key, Value }))
     }
   } catch (_) {
     // YAML parsing failed
-    return undefined;
+    return undefined
   }
 
-  return undefined;
+  return undefined
 }
 
 export function parseARNs(s: string): string[] | undefined {
@@ -67,18 +67,23 @@ export function parseNumber(s: string): number | undefined {
   return parseInt(s) || undefined
 }
 
-export function parseParameters(parameterOverrides: string | Record<string, any>): Parameter[] {
+type CFParameterValue = string | string[] | boolean
+type CFParameterObject = Record<string, CFParameterValue>
+export function parseParameters(
+  parameterOverrides: string | Record<string, CFParameterObject>
+): Parameter[] {
   // Case 1: Handle native YAML objects
   if (parameterOverrides && typeof parameterOverrides !== 'string') {
     return Object.keys(parameterOverrides).map(key => {
       const value = parameterOverrides[key]
       return {
         ParameterKey: key,
-        ParameterValue: typeof value === 'string' ? value : JSON.stringify(value)
+        ParameterValue:
+          typeof value === 'string' ? value : JSON.stringify(value)
       }
     })
   }
-  
+
   // Case 2: Empty string
   if (!parameterOverrides) {
     return []
