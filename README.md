@@ -1,4 +1,5 @@
-## AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
+<!-- trunk-ignore-all(prettier/SyntaxError) -->
+# AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
 
 ![Package](https://github.com/aws-actions/aws-cloudformation-github-deploy/workflows/Package/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -31,6 +32,7 @@ Override multiple parameters separated by commas: `"MyParam1=myValue1,MyParam2=m
 Override a comma delimited list: `"MyParam1=myValue1,MyParam1=myValue2"` or `MyParam1="myValue1,myValue2"`
 
 Override parameters using a native YAML object:
+
 ```yaml
 parameter-overrides:
   MyParam1: myValue1
@@ -41,6 +43,7 @@ parameter-overrides:
 ```
 
 Override parameters using a local JSON file: `"file:///${{ github.workspace }}/parameters.json"` with a file named `parameters.json` at the root of the repository:
+
 ```json
 [
   {
@@ -51,6 +54,58 @@ Override parameters using a local JSON file: `"file:///${{ github.workspace }}/p
 ```
 
 > You can learn more about [AWS CloudFormation](https://aws.amazon.com/cloudformation/)
+
+## Setting Tags
+
+You can add tags to your CloudFormation stack by using the `tags` parameter. Tags can be specified in three formats:
+
+Using YAML array format:
+
+```yaml
+- uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+    tags:
+      - Key: Environment
+        Value: Production
+      - Key: Team
+        Value: DevOps
+```
+
+Using YAML object format:
+
+```yaml
+- uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+    tags:
+      Environment: Production
+      Team: DevOps
+```
+
+Using JSON formating:
+
+```yaml
+- uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+    tags: |
+      [
+        {
+          "Key": "Environment",
+          "Value": "Production"
+        },
+        {
+          "Key": "Team",
+          "Value": "DevOps"
+        }
+      ]
+```
+
+Tags specified during stack creation or update will be applied to the stack and all its resources that support tagging. These tags can be useful for cost allocation, access control, and resource organization.
 
 ## Credentials and Region
 
@@ -71,7 +126,7 @@ This action requires the following minimum set of permissions:
 
 > We recommend to read [AWS CloudFormation Security Best Practices](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html)
 
-```
+```json
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -147,15 +202,18 @@ jobs:
         name: ${{ steps.env-name.outputs.environment }}-cluster
         template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
         no-fail-on-empty-changeset: "1"
-        parameter-overrides: >-
-          AvailabilityZones=${{ github.event.inputs.region }}a,
-          AvailabilityZones=${{ github.event.inputs.region }}c,
-          KeyPairName=${{ github.event.inputs.keypair }},
-          NumberOfAZs=2,
-          ProvisionBastionHost=Disabled,
-          EKSPublicAccessEndpoint=Enabled,
-          EKSPrivateAccessEndpoint=Enabled,
-          RemoteAccessCIDR=0.0.0.0/0
+        parameter-overrides:
+          AvailabilityZones: ${{ github.event.inputs.region }}a
+          AvailabilityZones: ${{ github.event.inputs.region }}c
+          KeyPairName: ${{ github.event.inputs.keypair }}
+          NumberOfAZs: 2
+          ProvisionBastionHost: Disabled
+          EKSPublicAccessEndpoint: Enabled
+          EKSPrivateAccessEndpoint: Enabled
+          RemoteAccessCIDR: 0.0.0.0/0
+        tags:
+          Environmnet: Develop
+          Owner: DevOps
 
 ```
 
@@ -166,6 +224,7 @@ If you run in self-hosted environments and in secured environment where you need
 Additionally this action will always consider already configured proxy in the environment.
 
 Manually configured proxy:
+
 ```yaml
 uses: aws-actions/aws-cloudformation-github-deploy@v1
 with:
