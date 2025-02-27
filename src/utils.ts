@@ -16,13 +16,43 @@ export function isUrl(s: string): boolean {
 }
 
 export function parseTags(s: string): Tag[] | undefined {
-  let json
+  if (!s || s.trim() === '') {
+    return undefined;
+  }
 
+  let tags;
+
+  // Try to parse as JSON first (backward compatibility)
   try {
-    json = JSON.parse(s)
-  } catch (_) {}
+    tags = JSON.parse(s);
+    return tags;
+  } catch (_) {
+    // JSON parsing failed, try to parse as YAML
+  }
 
-  return json
+  // If JSON parsing fails, try to handle as YAML
+  try {
+    const yaml = require('js-yaml');
+    const parsed = yaml.load(s);
+    
+    if (!parsed) {
+      return undefined;
+    }
+
+    // Handle the two YAML structure formats
+    if (Array.isArray(parsed)) {
+      // Already in the format [{Key: 'key', Value: 'value'}, ...]
+      return parsed;
+    } else if (typeof parsed === 'object') {
+      // Convert from {Key1: 'Value1', Key2: 'Value2'} format
+      return Object.entries(parsed).map(([Key, Value]) => ({ Key, Value }));
+    }
+  } catch (_) {
+    // YAML parsing failed
+    return undefined;
+  }
+
+  return undefined;
 }
 
 export function parseARNs(s: string): string[] | undefined {
