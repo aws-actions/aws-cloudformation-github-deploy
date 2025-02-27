@@ -59,22 +59,6 @@ export async function run(): Promise<void> {
       required: false
     })
 
-    // type CFParameterValue = string | string[] | boolean
-    // type CFParameterObject = Record<string, CFParameterValue>
-    // // Try to parse as JSON in case it's a YAML object that was auto-converted to JSON
-    // let parameterOverrides: string | Record<string, CFParameterObject> =
-    //   rawParameterOverrides
-    // try {
-    //   if (rawParameterOverrides) {
-    //     const possibleObject = JSON.parse(rawParameterOverrides)
-    //     if (possibleObject && typeof possibleObject === 'object') {
-    //       parameterOverrides = possibleObject
-    //     }
-    //   }
-    // } catch (e) {
-    //   // If parsing fails, use the raw string value
-    //   core.debug('Parameter overrides is not a JSON object, using as string')
-    // }
     const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
       required: false
     })
