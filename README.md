@@ -31,16 +31,18 @@ Override multiple parameters separated by commas: `"MyParam1=myValue1,MyParam2=m
 
 Override a comma delimited list: `"MyParam1=myValue1,MyParam1=myValue2"` or `MyParam1="myValue1,myValue2"`
 
-Override parameters using a native YAML object:
+Override parameters using a almost native YAML object :
 
 ```yaml
-parameter-overrides:
+parameter-overrides: |
   MyParam1: myValue1
   MyParam2: myValue2
   MyListParam:
     - item1
     - item2
 ```
+
+**!Note** GitHub Actions requre all parameters to be a string, but we can pass a YAML object via string.
 
 Override parameters using a local JSON file: `"file:///${{ github.workspace }}/parameters.json"` with a file named `parameters.json` at the root of the repository:
 
@@ -66,12 +68,14 @@ Using YAML array format:
   with:
     name: MyStack
     template: myStack.yaml
-    tags:
+    tags: |
       - Key: Environment
         Value: Production
       - Key: Team
         Value: DevOps
 ```
+
+**!Note** GitHub Actions requre all parameters to be a string, but we can pass a YAML object via string.
 
 Using YAML object format:
 
@@ -80,10 +84,12 @@ Using YAML object format:
   with:
     name: MyStack
     template: myStack.yaml
-    tags:
+    tags: |
       Environment: Production
       Team: DevOps
 ```
+
+**!Note** GitHub Actions requre all parameters to be a string, but we can pass a YAML object via string.
 
 Using JSON formating:
 
@@ -104,6 +110,8 @@ Using JSON formating:
         }
       ]
 ```
+
+**!Note** GitHub Actions requre all parameters to be a string, but we can pass a JSON object via string.
 
 Tags specified during stack creation or update will be applied to the stack and all its resources that support tagging. These tags can be useful for cost allocation, access control, and resource organization.
 
@@ -202,16 +210,17 @@ jobs:
         name: ${{ steps.env-name.outputs.environment }}-cluster
         template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
         no-fail-on-empty-changeset: "1"
-        parameter-overrides:
-          AvailabilityZones: ${{ github.event.inputs.region }}a
-          AvailabilityZones: ${{ github.event.inputs.region }}c
+        parameter-overrides: |
+          AvailabilityZones:
+            - ${{ github.event.inputs.region }}a
+            - ${{ github.event.inputs.region }}c
           KeyPairName: ${{ github.event.inputs.keypair }}
           NumberOfAZs: 2
           ProvisionBastionHost: Disabled
           EKSPublicAccessEndpoint: Enabled
           EKSPrivateAccessEndpoint: Enabled
           RemoteAccessCIDR: 0.0.0.0/0
-        tags:
+        tags: |
           Environmnet: Develop
           Owner: DevOps
 
