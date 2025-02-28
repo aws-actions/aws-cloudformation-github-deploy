@@ -27,6 +27,7 @@ inputs:
       [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]. For YAML
       objects, provide parameter keys and values directly in the YAML structure.
     required: false
+    type: 'string | object'
   no-execute-changeset:
     description: >-
       Indicates whether to execute to the change set or have it reviewed.
@@ -89,6 +90,7 @@ inputs:
       3. As a JSON string:
          tags: '[{"Key":"Environment","Value":"Production"},{"Key":"Team","Value":"DevOps"}]'
     required: false
+    type: 'string | object'
   termination-protection:
     description: >-
       Whether to enable termination protection on the specified stack.
