@@ -1,8 +1,10 @@
 import * as fs from 'fs'
 import { Parameter } from '@aws-sdk/client-cloudformation'
+import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { Tag } from '@aws-sdk/client-cloudformation'
 import * as yaml from 'js-yaml'
+import * as core from '@actions/core'
 import { OutputFormat } from './main'
 
 export function formatError(error: Error, format: OutputFormat): string {
@@ -176,6 +178,42 @@ function formatParameterValue(value: unknown): string {
   }
 
   return String(value)
+}
+
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 5,
+  initialDelayMs = 1000
+): Promise<T> {
+  let retryCount = 0
+  let delay = initialDelayMs
+
+  while (true) {
+    try {
+      return await operation()
+    } catch (error: unknown) {
+      if (error instanceof ThrottlingException) {
+        if (retryCount >= maxRetries) {
+          throw new Error(
+            `Maximum retry attempts (${maxRetries}) reached. Last error: ${
+              (error as Error).message
+            }`
+          )
+        }
+
+        retryCount++
+        core.info(
+          `Rate limit exceeded. Attempt ${retryCount}/${maxRetries}. Waiting ${
+            delay / 1000
+          } seconds before retry...`
+        )
+        await new Promise(resolve => setTimeout(resolve, delay))
+        delay *= 2 // Exponential backoff
+        continue
+      }
+      throw error
+    }
+  }
 }
 
 export function configureProxy(

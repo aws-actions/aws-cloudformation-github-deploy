@@ -1,14 +1,14 @@
+import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
 import {
   configureProxy,
   parseTags,
   isUrl,
   parseParameters,
-  formatError
+  formatError,
+  withRetry
 } from '../src/utils'
 import * as path from 'path'
 import * as yaml from 'js-yaml'
-
-jest.mock('@actions/core')
 
 const oldEnv = process.env
 
@@ -492,6 +492,80 @@ describe('Format Error', () => {
         stack: 'Test error stack'
       }
     })
+  })
+})
+
+describe('withRetry', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  test('returns result on successful operation', async () => {
+    const operation = jest.fn().mockResolvedValue('success')
+    const result = await withRetry(operation)
+    expect(result).toBe('success')
+    expect(operation).toHaveBeenCalledTimes(1)
+  })
+
+  test('retries on rate exceeded error', async () => {
+    jest.useFakeTimers()
+    const error = new ThrottlingException({
+      message: 'Rate exceeded',
+      $metadata: { requestId: 'test-request-id', attempts: 1 }
+    })
+    const operation = jest
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce('success')
+
+    const retryPromise = withRetry(operation, 5, 100)
+
+    // Advance timer for the first retry (since it succeeds on second try)
+    await jest.advanceTimersByTimeAsync(100)
+
+    const result = await retryPromise
+    expect(result).toBe('success')
+    expect(operation).toHaveBeenCalledTimes(2)
+
+    jest.useRealTimers()
+  }, 10000)
+
+  test('fails after max retries', async () => {
+    jest.useFakeTimers()
+    const error = new ThrottlingException({
+      message: 'Rate exceeded',
+      $metadata: { requestId: 'test-request-id', attempts: 1 }
+    })
+    const operation = jest.fn().mockRejectedValue(error)
+
+    // Attach the catch handler immediately
+    const retryPromise = withRetry(operation, 5, 100).catch(err => {
+      expect(err.message).toBe(
+        'Maximum retry attempts (5) reached. Last error: Rate exceeded'
+      )
+    })
+
+    // Advance timers for each retry (initial + 5 retries)
+    for (let i = 0; i < 5; i++) {
+      await jest.advanceTimersByTimeAsync(100 * Math.pow(2, i))
+    }
+
+    await retryPromise
+    expect(operation).toHaveBeenCalledTimes(6)
+
+    jest.useRealTimers()
+  }, 10000)
+
+  test('does not retry on non-rate-limit errors', async () => {
+    const error = new Error('Other error')
+    const operation = jest.fn().mockRejectedValue(error)
+
+    await expect(withRetry(operation)).rejects.toThrow('Other error')
+    expect(operation).toHaveBeenCalledTimes(1)
   })
 })
 
