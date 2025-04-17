@@ -3,6 +3,24 @@ import { Parameter } from '@aws-sdk/client-cloudformation'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { Tag } from '@aws-sdk/client-cloudformation'
 import * as yaml from 'js-yaml'
+import { OutputFormat } from './main'
+
+export function formatError(error: Error, format: OutputFormat): string {
+  if (format === 'yaml') {
+    return yaml.dump({
+      error: {
+        message: error.message,
+        stack: error.stack
+      }
+    })
+  }
+  return JSON.stringify({
+    error: {
+      message: error.message,
+      stack: error.stack
+    }
+  })
+}
 
 export function isUrl(s: string): boolean {
   let url

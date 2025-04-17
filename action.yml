@@ -108,6 +108,12 @@ inputs:
     description: >-
       A description of the change set that helps you identify its purpose.
     required: false
+  output-format:
+    description: >-
+      The format for warnings and errors output. Can be either 'json' or 'yaml'.
+      Defaults to 'json' for backward compatibility.
+    required: false
+    default: "json"
 outputs:
   stack-id:
     description: >-
@@ -118,3 +124,4 @@ outputs:
 runs:
   using: "node20"
   main: "dist/index.js"
+
