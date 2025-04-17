@@ -1,5 +1,12 @@
-import { configureProxy, parseTags, isUrl, parseParameters } from '../src/utils'
+import {
+  configureProxy,
+  parseTags,
+  isUrl,
+  parseParameters,
+  formatError
+} from '../src/utils'
 import * as path from 'path'
+import * as yaml from 'js-yaml'
 
 jest.mock('@actions/core')
 
@@ -458,6 +465,33 @@ Path: /path/to/something
         Value: '/path/to/something'
       }
     ])
+  })
+})
+
+describe('Format Error', () => {
+  const testError = new Error('Test error message')
+  testError.stack = 'Test error stack'
+
+  test('formats error as JSON', () => {
+    const result = formatError(testError, 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'Test error message',
+        stack: 'Test error stack'
+      }
+    })
+  })
+
+  test('formats error as YAML', () => {
+    const result = formatError(testError, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'Test error message',
+        stack: 'Test error stack'
+      }
+    })
   })
 })
 
