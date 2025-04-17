@@ -108,13 +108,18 @@ export async function run(): Promise<void> {
         required: false
       })
     )
+    const changeSetDescription = parseString(
+      core.getInput('change-set-description', {
+        required: false
+      })
+    )
+
     const includeNestedStacksChangeSet = !!+core.getInput(
       'include-nested-stacks-change-set',
       {
         required: false
       }
     )
-
     // Configures proxy
     const agent = configureProxy(httpProxy)
     if (agent) {
@@ -171,7 +176,8 @@ export async function run(): Promise<void> {
       changeSetName ? changeSetName : `${params.StackName}-CS`,
       noEmptyChangeSet,
       noExecuteChangeSet,
-      noDeleteFailedChangeSet
+      noDeleteFailedChangeSet,
+      changeSetDescription
     )
     core.setOutput('stack-id', stackId || 'UNKNOWN')
 
