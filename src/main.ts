@@ -107,6 +107,11 @@ export async function run(): Promise<void> {
         required: false
       })
     )
+    const changeSetDescription = parseString(
+      core.getInput('change-set-description', {
+        required: false
+      })
+    )
 
     // Configures proxy
     const agent = configureProxy(httpProxy)
@@ -163,7 +168,8 @@ export async function run(): Promise<void> {
       changeSetName ? changeSetName : `${params.StackName}-CS`,
       noEmptyChangeSet,
       noExecuteChangeSet,
-      noDeleteFailedChangeSet
+      noDeleteFailedChangeSet,
+      changeSetDescription
     )
     core.setOutput('stack-id', stackId || 'UNKNOWN')
 

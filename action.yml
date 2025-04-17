@@ -104,6 +104,10 @@ inputs:
       The name of the change set to create.
       Defaults to '<stack-name>-CS'
     required: false
+  change-set-description:
+    description: >-
+      A description of the change set that helps you identify its purpose.
+    required: false
 outputs:
   stack-id:
     description: >-

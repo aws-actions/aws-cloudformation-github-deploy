@@ -152,7 +152,8 @@ export async function deployStack(
   changeSetName: string,
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
-  noDeleteFailedChangeSet: boolean
+  noDeleteFailedChangeSet: boolean,
+  changeSetDescription?: string
 ): Promise<string | undefined> {
   const stack = await getStack(cfn, params.StackName)
 
@@ -192,6 +193,7 @@ export async function deployStack(
     stack,
     {
       ChangeSetName: changeSetName,
+      Description: changeSetDescription,
       ...{
         StackName: params.StackName,
         TemplateBody: params.TemplateBody,

@@ -931,6 +931,85 @@ describe('Deploy CloudFormation Stack', () => {
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
   })
 
+  test('deploys the stack with change set description', async () => {
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template: 'template.yaml',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '0',
+      'change-set-description': 'My test change set description'
+    }
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+
+    mockCfnClient
+      .reset()
+      .on(DescribeStacksCommand)
+      .resolvesOnce({
+        Stacks: [
+          {
+            StackId: mockStackId,
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: 'CREATE_COMPLETE'
+          }
+        ]
+      })
+      .resolves({
+        Stacks: [
+          {
+            StackId: mockStackId,
+            Tags: [],
+            Outputs: [],
+            StackStatusReason: '',
+            CreationTime: new Date('2013-08-23T01:02:15.422Z'),
+            Capabilities: [],
+            StackName: 'MockStack',
+            StackStatus: StackStatus.UPDATE_COMPLETE
+          }
+        ]
+      })
+      .on(CreateChangeSetCommand)
+      .resolves({})
+      .on(ExecuteChangeSetCommand)
+      .resolves({})
+      .on(DescribeChangeSetCommand)
+      .resolves({ Status: ChangeSetStatus.CREATE_COMPLETE })
+
+    await run()
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 3)
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      2,
+      CreateChangeSetCommand,
+      {
+        StackName: 'MockStack',
+        TemplateBody: mockTemplate,
+        Capabilities: ['CAPABILITY_IAM'],
+        Parameters: [
+          { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
+        ],
+        ChangeSetName: 'MockStack-CS',
+        Description: 'My test change set description',
+        NotificationARNs: undefined,
+        ResourceTypes: undefined,
+        RollbackConfiguration: undefined,
+        RoleARN: undefined,
+        Tags: undefined
+      }
+    )
+    expect(core.setOutput).toHaveBeenCalledTimes(1)
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', mockStackId)
+  })
+
   test('successfully update the stack', async () => {
     mockCfnClient
       .reset()
