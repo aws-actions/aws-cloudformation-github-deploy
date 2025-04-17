@@ -2,8 +2,8 @@
 name: 'AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions'
 description: "Deploys a AWS CloudFormation stack"
 branding:
-  icon: "cloud"
-  color: "orange"
+  icon: cloud
+  color: orange
 inputs:
   name:
     description: "The name of the CloudFormation stack"
@@ -124,4 +124,3 @@ outputs:
 runs:
   using: "node20"
   main: "dist/index.js"
-
