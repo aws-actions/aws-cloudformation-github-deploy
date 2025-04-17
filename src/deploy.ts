@@ -13,6 +13,7 @@ import {
   CreateStackCommand,
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
+import { withRetry } from './utils'
 import { CreateChangeSetInput, CreateStackInputWithName } from './main'
 
 export async function cleanupChangeSet(
@@ -27,22 +28,26 @@ export async function cleanupChangeSet(
     `The submitted information didn't contain changes`
   ]
 
-  const changeSetStatus = await cfn.send(
-    new DescribeChangeSetCommand({
-      ChangeSetName: params.ChangeSetName,
-      StackName: params.StackName
-    })
+  const changeSetStatus = await withRetry(() =>
+    cfn.send(
+      new DescribeChangeSetCommand({
+        ChangeSetName: params.ChangeSetName,
+        StackName: params.StackName
+      })
+    )
   )
 
   if (changeSetStatus.Status === 'FAILED') {
     core.debug('Deleting failed Change Set')
 
     if (!noDeleteFailedChangeSet) {
-      cfn.send(
-        new DeleteChangeSetCommand({
-          ChangeSetName: params.ChangeSetName,
-          StackName: params.StackName
-        })
+      await withRetry(() =>
+        cfn.send(
+          new DeleteChangeSetCommand({
+            ChangeSetName: params.ChangeSetName,
+            StackName: params.StackName
+          })
+        )
       )
     }
 
@@ -70,7 +75,7 @@ export async function updateStack(
   noDeleteFailedChangeSet: boolean
 ): Promise<string | undefined> {
   core.debug('Creating CloudFormation Change Set')
-  await cfn.send(new CreateChangeSetCommand(params))
+  await withRetry(() => cfn.send(new CreateChangeSetCommand(params)))
 
   try {
     core.debug('Waiting for CloudFormation Change Set creation')
@@ -98,11 +103,13 @@ export async function updateStack(
   }
 
   core.debug('Executing CloudFormation change set')
-  await cfn.send(
-    new ExecuteChangeSetCommand({
-      ChangeSetName: params.ChangeSetName,
-      StackName: params.StackName
-    })
+  await withRetry(() =>
+    cfn.send(
+      new ExecuteChangeSetCommand({
+        ChangeSetName: params.ChangeSetName,
+        StackName: params.StackName
+      })
+    )
   )
 
   core.debug('Updating CloudFormation stack')
@@ -121,10 +128,12 @@ async function getStack(
   stackNameOrId: string
 ): Promise<Stack | undefined> {
   try {
-    const stacks = await cfn.send(
-      new DescribeStacksCommand({
-        StackName: stackNameOrId
-      })
+    const stacks = await withRetry(() =>
+      cfn.send(
+        new DescribeStacksCommand({
+          StackName: stackNameOrId
+        })
+      )
     )
 
     if (stacks.Stacks?.[0]) {
@@ -152,29 +161,32 @@ export async function deployStack(
   changeSetName: string,
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
-  noDeleteFailedChangeSet: boolean
+  noDeleteFailedChangeSet: boolean,
+  changeSetDescription?: string
 ): Promise<string | undefined> {
   const stack = await getStack(cfn, params.StackName)
 
   if (!stack) {
     core.debug(`Creating CloudFormation Stack`)
 
-    const stack = await cfn.send(
-      new CreateStackCommand({
-        StackName: params.StackName,
-        TemplateBody: params.TemplateBody,
-        TemplateURL: params.TemplateURL,
-        Parameters: params.Parameters,
-        Capabilities: params.Capabilities,
-        ResourceTypes: params.ResourceTypes,
-        RoleARN: params.RoleARN,
-        RollbackConfiguration: params.RollbackConfiguration,
-        NotificationARNs: params.NotificationARNs,
-        DisableRollback: params.DisableRollback,
-        Tags: params.Tags,
-        TimeoutInMinutes: params.TimeoutInMinutes,
-        EnableTerminationProtection: params.EnableTerminationProtection
-      })
+    const stack = await withRetry(() =>
+      cfn.send(
+        new CreateStackCommand({
+          StackName: params.StackName,
+          TemplateBody: params.TemplateBody,
+          TemplateURL: params.TemplateURL,
+          Parameters: params.Parameters,
+          Capabilities: params.Capabilities,
+          ResourceTypes: params.ResourceTypes,
+          RoleARN: params.RoleARN,
+          RollbackConfiguration: params.RollbackConfiguration,
+          NotificationARNs: params.NotificationARNs,
+          DisableRollback: params.DisableRollback,
+          Tags: params.Tags,
+          TimeoutInMinutes: params.TimeoutInMinutes,
+          EnableTerminationProtection: params.EnableTerminationProtection
+        })
+      )
     )
 
     await waitUntilStackCreateComplete(
@@ -192,6 +204,7 @@ export async function deployStack(
     stack,
     {
       ChangeSetName: changeSetName,
+      Description: changeSetDescription,
       ...{
         StackName: params.StackName,
         TemplateBody: params.TemplateBody,
