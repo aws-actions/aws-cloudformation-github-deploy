@@ -3,6 +3,10 @@ on:
     branches:
       - master
 
+
+permissions:
+  contents: write
+
 name: Package
 
 jobs:
