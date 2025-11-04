@@ -152,7 +152,8 @@ export async function deployStack(
   changeSetName: string,
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
-  noDeleteFailedChangeSet: boolean
+  noDeleteFailedChangeSet: boolean,
+  includeNestedStacksChangeSet: boolean = false
 ): Promise<string | undefined> {
   const stack = await getStack(cfn, params.StackName)
 
@@ -202,6 +203,7 @@ export async function deployStack(
         RoleARN: params.RoleARN,
         RollbackConfiguration: params.RollbackConfiguration,
         NotificationARNs: params.NotificationARNs,
+        IncludeNestedStacks: params.IncludeNestedStacks,
         Tags: params.Tags
       }
     },
