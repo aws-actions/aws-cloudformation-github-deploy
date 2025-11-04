@@ -106,9 +106,12 @@ export async function run(): Promise<void> {
         required: false
       })
     )
-    const includeNestedStacksChangeSet = !!+core.getInput('include-nested-stacks-change-set', {
-      required: false
-    })
+    const includeNestedStacksChangeSet = !!+core.getInput(
+      'include-nested-stacks-change-set',
+      {
+        required: false
+      }
+    )
 
     // Configures proxy
     const agent = configureProxy(httpProxy)
