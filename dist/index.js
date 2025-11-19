@@ -157,6 +157,7 @@ function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChan
             RoleARN: params.RoleARN,
             RollbackConfiguration: params.RollbackConfiguration,
             NotificationARNs: params.NotificationARNs,
+            IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
             Tags: params.Tags
         }), noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
     });
@@ -281,6 +282,9 @@ function run() {
             const changeSetName = (0, utils_1.parseString)(core.getInput('change-set-name', {
                 required: false
             }));
+            const includeNestedStacksChangeSet = !!+core.getInput('include-nested-stacks-change-set', {
+                required: false
+            });
             // Configures proxy
             const agent = (0, utils_1.configureProxy)(httpProxy);
             if (agent) {
@@ -317,7 +321,8 @@ function run() {
                 TemplateBody: templateBody,
                 TemplateURL: templateUrl,
                 Tags: tags,
-                EnableTerminationProtection: terminationProtections
+                EnableTerminationProtection: terminationProtections,
+                IncludeNestedStacksChangeSet: includeNestedStacksChangeSet
             };
             if (parameterOverrides) {
                 params.Parameters = (0, utils_1.parseParameters)(parameterOverrides.trim());
@@ -48334,6 +48339,14 @@ const { isUint8Array, isArrayBuffer } = __nccwpck_require__(9830)
 const { File: UndiciFile } = __nccwpck_require__(8511)
 const { parseMIMEType, serializeAMimeType } = __nccwpck_require__(685)
 
+let random
+try {
+  const crypto = __nccwpck_require__(6005)
+  random = (max) => crypto.randomInt(0, max)
+} catch {
+  random = (max) => Math.floor(Math.random(max))
+}
+
 let ReadableStream = globalThis.ReadableStream
 
 /** @type {globalThis['File']} */
@@ -48419,7 +48432,7 @@ function extractBody (object, keepalive = false) {
     // Set source to a copy of the bytes held by object.
     source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (util.isFormDataLike(object)) {
-    const boundary = `----formdata-undici-0${`${Math.floor(Math.random() * 1e11)}`.padStart(11, '0')}`
+    const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
@@ -63189,6 +63202,14 @@ module.exports = require("https");
 
 "use strict";
 module.exports = require("net");
+
+/***/ }),
+
+/***/ 6005:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:crypto");
 
 /***/ }),
 
