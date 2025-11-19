@@ -6,6 +6,9 @@ on:
 
 name: Check
 
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Run Unit Tests
