@@ -4,25 +4,24 @@ import {
   CloudFormationClient,
   CreateChangeSetCommandInput,
   CreateStackCommandInput,
-  Capability
+  Capability,
+  CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import * as fs from 'fs'
-import { deployStack, getStackOutputs } from './deploy'
 import {
-  isUrl,
-  parseTags,
-  parseString,
-  parseNumber,
-  parseARNs,
-  parseParameters,
-  configureProxy
-} from './utils'
+  deployStack,
+  getStackOutputs,
+  executeExistingChangeSet
+} from './deploy'
+import { isUrl, configureProxy } from './utils'
+import { validateAndParseInputs } from './validation'
 import { NodeHttpHandler } from '@smithy/node-http-handler'
 
 // Validated by core.getInput() which throws if not set
 export type CreateStackInputWithName = CreateStackCommandInput & {
   StackName: string
   IncludeNestedStacksChangeSet?: boolean
+  DeploymentMode?: 'REVERT_DRIFT'
 }
 
 export type CreateChangeSetInput = CreateChangeSetCommandInput
@@ -45,82 +44,61 @@ export async function run(): Promise<void> {
     /* istanbul ignore next */
     const { GITHUB_WORKSPACE = __dirname } = process.env
 
-    // Get inputs
-    const template = core.getInput('template', { required: true })
-    const stackName = core.getInput('name', { required: true })
-    const capabilities = core
-      .getInput('capabilities', {
+    // Collect all inputs
+    const rawInputs: Record<string, string | undefined> = {
+      mode: core.getInput('mode', { required: false }),
+      name: core.getInput('name', { required: true }),
+      template: core.getInput('template', { required: false }),
+      capabilities: core.getInput('capabilities', { required: false }),
+      'parameter-overrides': core.getInput('parameter-overrides', {
+        required: false
+      }),
+      'fail-on-empty-changeset': core.getInput('fail-on-empty-changeset', {
+        required: false
+      }),
+      'no-execute-changeset': core.getInput('no-execute-changeset', {
+        required: false
+      }),
+      'no-delete-failed-changeset': core.getInput(
+        'no-delete-failed-changeset',
+        { required: false }
+      ),
+      'disable-rollback': core.getInput('disable-rollback', {
+        required: false
+      }),
+      'timeout-in-minutes': core.getInput('timeout-in-minutes', {
+        required: false
+      }),
+      'notification-arns': core.getInput('notification-arns', {
+        required: false
+      }),
+      'role-arn': core.getInput('role-arn', { required: false }),
+      tags: core.getInput('tags', { required: false }),
+      'termination-protection': core.getInput('termination-protection', {
+        required: false
+      }),
+      'http-proxy': core.getInput('http-proxy', { required: false }),
+      'change-set-name': core.getInput('change-set-name', { required: false }),
+      'include-nested-stacks-change-set': core.getInput(
+        'include-nested-stacks-change-set',
+        { required: false }
+      ),
+      'deployment-mode': core.getInput('deployment-mode', { required: false }),
+      'execute-change-set-id': core.getInput('execute-change-set-id', {
         required: false
       })
-      .split(',')
-      .map(capability => capability.trim()) as Capability[]
+    }
 
-    const parameterOverrides = core.getInput('parameter-overrides', {
-      required: false
-    })
-    const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
-      required: false
-    })
-    const noExecuteChangeSet = !!+core.getInput('no-execute-changeset', {
-      required: false
-    })
-    const noDeleteFailedChangeSet = !!+core.getInput(
-      'no-delete-failed-changeset',
-      {
-        required: false
-      }
-    )
-    const disableRollback = !!+core.getInput('disable-rollback', {
-      required: false
-    })
-    const timeoutInMinutes = parseNumber(
-      core.getInput('timeout-in-minutes', {
-        required: false
-      })
-    )
-    const notificationARNs = parseARNs(
-      core.getInput('notification-arns', {
-        required: false
-      })
-    )
-    const roleARN = parseString(
-      core.getInput('role-arn', {
-        required: false
-      })
-    )
-    const tags = parseTags(
-      core.getInput('tags', {
-        required: false
-      })
-    )
-    const terminationProtections = !!+core.getInput('termination-protection', {
-      required: false
-    })
-    const httpProxy = parseString(
-      core.getInput('http-proxy', {
-        required: false
-      })
-    )
-    const changeSetName = parseString(
-      core.getInput('change-set-name', {
-        required: false
-      })
-    )
-    const includeNestedStacksChangeSet = !!+core.getInput(
-      'include-nested-stacks-change-set',
-      {
-        required: false
-      }
-    )
+    // Validate and parse inputs
+    const inputs = validateAndParseInputs(rawInputs)
 
     // Configures proxy
-    const agent = configureProxy(httpProxy)
+    const agent = configureProxy(inputs['http-proxy'])
     if (agent) {
       clientConfiguration = {
         ...clientConfiguration,
         ...{
           requestHandler: new NodeHttpHandler({
-            httpAgent: agent,
             httpsAgent: agent
           })
         }
@@ -129,59 +107,103 @@ export async function run(): Promise<void> {
 
     const cfn = new CloudFormationClient({ ...clientConfiguration })
 
+    // Execute existing change set mode
+    if (inputs.mode === 'execute-only') {
+      const stackId = await executeExistingChangeSet(
+        cfn,
+        inputs.name,
+        inputs['execute-change-set-id']!
+      )
+      core.setOutput('stack-id', stackId || 'UNKNOWN')
+
+      if (stackId) {
+        const outputs = await getStackOutputs(cfn, stackId)
+        for (const [key, value] of outputs) {
+          core.setOutput(key, value)
+        }
+      }
+      return
+    }
+
     // Setup CloudFormation Stack
     let templateBody
     let templateUrl
 
-    if (isUrl(template)) {
+    if (isUrl(inputs.template!)) {
       core.debug('Using CloudFormation Stack from Amazon S3 Bucket')
-      templateUrl = template
+      templateUrl = inputs.template
     } else {
       core.debug('Loading CloudFormation Stack template')
-      const templateFilePath = path.isAbsolute(template)
-        ? template
-        : path.join(GITHUB_WORKSPACE, template)
+      const templateFilePath = path.isAbsolute(inputs.template!)
+        ? inputs.template!
+        : path.join(GITHUB_WORKSPACE, inputs.template!)
       templateBody = fs.readFileSync(templateFilePath, 'utf8')
     }
 
     // CloudFormation Stack Parameter for the creation or update
     const params: CreateStackInputWithName = {
-      StackName: stackName,
-      Capabilities: capabilities,
-      RoleARN: roleARN,
-      NotificationARNs: notificationARNs,
-      DisableRollback: disableRollback,
-      TimeoutInMinutes: timeoutInMinutes,
+      StackName: inputs.name,
+      Capabilities: inputs.capabilities as Capability[],
+      RoleARN: inputs['role-arn'],
+      NotificationARNs: inputs['notification-arns'],
+      DisableRollback: inputs['disable-rollback'],
+      TimeoutInMinutes: inputs['timeout-in-minutes'],
       TemplateBody: templateBody,
       TemplateURL: templateUrl,
-      Tags: tags,
-      EnableTerminationProtection: terminationProtections,
-      IncludeNestedStacksChangeSet: includeNestedStacksChangeSet
+      Tags: inputs.tags,
+      EnableTerminationProtection: inputs['termination-protection'],
+      IncludeNestedStacksChangeSet: inputs['include-nested-stacks-change-set'],
+      DeploymentMode: inputs['deployment-mode'],
+      Parameters: inputs['parameter-overrides']
     }
 
-    if (parameterOverrides) {
-      params.Parameters = parseParameters(parameterOverrides.trim())
-    }
-
-    const stackId = await deployStack(
+    const result = await deployStack(
       cfn,
       params,
-      changeSetName ? changeSetName : `${params.StackName}-CS`,
-      noEmptyChangeSet,
-      noExecuteChangeSet,
-      noDeleteFailedChangeSet
+      inputs['change-set-name'] || `${params.StackName}-CS`,
+      inputs['fail-on-empty-changeset'],
+      inputs['no-execute-changeset'] || inputs.mode === 'create-only',
+      inputs['no-delete-failed-changeset']
     )
-    core.setOutput('stack-id', stackId || 'UNKNOWN')
 
-    if (stackId) {
-      const outputs = await getStackOutputs(cfn, stackId)
+    core.setOutput('stack-id', result.stackId || 'UNKNOWN')
+
+    // Set change set outputs when not executing
+    if (result.changeSetInfo) {
+      core.setOutput('change-set-id', result.changeSetInfo.changeSetId || '')
+      core.setOutput(
+        'change-set-name',
+        result.changeSetInfo.changeSetName || ''
+      )
+      core.setOutput('has-changes', result.changeSetInfo.hasChanges.toString())
+      core.setOutput(
+        'changes-count',
+        result.changeSetInfo.changesCount.toString()
+      )
+      core.setOutput('changes-summary', result.changeSetInfo.changesSummary)
+    }
+
+    if (result.stackId) {
+      const outputs = await getStackOutputs(cfn, result.stackId)
       for (const [key, value] of outputs) {
         core.setOutput(key, value)
       }
     }
   } catch (err) {
-    // @ts-expect-error: Object is of type 'unknown'
-    core.setFailed(err.message)
+    if (
+      err instanceof CloudFormationServiceException &&
+      err.message?.includes(
+        'Member must have length less than or equal to 51200'
+      )
+    ) {
+      core.setFailed(
+        'Template size exceeds CloudFormation limit (51,200 bytes). Consider using a template URL from S3 instead of inline template content.'
+      )
+    } else {
+      // @ts-expect-error: Object is of type 'unknown'
+      core.setFailed(err.message || 'Unknown error occurred')
+    }
+
     // @ts-expect-error: Object is of type 'unknown'
     core.debug(err.stack)
   }
