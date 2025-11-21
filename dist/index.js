@@ -50779,7 +50779,7 @@ const createSchema = baseSchema.extend({
     'role-arn': zod_1.z.string().optional().transform(emptyToUndefined),
     tags: zod_1.z.string().optional().transform(parseTags),
     'termination-protection': zod_1.z.string().optional().transform(parseBoolean),
-    'change-set-name': zod_1.z.string().optional(),
+    'change-set-name': zod_1.z.string().optional().transform(emptyToUndefined),
     'include-nested-stacks-change-set': zod_1.z
         .string()
         .optional()
