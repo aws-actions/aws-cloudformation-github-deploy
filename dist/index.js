@@ -50760,7 +50760,7 @@ const baseSchema = zod_1.z.object({
         .enum(['create-and-execute', 'create-only', 'execute-only'])
         .default('create-and-execute'),
     name: zod_1.z.string().min(1, 'Stack name is required'),
-    'http-proxy': zod_1.z.string().optional()
+    'http-proxy': zod_1.z.string().optional().transform(emptyToUndefined)
 });
 const createSchema = baseSchema.extend({
     mode: zod_1.z.enum(['create-and-execute', 'create-only']),

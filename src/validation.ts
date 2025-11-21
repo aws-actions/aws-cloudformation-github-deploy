@@ -56,7 +56,7 @@ const baseSchema = z.object({
     .enum(['create-and-execute', 'create-only', 'execute-only'])
     .default('create-and-execute'),
   name: z.string().min(1, 'Stack name is required'),
-  'http-proxy': z.string().optional()
+  'http-proxy': z.string().optional().transform(emptyToUndefined)
 })
 
 const createSchema = baseSchema.extend({
