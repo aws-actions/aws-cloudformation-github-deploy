@@ -50282,8 +50282,11 @@ function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChan
     return __awaiter(this, void 0, void 0, function* () {
         const stack = yield getStack(cfn, params.StackName);
         if (!stack) {
-            core.debug(`Creating CloudFormation Stack`);
-            const stack = yield cfn.send(new client_cloudformation_1.CreateStackCommand({
+            core.debug(`Creating CloudFormation Stack via Change Set`);
+            // Use updateStack function but with CREATE change set type for new stacks
+            return yield updateStack(cfn, { StackId: undefined }, // No existing stack
+            {
+                ChangeSetName: changeSetName,
                 StackName: params.StackName,
                 TemplateBody: params.TemplateBody,
                 TemplateURL: params.TemplateURL,
@@ -50293,15 +50296,11 @@ function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChan
                 RoleARN: params.RoleARN,
                 RollbackConfiguration: params.RollbackConfiguration,
                 NotificationARNs: params.NotificationARNs,
-                DisableRollback: params.DisableRollback,
                 Tags: params.Tags,
-                TimeoutInMinutes: params.TimeoutInMinutes,
-                EnableTerminationProtection: params.EnableTerminationProtection
-            }));
-            yield (0, client_cloudformation_1.waitUntilStackCreateComplete)({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
-                StackName: params.StackName
-            });
-            return { stackId: stack.StackId };
+                ChangeSetType: 'CREATE',
+                IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
+                DeploymentMode: params.DeploymentMode
+            }, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
         }
         return yield updateStack(cfn, stack, Object.assign({ ChangeSetName: changeSetName }, {
             StackName: params.StackName,

@@ -253,10 +253,14 @@ export async function deployStack(
   const stack = await getStack(cfn, params.StackName)
 
   if (!stack) {
-    core.debug(`Creating CloudFormation Stack`)
-
-    const stack = await cfn.send(
-      new CreateStackCommand({
+    core.debug(`Creating CloudFormation Stack via Change Set`)
+    
+    // Use updateStack function but with CREATE change set type for new stacks
+    return await updateStack(
+      cfn,
+      { StackId: undefined } as Stack, // No existing stack
+      {
+        ChangeSetName: changeSetName,
         StackName: params.StackName,
         TemplateBody: params.TemplateBody,
         TemplateURL: params.TemplateURL,
@@ -266,21 +270,15 @@ export async function deployStack(
         RoleARN: params.RoleARN,
         RollbackConfiguration: params.RollbackConfiguration,
         NotificationARNs: params.NotificationARNs,
-        DisableRollback: params.DisableRollback,
         Tags: params.Tags,
-        TimeoutInMinutes: params.TimeoutInMinutes,
-        EnableTerminationProtection: params.EnableTerminationProtection
-      })
+        ChangeSetType: 'CREATE',
+        IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
+        DeploymentMode: params.DeploymentMode
+      },
+      noEmptyChangeSet,
+      noExecuteChangeSet,
+      noDeleteFailedChangeSet
     )
-
-    await waitUntilStackCreateComplete(
-      { client: cfn, maxWaitTime: 43200, minDelay: 10 },
-      {
-        StackName: params.StackName
-      }
-    )
-
-    return { stackId: stack.StackId }
   }
 
   return await updateStack(
