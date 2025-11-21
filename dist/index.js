@@ -50709,11 +50709,12 @@ exports.validateAndParseInputs = validateAndParseInputs;
 const zod_1 = __nccwpck_require__(924);
 const fs = __importStar(__nccwpck_require__(9896));
 // Helper transformers
+const emptyToUndefined = (val) => val && val.trim().length > 0 ? val : undefined;
 const parseBoolean = (val) => (val ? !!+val : false);
 const parseNumber = (val) => val ? parseInt(val) || undefined : undefined;
 const parseARNs = (val) => ((val === null || val === void 0 ? void 0 : val.length) ? val.split(',') : undefined);
 const parseTags = (val) => {
-    if (!val)
+    if (!val || val.trim().length === 0)
         return undefined;
     try {
         return JSON.parse(val);
@@ -50723,7 +50724,7 @@ const parseTags = (val) => {
     }
 };
 const parseParameters = (val) => {
-    if (!val)
+    if (!val || val.trim().length === 0)
         return undefined;
     try {
         const path = new URL(val);
@@ -50775,7 +50776,7 @@ const createSchema = baseSchema.extend({
     'disable-rollback': zod_1.z.string().optional().transform(parseBoolean),
     'timeout-in-minutes': zod_1.z.string().optional().transform(parseNumber),
     'notification-arns': zod_1.z.string().optional().transform(parseARNs),
-    'role-arn': zod_1.z.string().optional(),
+    'role-arn': zod_1.z.string().optional().transform(emptyToUndefined),
     tags: zod_1.z.string().optional().transform(parseTags),
     'termination-protection': zod_1.z.string().optional().transform(parseBoolean),
     'change-set-name': zod_1.z.string().optional(),

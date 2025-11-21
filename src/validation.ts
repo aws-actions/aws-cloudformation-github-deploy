@@ -2,12 +2,13 @@ import { z } from 'zod'
 import * as fs from 'fs'
 
 // Helper transformers
+const emptyToUndefined = (val?: string) => val && val.trim().length > 0 ? val : undefined
 const parseBoolean = (val?: string) => (val ? !!+val : false)
 const parseNumber = (val?: string) =>
   val ? parseInt(val) || undefined : undefined
 const parseARNs = (val?: string) => (val?.length ? val.split(',') : undefined)
 const parseTags = (val?: string) => {
-  if (!val) return undefined
+  if (!val || val.trim().length === 0) return undefined
   try {
     return JSON.parse(val)
   } catch {
@@ -15,7 +16,7 @@ const parseTags = (val?: string) => {
   }
 }
 const parseParameters = (val?: string) => {
-  if (!val) return undefined
+  if (!val || val.trim().length === 0) return undefined
 
   try {
     const path = new URL(val)
@@ -74,7 +75,7 @@ const createSchema = baseSchema.extend({
   'disable-rollback': z.string().optional().transform(parseBoolean),
   'timeout-in-minutes': z.string().optional().transform(parseNumber),
   'notification-arns': z.string().optional().transform(parseARNs),
-  'role-arn': z.string().optional(),
+  'role-arn': z.string().optional().transform(emptyToUndefined),
   tags: z.string().optional().transform(parseTags),
   'termination-protection': z.string().optional().transform(parseBoolean),
   'change-set-name': z.string().optional(),
