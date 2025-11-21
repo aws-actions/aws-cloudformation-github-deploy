@@ -92,7 +92,7 @@ const createSchema = baseSchema.extend({
         `Invalid deployment-mode: ${val}. Only 'REVERT_DRIFT' is supported.`
       )
     }),
-  'execute-change-set-id': z.undefined()
+  'execute-change-set-id': z.string().optional().transform(val => val || undefined)
 })
 
 const executeSchema = baseSchema.extend({
