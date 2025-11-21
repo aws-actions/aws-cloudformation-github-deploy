@@ -18,6 +18,61 @@ Deploys AWS CloudFormation Stacks.
 
 The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
 
+## Enhanced Change Set Support
+
+This action supports three modes of operation for better change set management:
+
+### 1. Create & Execute (Default)
+```yaml
+- name: Deploy CloudFormation Stack
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+```
+
+### 2. Create Change Set Only (Review Mode)
+```yaml
+- name: Create Change Set for Review
+  id: create-changeset
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    mode: "create-only"
+    name: MyStack
+    template: myStack.yaml
+
+# Review the outputs
+- name: Display Change Set Information
+  run: |
+    echo "Change Set ID: ${{ steps.create-changeset.outputs.change-set-id }}"
+    echo "Has Changes: ${{ steps.create-changeset.outputs.has-changes }}"
+    echo "Changes Count: ${{ steps.create-changeset.outputs.changes-count }}"
+    echo "Changes Summary: ${{ steps.create-changeset.outputs.changes-summary }}"
+```
+
+### 3. Execute Existing Change Set
+```yaml
+- name: Execute Change Set
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    mode: "execute-only"
+    name: MyStack
+    execute-change-set-id: ${{ steps.create-changeset.outputs.change-set-id }}
+```
+
+### Drift-Aware Change Sets
+Create change sets that can revert resource drift:
+
+```yaml
+- name: Create Drift-Reverting Change Set
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    mode: "create-only"
+    name: MyStack
+    template: myStack.yaml
+    deployment-mode: "REVERT_DRIFT"
+```
+
 ### Inputs
 
 A few inputs are highlighted below. See [action.yml](action.yml) for the full documentation for this action's inputs and outputs.

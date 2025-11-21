@@ -101,7 +101,7 @@ describe('Deploy CloudFormation Stack', () => {
         (
           filePath: FileHandle | PathLike,
           options?:
-            | (fs.BaseEncodingOptions & { flag?: fs.OpenMode | undefined })
+            | (fs.EncodingOption & { flag?: fs.OpenMode | undefined })
             | BufferEncoding
             | null
             | undefined
@@ -316,7 +316,13 @@ describe('Deploy CloudFormation Stack', () => {
       .on(ExecuteChangeSetCommand)
       .resolves({})
       .on(DescribeChangeSetCommand)
-      .resolves({ Status: ChangeSetStatus.CREATE_COMPLETE })
+      .resolvesOnce({ Status: ChangeSetStatus.CREATE_COMPLETE })
+      .resolvesOnce({
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [],
+        ChangeSetId: 'test-changeset-id',
+        ChangeSetName: 'MockStack-CS'
+      })
 
     await run()
 
@@ -359,7 +365,7 @@ describe('Deploy CloudFormation Stack', () => {
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
-      4,
+      5,
       ExecuteChangeSetCommand,
       {
         ChangeSetName: 'MockStack-CS',
@@ -367,7 +373,7 @@ describe('Deploy CloudFormation Stack', () => {
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
-      5,
+      6,
       DescribeStacksCommand,
       {
         StackName: 'MockStack'
@@ -970,7 +976,13 @@ describe('Deploy CloudFormation Stack', () => {
       .on(ExecuteChangeSetCommand)
       .resolves({})
       .on(DescribeChangeSetCommand)
-      .resolves({ Status: ChangeSetStatus.CREATE_COMPLETE })
+      .resolvesOnce({ Status: ChangeSetStatus.CREATE_COMPLETE })
+      .resolvesOnce({
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [],
+        ChangeSetId: 'test-changeset-id',
+        ChangeSetName: 'MockStack-CS'
+      })
 
     await run()
 
@@ -1013,7 +1025,7 @@ describe('Deploy CloudFormation Stack', () => {
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
-      4,
+      5,
       ExecuteChangeSetCommand,
       {
         ChangeSetName: 'MockStack-CS',
@@ -1021,14 +1033,14 @@ describe('Deploy CloudFormation Stack', () => {
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
-      5,
+      6,
       DescribeStacksCommand,
       {
         StackName: 'MockStack'
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
-      6,
+      7,
       DescribeStacksCommand,
       {
         StackName:
@@ -1073,7 +1085,13 @@ describe('Deploy CloudFormation Stack', () => {
       .on(ExecuteChangeSetCommand)
       .resolves({})
       .on(DescribeChangeSetCommand)
-      .resolves({ Status: ChangeSetStatus.CREATE_COMPLETE })
+      .resolvesOnce({ Status: ChangeSetStatus.CREATE_COMPLETE })
+      .resolvesOnce({
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [],
+        ChangeSetId: 'test-changeset-id',
+        ChangeSetName: 'MockStack-CS'
+      })
 
     await run()
 
@@ -1116,7 +1134,7 @@ describe('Deploy CloudFormation Stack', () => {
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
-      4,
+      5,
       DescribeStacksCommand,
       {
         StackName:
@@ -1891,7 +1909,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     await run()
 
-    expect(core.setFailed).toBeCalled()
+    expect(core.setFailed).toHaveBeenCalled()
   })
 
   test('deploy using a custom change-set name', async () => {

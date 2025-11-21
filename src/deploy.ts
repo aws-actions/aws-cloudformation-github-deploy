@@ -15,6 +15,84 @@ import {
 } from '@aws-sdk/client-cloudformation'
 import { CreateChangeSetInput, CreateStackInputWithName } from './main'
 
+export interface ChangeSetInfo {
+  changeSetId?: string
+  changeSetName?: string
+  hasChanges: boolean
+  changesCount: number
+  changesSummary: string
+}
+
+export async function executeExistingChangeSet(
+  cfn: CloudFormationClient,
+  stackName: string,
+  changeSetId: string
+): Promise<string | undefined> {
+  core.debug(`Executing existing change set: ${changeSetId}`)
+
+  await cfn.send(
+    new ExecuteChangeSetCommand({
+      ChangeSetName: changeSetId,
+      StackName: stackName
+    })
+  )
+
+  core.debug('Waiting for CloudFormation stack update')
+  await waitUntilStackUpdateComplete(
+    { client: cfn, maxWaitTime: 43200, minDelay: 10 },
+    {
+      StackName: stackName
+    }
+  )
+
+  const stack = await getStack(cfn, stackName)
+  return stack?.StackId
+}
+
+export async function getChangeSetInfo(
+  cfn: CloudFormationClient,
+  changeSetName: string,
+  stackName: string
+): Promise<ChangeSetInfo> {
+  const changeSetStatus = await cfn.send(
+    new DescribeChangeSetCommand({
+      ChangeSetName: changeSetName,
+      StackName: stackName,
+      IncludePropertyValues: true
+    })
+  )
+
+  const changes = changeSetStatus.Changes || []
+  const hasChanges = changes.length > 0
+
+  const changesSummary = {
+    changes: changes.map(change => ({
+      type: change.Type,
+      resourceChange: change.ResourceChange
+        ? {
+            action: change.ResourceChange.Action,
+            logicalResourceId: change.ResourceChange.LogicalResourceId,
+            physicalResourceId: change.ResourceChange.PhysicalResourceId,
+            resourceType: change.ResourceChange.ResourceType,
+            replacement: change.ResourceChange.Replacement,
+            scope: change.ResourceChange.Scope
+          }
+        : undefined
+    })),
+    executionStatus: changeSetStatus.ExecutionStatus,
+    status: changeSetStatus.Status,
+    creationTime: changeSetStatus.CreationTime
+  }
+
+  return {
+    changeSetId: changeSetStatus.ChangeSetId,
+    changeSetName: changeSetStatus.ChangeSetName,
+    hasChanges,
+    changesCount: changes.length,
+    changesSummary: JSON.stringify(changesSummary, null, 2)
+  }
+}
+
 export async function cleanupChangeSet(
   cfn: CloudFormationClient,
   stack: Stack,
@@ -30,7 +108,8 @@ export async function cleanupChangeSet(
   const changeSetStatus = await cfn.send(
     new DescribeChangeSetCommand({
       ChangeSetName: params.ChangeSetName,
-      StackName: params.StackName
+      StackName: params.StackName,
+      IncludePropertyValues: true
     })
   )
 
@@ -68,7 +147,7 @@ export async function updateStack(
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
-): Promise<string | undefined> {
+): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   core.debug('Creating CloudFormation Change Set')
   await cfn.send(new CreateChangeSetCommand(params))
 
@@ -82,19 +161,27 @@ export async function updateStack(
         StackName: params.StackName
       }
     )
-  } catch (err) {
-    return cleanupChangeSet(
+  } catch {
+    const result = await cleanupChangeSet(
       cfn,
       stack,
       params,
       noEmptyChangeSet,
       noDeleteFailedChangeSet
     )
+    return { stackId: result }
   }
+
+  // Get change set information
+  const changeSetInfo = await getChangeSetInfo(
+    cfn,
+    params.ChangeSetName!,
+    params.StackName!
+  )
 
   if (noExecuteChangeSet) {
     core.debug('Not executing the change set')
-    return stack.StackId
+    return { stackId: stack.StackId, changeSetInfo }
   }
 
   core.debug('Executing CloudFormation change set')
@@ -113,7 +200,7 @@ export async function updateStack(
     }
   )
 
-  return stack.StackId
+  return { stackId: stack.StackId }
 }
 
 async function getStack(
@@ -153,7 +240,7 @@ export async function deployStack(
   noEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
-): Promise<string | undefined> {
+): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   const stack = await getStack(cfn, params.StackName)
 
   if (!stack) {
@@ -184,7 +271,7 @@ export async function deployStack(
       }
     )
 
-    return stack.StackId
+    return { stackId: stack.StackId }
   }
 
   return await updateStack(
@@ -203,7 +290,8 @@ export async function deployStack(
         RollbackConfiguration: params.RollbackConfiguration,
         NotificationARNs: params.NotificationARNs,
         IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
-        Tags: params.Tags
+        Tags: params.Tags,
+        DeploymentMode: params.DeploymentMode
       }
     },
     noEmptyChangeSet,

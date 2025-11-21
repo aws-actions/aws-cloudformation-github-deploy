@@ -8,7 +8,7 @@ export function isUrl(s: string): boolean {
 
   try {
     url = new URL(s)
-  } catch (_) {
+  } catch {
     return false
   }
 
@@ -20,7 +20,7 @@ export function parseTags(s: string): Tag[] | undefined {
 
   try {
     json = JSON.parse(s)
-  } catch (_) {}
+  } catch {}
 
   return json
 }
@@ -78,9 +78,25 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
   })
 }
 
+export function parseDeploymentMode(s: string): 'REVERT_DRIFT' | undefined {
+  const parsed = parseString(s)
+
+  if (!parsed) {
+    return undefined
+  }
+
+  if (parsed === 'REVERT_DRIFT') {
+    return parsed
+  }
+
+  throw new Error(
+    `Invalid deployment-mode: ${parsed}. Only 'REVERT_DRIFT' is supported.`
+  )
+}
+
 export function configureProxy(
   proxyServer: string | undefined
-): HttpsProxyAgent | undefined {
+): HttpsProxyAgent<string> | undefined {
   const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy
 
   if (proxyFromEnv || proxyServer) {
