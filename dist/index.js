@@ -50602,7 +50602,7 @@ function parseNumber(s) {
 function parseParameters(parameterOverrides) {
     try {
         const path = new URL(parameterOverrides);
-        const rawParameters = fs.readFileSync(path, 'utf-8');
+        const rawParameters = fs.readFileSync(path.pathname, 'utf-8');
         return JSON.parse(rawParameters);
     }
     catch (err) {
