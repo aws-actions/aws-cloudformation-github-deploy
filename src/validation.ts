@@ -2,7 +2,8 @@ import { z } from 'zod'
 import * as fs from 'fs'
 
 // Helper transformers
-const emptyToUndefined = (val?: string) => val && val.trim().length > 0 ? val : undefined
+const emptyToUndefined = (val?: string) =>
+  val && val.trim().length > 0 ? val : undefined
 const parseBoolean = (val?: string) => (val ? !!+val : false)
 const parseNumber = (val?: string) =>
   val ? parseInt(val) || undefined : undefined
@@ -93,7 +94,10 @@ const createSchema = baseSchema.extend({
         `Invalid deployment-mode: ${val}. Only 'REVERT_DRIFT' is supported.`
       )
     }),
-  'execute-change-set-id': z.string().optional().transform(val => val || undefined)
+  'execute-change-set-id': z
+    .string()
+    .optional()
+    .transform(val => val || undefined)
 })
 
 const executeSchema = baseSchema.extend({

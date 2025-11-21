@@ -6,11 +6,9 @@ import {
   DeleteChangeSetCommand,
   waitUntilChangeSetCreateComplete,
   waitUntilStackUpdateComplete,
-  waitUntilStackCreateComplete,
   CreateChangeSetCommand,
   ExecuteChangeSetCommand,
   DescribeStacksCommand,
-  CreateStackCommand,
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import { CreateChangeSetInput, CreateStackInputWithName } from './main'
@@ -162,15 +160,17 @@ export async function updateStack(
       }
     )
   } catch {
-    core.debug('Change set creation waiter failed, getting change set info anyway')
-    
+    core.debug(
+      'Change set creation waiter failed, getting change set info anyway'
+    )
+
     // Still try to get change set info even if waiter failed
     const changeSetInfo = await getChangeSetInfo(
       cfn,
       params.ChangeSetName!,
       params.StackName!
     )
-    
+
     const result = await cleanupChangeSet(
       cfn,
       stack,
@@ -254,7 +254,7 @@ export async function deployStack(
 
   if (!stack) {
     core.debug(`Creating CloudFormation Stack via Change Set`)
-    
+
     // Use updateStack function but with CREATE change set type for new stacks
     return await updateStack(
       cfn,
