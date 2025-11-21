@@ -9,6 +9,7 @@ module.exports = {
     }
   },
   moduleFileExtensions: ['js', 'ts'],
+  setupFiles: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts'],
   testRunner: 'jest-circus/runner',

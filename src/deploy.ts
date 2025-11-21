@@ -5,22 +5,183 @@ import {
   DescribeChangeSetCommand,
   DeleteChangeSetCommand,
   waitUntilChangeSetCreateComplete,
-  waitUntilStackUpdateComplete,
-  waitUntilStackCreateComplete,
   CreateChangeSetCommand,
   ExecuteChangeSetCommand,
   DescribeStacksCommand,
-  CreateStackCommand,
+  DescribeEventsCommand,
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import { CreateChangeSetInput, CreateStackInputWithName } from './main'
+
+export interface ChangeSetInfo {
+  changeSetId?: string
+  changeSetName?: string
+  hasChanges: boolean
+  changesCount: number
+  changesSummary: string
+}
+
+async function waitUntilStackOperationComplete(
+  params: {
+    client: CloudFormationClient
+    maxWaitTime: number
+    minDelay: number
+  },
+  input: { StackName: string }
+): Promise<void> {
+  const { client, maxWaitTime, minDelay } = params
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < maxWaitTime * 1000) {
+    try {
+      const result = await client.send(new DescribeStacksCommand(input))
+      const stack = result.Stacks?.[0]
+
+      if (!stack) {
+        throw new Error(`Stack ${input.StackName} not found`)
+      }
+
+      const status = stack.StackStatus
+      core.info(`Stack status: ${status}`)
+
+      // Success states - operation completed successfully
+      if (
+        status === 'CREATE_COMPLETE' ||
+        status === 'UPDATE_COMPLETE' ||
+        status === 'IMPORT_COMPLETE'
+      ) {
+        core.info(`Stack operation completed with status: ${status}`)
+        return
+      }
+
+      // Failure states - operation failed
+      if (
+        status === 'CREATE_FAILED' ||
+        status === 'UPDATE_FAILED' ||
+        status === 'DELETE_FAILED' ||
+        status === 'ROLLBACK_COMPLETE' ||
+        status === 'ROLLBACK_FAILED' ||
+        status === 'UPDATE_ROLLBACK_COMPLETE' ||
+        status === 'UPDATE_ROLLBACK_FAILED' ||
+        status === 'IMPORT_ROLLBACK_COMPLETE' ||
+        status === 'IMPORT_ROLLBACK_FAILED'
+      ) {
+        // Get failed events using change set ID if available
+        let failureReason = `Stack operation failed with status: ${status}`
+        throw new Error(failureReason)
+      }
+
+      // In-progress states - keep waiting
+      core.info(`Stack still in progress, waiting ${minDelay} seconds...`)
+      await new Promise(resolve => setTimeout(resolve, minDelay * 1000))
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        throw new Error(`Stack ${input.StackName} does not exist`)
+      }
+      throw error
+    }
+  }
+
+  throw new Error(`Timeout after ${maxWaitTime} seconds`)
+}
+
+export async function executeExistingChangeSet(
+  cfn: CloudFormationClient,
+  stackName: string,
+  changeSetId: string
+): Promise<string | undefined> {
+  core.debug(`Executing existing change set: ${changeSetId}`)
+
+  await cfn.send(
+    new ExecuteChangeSetCommand({
+      ChangeSetName: changeSetId,
+      StackName: stackName
+    })
+  )
+
+  core.debug('Waiting for CloudFormation stack operation to complete')
+  await waitUntilStackOperationComplete(
+    { client: cfn, maxWaitTime: 43200, minDelay: 10 },
+    { StackName: stackName }
+  )
+
+  const stack = await getStack(cfn, stackName)
+  return stack?.StackId
+}
+
+export async function getChangeSetInfo(
+  cfn: CloudFormationClient,
+  changeSetName: string,
+  stackName: string
+): Promise<ChangeSetInfo> {
+  const MAX_CHANGES_IN_SUMMARY = 50 // Limit to prevent exceeding GitHub Actions output limits
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let allChanges: any[] = []
+  let nextToken: string | undefined
+
+  // Paginate through all changes
+  do {
+    const changeSetStatus = await cfn.send(
+      new DescribeChangeSetCommand({
+        ChangeSetName: changeSetName,
+        StackName: stackName,
+        IncludePropertyValues: true,
+        NextToken: nextToken
+      })
+    )
+
+    const changes = changeSetStatus.Changes || []
+    allChanges = allChanges.concat(changes)
+    nextToken = changeSetStatus.NextToken
+
+    // Get the first response for metadata
+    if (!nextToken) {
+      const hasChanges = allChanges.length > 0
+      const limitedChanges = allChanges.slice(0, MAX_CHANGES_IN_SUMMARY)
+      const truncated = allChanges.length > MAX_CHANGES_IN_SUMMARY
+
+      const changesSummary = {
+        changes: limitedChanges.map(change => ({
+          type: change.Type,
+          resourceChange: change.ResourceChange
+            ? {
+                action: change.ResourceChange.Action,
+                logicalResourceId: change.ResourceChange.LogicalResourceId,
+                physicalResourceId: change.ResourceChange.PhysicalResourceId,
+                resourceType: change.ResourceChange.ResourceType,
+                replacement: change.ResourceChange.Replacement,
+                scope: change.ResourceChange.Scope
+              }
+            : undefined
+        })),
+        totalChanges: allChanges.length,
+        truncated,
+        executionStatus: changeSetStatus.ExecutionStatus,
+        status: changeSetStatus.Status,
+        creationTime: changeSetStatus.CreationTime
+      }
+
+      return {
+        changeSetId: changeSetStatus.ChangeSetId,
+        changeSetName: changeSetStatus.ChangeSetName,
+        hasChanges,
+        changesCount: allChanges.length,
+        changesSummary: JSON.stringify(changesSummary, null, 2)
+      }
+    }
+  } while (nextToken)
+
+  // This should never be reached, but TypeScript requires it
+  throw new Error('Unexpected end of pagination')
+}
 
 export async function cleanupChangeSet(
   cfn: CloudFormationClient,
   stack: Stack,
   params: CreateChangeSetInput,
-  noEmptyChangeSet: boolean,
-  noDeleteFailedChangeSet: boolean
+  failOnEmptyChangeSet: boolean,
+  noDeleteFailedChangeSet: boolean,
+  changeSetId?: string
 ): Promise<string | undefined> {
   const knownErrorMessages = [
     `No updates are to be performed`,
@@ -30,12 +191,53 @@ export async function cleanupChangeSet(
   const changeSetStatus = await cfn.send(
     new DescribeChangeSetCommand({
       ChangeSetName: params.ChangeSetName,
-      StackName: params.StackName
+      StackName: params.StackName,
+      IncludePropertyValues: true
     })
   )
 
   if (changeSetStatus.Status === 'FAILED') {
     core.debug('Deleting failed Change Set')
+
+    // Get detailed failure information BEFORE deleting the change set
+    let failureReason = `Failed to create Change Set: ${changeSetStatus.StatusReason}`
+
+    // Only call DescribeEvents for validation failures (ExecutionStatus: UNAVAILABLE, Status: FAILED)
+    if (
+      changeSetStatus.ExecutionStatus === 'UNAVAILABLE' &&
+      changeSetStatus.Status === 'FAILED'
+    ) {
+      const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId
+      if (eventChangeSetId) {
+        try {
+          core.info(
+            `Attempting to get validation failure details for: ${eventChangeSetId}`
+          )
+          const events = await cfn.send(
+            new DescribeEventsCommand({
+              ChangeSetName: eventChangeSetId
+            })
+          )
+          core.info(
+            `Retrieved ${events.OperationEvents?.length || 0} events for change set`
+          )
+          const validationEvents = events.OperationEvents?.filter(
+            event => event.EventType === 'VALIDATION_ERROR'
+          )
+          if (validationEvents && validationEvents.length > 0) {
+            const reasons = validationEvents
+              .map(
+                event =>
+                  `${event.ValidationPath}: ${event.ValidationStatusReason}`
+              )
+              .join('; ')
+            failureReason += `. Validation errors: ${reasons}`
+          }
+        } catch (error) {
+          core.info(`Failed to get validation event details: ${error}`)
+        }
+      }
+    }
 
     if (!noDeleteFailedChangeSet) {
       cfn.send(
@@ -47,7 +249,7 @@ export async function cleanupChangeSet(
     }
 
     if (
-      noEmptyChangeSet &&
+      !failOnEmptyChangeSet &&
       knownErrorMessages.some(err =>
         changeSetStatus.StatusReason?.includes(err)
       )
@@ -55,9 +257,7 @@ export async function cleanupChangeSet(
       return stack.StackId
     }
 
-    throw new Error(
-      `Failed to create Change Set: ${changeSetStatus.StatusReason}`
-    )
+    throw new Error(failureReason)
   }
 }
 
@@ -65,12 +265,12 @@ export async function updateStack(
   cfn: CloudFormationClient,
   stack: Stack,
   params: CreateChangeSetInput,
-  noEmptyChangeSet: boolean,
+  failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
-): Promise<string | undefined> {
+): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   core.debug('Creating CloudFormation Change Set')
-  await cfn.send(new CreateChangeSetCommand(params))
+  const createResponse = await cfn.send(new CreateChangeSetCommand(params))
 
   try {
     core.debug('Waiting for CloudFormation Change Set creation')
@@ -82,19 +282,39 @@ export async function updateStack(
         StackName: params.StackName
       }
     )
-  } catch (err) {
-    return cleanupChangeSet(
+  } catch {
+    core.debug(
+      'Change set creation waiter failed, getting change set info anyway'
+    )
+
+    // Still try to get change set info even if waiter failed
+    const changeSetInfo = await getChangeSetInfo(
+      cfn,
+      params.ChangeSetName!,
+      params.StackName!
+    )
+
+    const result = await cleanupChangeSet(
       cfn,
       stack,
       params,
-      noEmptyChangeSet,
-      noDeleteFailedChangeSet
+      failOnEmptyChangeSet,
+      noDeleteFailedChangeSet,
+      createResponse.Id
     )
+    return { stackId: result, changeSetInfo }
   }
+
+  // Get change set information
+  const changeSetInfo = await getChangeSetInfo(
+    cfn,
+    params.ChangeSetName!,
+    params.StackName!
+  )
 
   if (noExecuteChangeSet) {
     core.debug('Not executing the change set')
-    return stack.StackId
+    return { stackId: stack.StackId, changeSetInfo }
   }
 
   core.debug('Executing CloudFormation change set')
@@ -106,14 +326,47 @@ export async function updateStack(
   )
 
   core.debug('Updating CloudFormation stack')
-  await waitUntilStackUpdateComplete(
-    { client: cfn, maxWaitTime: 43200, minDelay: 10 },
-    {
-      StackName: params.StackName
-    }
-  )
+  try {
+    await waitUntilStackOperationComplete(
+      {
+        client: cfn,
+        maxWaitTime: 43200,
+        minDelay: 10
+      },
+      {
+        StackName: params.StackName!
+      }
+    )
+  } catch (error) {
+    // Get execution failure details using OperationId
+    const stackResponse = await cfn.send(
+      new DescribeStacksCommand({ StackName: params.StackName! })
+    )
+    const executionOp = stackResponse.Stacks?.[0]?.LastOperations?.find(
+      op =>
+        op.OperationType === 'UPDATE_STACK' ||
+        op.OperationType === 'CREATE_STACK'
+    )
 
-  return stack.StackId
+    if (executionOp?.OperationId) {
+      const eventsResponse = await cfn.send(
+        new DescribeEventsCommand({
+          OperationId: executionOp.OperationId,
+          Filters: { FailedEvents: true }
+        })
+      )
+
+      if (eventsResponse.OperationEvents?.length) {
+        const failureEvent = eventsResponse.OperationEvents[0]
+        throw new Error(
+          `Stack execution failed: ${failureEvent.ResourceStatusReason || failureEvent.ResourceStatus}`
+        )
+      }
+    }
+    throw error
+  }
+
+  return { stackId: stack.StackId }
 }
 
 async function getStack(
@@ -146,67 +399,82 @@ async function getStack(
   }
 }
 
+function buildCreateChangeSetParams(
+  params: CreateStackInputWithName,
+  changeSetName: string
+): CreateChangeSetInput {
+  return {
+    ChangeSetName: changeSetName,
+    StackName: params.StackName,
+    TemplateBody: params.TemplateBody,
+    TemplateURL: params.TemplateURL,
+    Parameters: params.Parameters,
+    Capabilities: params.Capabilities,
+    ResourceTypes: params.ResourceTypes,
+    RoleARN: params.RoleARN,
+    RollbackConfiguration: params.RollbackConfiguration,
+    NotificationARNs: params.NotificationARNs,
+    Tags: params.Tags,
+    ChangeSetType: 'CREATE',
+    IncludeNestedStacks: params.IncludeNestedStacksChangeSet
+    // DeploymentMode is not valid for CREATE change sets
+  }
+}
+
+function buildUpdateChangeSetParams(
+  params: CreateStackInputWithName,
+  changeSetName: string
+): CreateChangeSetInput {
+  return {
+    ChangeSetName: changeSetName,
+    StackName: params.StackName,
+    TemplateBody: params.TemplateBody,
+    TemplateURL: params.TemplateURL,
+    Parameters: params.Parameters,
+    Capabilities: params.Capabilities,
+    ResourceTypes: params.ResourceTypes,
+    RoleARN: params.RoleARN,
+    RollbackConfiguration: params.RollbackConfiguration,
+    NotificationARNs: params.NotificationARNs,
+    Tags: params.Tags,
+    ChangeSetType: 'UPDATE',
+    IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
+    DeploymentMode: params.DeploymentMode // Only valid for UPDATE change sets
+  }
+}
+
 export async function deployStack(
   cfn: CloudFormationClient,
   params: CreateStackInputWithName,
   changeSetName: string,
-  noEmptyChangeSet: boolean,
+  failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
-): Promise<string | undefined> {
+): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   const stack = await getStack(cfn, params.StackName)
 
   if (!stack) {
-    core.debug(`Creating CloudFormation Stack`)
+    core.debug(`Creating CloudFormation Stack via Change Set`)
+    const createParams = buildCreateChangeSetParams(params, changeSetName)
 
-    const stack = await cfn.send(
-      new CreateStackCommand({
-        StackName: params.StackName,
-        TemplateBody: params.TemplateBody,
-        TemplateURL: params.TemplateURL,
-        Parameters: params.Parameters,
-        Capabilities: params.Capabilities,
-        ResourceTypes: params.ResourceTypes,
-        RoleARN: params.RoleARN,
-        RollbackConfiguration: params.RollbackConfiguration,
-        NotificationARNs: params.NotificationARNs,
-        DisableRollback: params.DisableRollback,
-        Tags: params.Tags,
-        TimeoutInMinutes: params.TimeoutInMinutes,
-        EnableTerminationProtection: params.EnableTerminationProtection
-      })
+    return await updateStack(
+      cfn,
+      { StackId: undefined } as Stack,
+      createParams,
+      failOnEmptyChangeSet,
+      noExecuteChangeSet,
+      noDeleteFailedChangeSet
     )
-
-    await waitUntilStackCreateComplete(
-      { client: cfn, maxWaitTime: 43200, minDelay: 10 },
-      {
-        StackName: params.StackName
-      }
-    )
-
-    return stack.StackId
   }
+
+  core.debug(`Updating CloudFormation Stack via Change Set`)
+  const updateParams = buildUpdateChangeSetParams(params, changeSetName)
 
   return await updateStack(
     cfn,
     stack,
-    {
-      ChangeSetName: changeSetName,
-      ...{
-        StackName: params.StackName,
-        TemplateBody: params.TemplateBody,
-        TemplateURL: params.TemplateURL,
-        Parameters: params.Parameters,
-        Capabilities: params.Capabilities,
-        ResourceTypes: params.ResourceTypes,
-        RoleARN: params.RoleARN,
-        RollbackConfiguration: params.RollbackConfiguration,
-        NotificationARNs: params.NotificationARNs,
-        IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
-        Tags: params.Tags
-      }
-    },
-    noEmptyChangeSet,
+    updateParams,
+    failOnEmptyChangeSet,
     noExecuteChangeSet,
     noDeleteFailedChangeSet
   )

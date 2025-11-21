@@ -57,3 +57,85 @@ If you discover a potential security issue in this project we ask that you notif
 See the [LICENSE](https://github.com/aws-actions/aws-cloudformation-github-deploy/blob/master/LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
 
 We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) for larger changes.
+
+## Development
+
+### Prerequisites
+- Node.js 20+
+- npm
+
+### Setup
+```bash
+npm install
+```
+
+### Testing
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run linting
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+```
+
+### Building
+```bash
+# Build the action
+npm run build
+
+# Package for distribution
+npm run package
+```
+
+### AWS CloudFormation API Calls
+
+This action makes the following AWS CloudFormation API calls:
+
+**Core Operations:**
+- `DescribeStacks` - Check stack existence and status
+- `CreateChangeSet` - Create change sets for stack operations
+- `DescribeChangeSet` - Monitor change set status and retrieve changes
+- `ExecuteChangeSet` - Execute change sets (when not in create-only mode)
+- `DeleteChangeSet` - Clean up failed change sets
+
+**Error Reporting:**
+- `DescribeStackEvents` - Retrieve detailed error information for validation failures
+
+**Required Permissions:**
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:CreateStack",
+                "cloudformation:DescribeStacks", 
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:DescribeStackEvents"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+### Architecture
+
+The action uses a change set-based deployment approach:
+
+1. **Stack Detection**: Check if stack exists using `DescribeStacks`
+2. **Change Set Creation**: Create change set using `CreateChangeSet` 
+3. **Change Set Validation**: Monitor status with `DescribeChangeSet`
+4. **Execution**: Execute change set with `ExecuteChangeSet` (unless create-only mode)
+5. **Output Processing**: Retrieve final stack state and outputs
+6. **Error Handling**: Use `DescribeStackEvents` for detailed error reporting

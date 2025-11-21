@@ -4,6 +4,10 @@ branding:
   icon: "cloud"
   color: "orange"
 inputs:
+  mode:
+    description: "Operation mode: 'create-and-execute' (default), 'create-only', or 'execute-only'"
+    required: false
+    default: "create-and-execute"
   name:
     description: "The name of the CloudFormation stack"
     required: true
@@ -25,8 +29,8 @@ inputs:
     description: "Indicates whether to delete to a failed change set. Default to '0' (will delete the failed changeset)"
     required: false
     default: "0"
-  no-fail-on-empty-changeset:
-    description: "If the CloudFormation change set is empty, do not fail. Defaults to '0' (will fail on empty change set)"
+  fail-on-empty-changeset:
+    description: "If the CloudFormation change set is empty, fail the action. Defaults to '0' (will not fail on empty change set)"
     required: false
     default: "0"
   disable-rollback:
@@ -55,9 +59,29 @@ inputs:
   change-set-name:
     description: "The name of the change set to create. Defaults to '<stack-name>-CS'"
     required: false
+  include-nested-stacks-change-set:
+    description: "Creates a change set for the all nested stacks specified in the template. Defaults to '0' (will not include nested stacks)"
+    required: false
+    default: "0"
+  execute-change-set-id:
+    description: "Execute an existing change set by ID or name instead of creating a new one. When provided, only 'name' (stack name) is required."
+    required: false
+  deployment-mode:
+    description: "The deployment mode for the change set. Use 'REVERT_DRIFT' to create a change set that reverts drift. Defaults to standard deployment."
+    required: false
 outputs:
   stack-id:
     description: "The id of the deployed stack. In addition, any outputs declared in the deployed CloudFormation stack will also be set as outputs for the action, e.g. if the stack has a stack output named 'foo', this action will also have an output named 'foo'."
+  change-set-id:
+    description: "The id of the created change set (only when no-execute-changeset is true)"
+  change-set-name:
+    description: "The name of the created change set (only when no-execute-changeset is true)"
+  has-changes:
+    description: "Whether the change set contains any changes (only when no-execute-changeset is true)"
+  changes-count:
+    description: "Number of changes in the change set (only when no-execute-changeset is true)"
+  changes-summary:
+    description: "JSON summary of changes in the change set (only when no-execute-changeset is true)"
 runs:
   using: "node20"
   main: "dist/index.js"
