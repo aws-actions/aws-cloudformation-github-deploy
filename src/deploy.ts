@@ -162,6 +162,15 @@ export async function updateStack(
       }
     )
   } catch {
+    core.debug('Change set creation waiter failed, getting change set info anyway')
+    
+    // Still try to get change set info even if waiter failed
+    const changeSetInfo = await getChangeSetInfo(
+      cfn,
+      params.ChangeSetName!,
+      params.StackName!
+    )
+    
     const result = await cleanupChangeSet(
       cfn,
       stack,
@@ -169,7 +178,7 @@ export async function updateStack(
       noEmptyChangeSet,
       noDeleteFailedChangeSet
     )
-    return { stackId: result }
+    return { stackId: result, changeSetInfo }
   }
 
   // Get change set information

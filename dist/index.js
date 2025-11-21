@@ -50232,8 +50232,11 @@ function updateStack(cfn, stack, params, noEmptyChangeSet, noExecuteChangeSet, n
             });
         }
         catch (_a) {
+            core.debug('Change set creation waiter failed, getting change set info anyway');
+            // Still try to get change set info even if waiter failed
+            const changeSetInfo = yield getChangeSetInfo(cfn, params.ChangeSetName, params.StackName);
             const result = yield cleanupChangeSet(cfn, stack, params, noEmptyChangeSet, noDeleteFailedChangeSet);
-            return { stackId: result };
+            return { stackId: result, changeSetInfo };
         }
         // Get change set information
         const changeSetInfo = yield getChangeSetInfo(cfn, params.ChangeSetName, params.StackName);
