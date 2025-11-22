@@ -71,12 +71,14 @@ async function waitUntilStackOperationComplete(
         let failureReason = `Stack operation failed with status: ${status}`
         if (changeSetId) {
           try {
+            core.info(`Attempting to get failure details for change set: ${changeSetId}`)
             const events = await client.send(
               new DescribeEventsCommand({
                 ChangeSetName: changeSetId,
                 Filters: { FailedEvents: true }
               })
             )
+            core.info(`Retrieved ${events.OperationEvents?.length || 0} failed events`)
             const failedEvents = events.OperationEvents?.filter(
               event => event.ResourceStatusReason
             )
@@ -89,8 +91,8 @@ async function waitUntilStackOperationComplete(
                 .join('; ')
               failureReason += `. Failed resources: ${reasons}`
             }
-          } catch {
-            // Ignore errors getting events
+          } catch (error) {
+            core.info(`Failed to get event details: ${error}`)
           }
         }
         throw new Error(failureReason)

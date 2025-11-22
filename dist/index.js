@@ -50144,7 +50144,7 @@ const core = __importStar(__nccwpck_require__(7484));
 const client_cloudformation_1 = __nccwpck_require__(3805);
 function waitUntilStackOperationComplete(params, input) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
+        var _a, _b, _c;
         const { client, maxWaitTime, minDelay, changeSetId } = params;
         const startTime = Date.now();
         while (Date.now() - startTime < maxWaitTime * 1000) {
@@ -50177,11 +50177,13 @@ function waitUntilStackOperationComplete(params, input) {
                     let failureReason = `Stack operation failed with status: ${status}`;
                     if (changeSetId) {
                         try {
+                            core.info(`Attempting to get failure details for change set: ${changeSetId}`);
                             const events = yield client.send(new client_cloudformation_1.DescribeEventsCommand({
                                 ChangeSetName: changeSetId,
                                 Filters: { FailedEvents: true }
                             }));
-                            const failedEvents = (_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.filter(event => event.ResourceStatusReason);
+                            core.info(`Retrieved ${((_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.length) || 0} failed events`);
+                            const failedEvents = (_c = events.OperationEvents) === null || _c === void 0 ? void 0 : _c.filter(event => event.ResourceStatusReason);
                             if (failedEvents && failedEvents.length > 0) {
                                 const reasons = failedEvents
                                     .map(event => `${event.LogicalResourceId}: ${event.ResourceStatusReason}`)
@@ -50189,8 +50191,8 @@ function waitUntilStackOperationComplete(params, input) {
                                 failureReason += `. Failed resources: ${reasons}`;
                             }
                         }
-                        catch (_c) {
-                            // Ignore errors getting events
+                        catch (error) {
+                            core.info(`Failed to get event details: ${error}`);
                         }
                     }
                     throw new Error(failureReason);
