@@ -33,11 +33,16 @@ async function waitUntilStackOperationComplete(
   const startTime = Date.now()
 
   while (Date.now() - startTime < maxWaitTime * 1000) {
-    const result = await client.send(new DescribeStacksCommand(input))
-    const stacks = result.Stacks || []
+    try {
+      const result = await client.send(new DescribeStacksCommand(input))
+      const stack = result.Stacks?.[0]
 
-    for (const stack of stacks) {
+      if (!stack) {
+        throw new Error(`Stack ${input.StackName} not found`)
+      }
+
       const status = stack.StackStatus
+      core.debug(`Stack status: ${status}`)
 
       // Success states - operation completed successfully
       if (
@@ -45,6 +50,7 @@ async function waitUntilStackOperationComplete(
         status === 'UPDATE_COMPLETE' ||
         status === 'IMPORT_COMPLETE'
       ) {
+        core.debug(`Stack operation completed with status: ${status}`)
         return
       }
 
@@ -64,10 +70,14 @@ async function waitUntilStackOperationComplete(
       }
 
       // In-progress states - keep waiting
-      // CREATE_IN_PROGRESS, UPDATE_IN_PROGRESS, etc.
+      core.debug(`Stack still in progress, waiting ${minDelay} seconds...`)
+      await new Promise(resolve => setTimeout(resolve, minDelay * 1000))
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        throw new Error(`Stack ${input.StackName} does not exist`)
+      }
+      throw error
     }
-
-    await new Promise(resolve => setTimeout(resolve, minDelay * 1000))
   }
 
   throw new Error(`Timeout after ${maxWaitTime} seconds`)

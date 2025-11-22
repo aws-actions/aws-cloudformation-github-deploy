@@ -50144,17 +50144,23 @@ const core = __importStar(__nccwpck_require__(7484));
 const client_cloudformation_1 = __nccwpck_require__(3805);
 function waitUntilStackOperationComplete(params, input) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         const { client, maxWaitTime, minDelay } = params;
         const startTime = Date.now();
         while (Date.now() - startTime < maxWaitTime * 1000) {
-            const result = yield client.send(new client_cloudformation_1.DescribeStacksCommand(input));
-            const stacks = result.Stacks || [];
-            for (const stack of stacks) {
+            try {
+                const result = yield client.send(new client_cloudformation_1.DescribeStacksCommand(input));
+                const stack = (_a = result.Stacks) === null || _a === void 0 ? void 0 : _a[0];
+                if (!stack) {
+                    throw new Error(`Stack ${input.StackName} not found`);
+                }
                 const status = stack.StackStatus;
+                core.debug(`Stack status: ${status}`);
                 // Success states - operation completed successfully
                 if (status === 'CREATE_COMPLETE' ||
                     status === 'UPDATE_COMPLETE' ||
                     status === 'IMPORT_COMPLETE') {
+                    core.debug(`Stack operation completed with status: ${status}`);
                     return;
                 }
                 // Failure states - operation failed
@@ -50170,9 +50176,15 @@ function waitUntilStackOperationComplete(params, input) {
                     throw new Error(`Stack operation failed with status: ${status}`);
                 }
                 // In-progress states - keep waiting
-                // CREATE_IN_PROGRESS, UPDATE_IN_PROGRESS, etc.
+                core.debug(`Stack still in progress, waiting ${minDelay} seconds...`);
+                yield new Promise(resolve => setTimeout(resolve, minDelay * 1000));
             }
-            yield new Promise(resolve => setTimeout(resolve, minDelay * 1000));
+            catch (error) {
+                if (error instanceof Error && error.message.includes('does not exist')) {
+                    throw new Error(`Stack ${input.StackName} does not exist`);
+                }
+                throw error;
+            }
         }
         throw new Error(`Timeout after ${maxWaitTime} seconds`);
     });
