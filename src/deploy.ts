@@ -221,25 +221,7 @@ export async function cleanupChangeSet(
   if (changeSetStatus.Status === 'FAILED') {
     core.debug('Deleting failed Change Set')
 
-    if (!noDeleteFailedChangeSet) {
-      cfn.send(
-        new DeleteChangeSetCommand({
-          ChangeSetName: params.ChangeSetName,
-          StackName: params.StackName
-        })
-      )
-    }
-
-    if (
-      !failOnEmptyChangeSet &&
-      knownErrorMessages.some(err =>
-        changeSetStatus.StatusReason?.includes(err)
-      )
-    ) {
-      return stack.StackId
-    }
-
-    // Get detailed failure information for change set creation failures
+    // Get detailed failure information BEFORE deleting the change set
     let failureReason = `Failed to create Change Set: ${changeSetStatus.StatusReason}`
     
     // Only call DescribeEvents for validation failures (ExecutionStatus: UNAVAILABLE, Status: FAILED)
@@ -274,6 +256,24 @@ export async function cleanupChangeSet(
           core.info(`Failed to get validation event details: ${error}`)
         }
       }
+    }
+
+    if (!noDeleteFailedChangeSet) {
+      cfn.send(
+        new DeleteChangeSetCommand({
+          ChangeSetName: params.ChangeSetName,
+          StackName: params.StackName
+        })
+      )
+    }
+
+    if (
+      !failOnEmptyChangeSet &&
+      knownErrorMessages.some(err =>
+        changeSetStatus.StatusReason?.includes(err)
+      )
+    ) {
+      return stack.StackId
     }
 
     throw new Error(failureReason)

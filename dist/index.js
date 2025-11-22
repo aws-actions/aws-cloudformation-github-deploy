@@ -50289,17 +50289,7 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
         }));
         if (changeSetStatus.Status === 'FAILED') {
             core.debug('Deleting failed Change Set');
-            if (!noDeleteFailedChangeSet) {
-                cfn.send(new client_cloudformation_1.DeleteChangeSetCommand({
-                    ChangeSetName: params.ChangeSetName,
-                    StackName: params.StackName
-                }));
-            }
-            if (!failOnEmptyChangeSet &&
-                knownErrorMessages.some(err => { var _a; return (_a = changeSetStatus.StatusReason) === null || _a === void 0 ? void 0 : _a.includes(err); })) {
-                return stack.StackId;
-            }
-            // Get detailed failure information for change set creation failures
+            // Get detailed failure information BEFORE deleting the change set
             let failureReason = `Failed to create Change Set: ${changeSetStatus.StatusReason}`;
             // Only call DescribeEvents for validation failures (ExecutionStatus: UNAVAILABLE, Status: FAILED)
             if (changeSetStatus.ExecutionStatus === 'UNAVAILABLE' && changeSetStatus.Status === 'FAILED') {
@@ -50323,6 +50313,16 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
                         core.info(`Failed to get validation event details: ${error}`);
                     }
                 }
+            }
+            if (!noDeleteFailedChangeSet) {
+                cfn.send(new client_cloudformation_1.DeleteChangeSetCommand({
+                    ChangeSetName: params.ChangeSetName,
+                    StackName: params.StackName
+                }));
+            }
+            if (!failOnEmptyChangeSet &&
+                knownErrorMessages.some(err => { var _a; return (_a = changeSetStatus.StatusReason) === null || _a === void 0 ? void 0 : _a.includes(err); })) {
+                return stack.StackId;
             }
             throw new Error(failureReason);
         }
