@@ -6,7 +6,6 @@ import {
   DeleteChangeSetCommand,
   waitUntilChangeSetCreateComplete,
   waitUntilStackUpdateComplete,
-  waitUntilStackCreateComplete,
   CreateChangeSetCommand,
   ExecuteChangeSetCommand,
   DescribeStacksCommand,

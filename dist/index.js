@@ -50852,9 +50852,15 @@ const executeSchema = baseSchema.extend({
     'parameter-overrides': zod_1.z.string().optional().transform(emptyToUndefined),
     'deployment-mode': zod_1.z.string().optional().transform(emptyToUndefined),
     capabilities: zod_1.z.string().optional().transform(emptyToUndefined),
-    'no-fail-on-empty-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
+    'no-fail-on-empty-changeset': zod_1.z
+        .string()
+        .optional()
+        .transform(emptyToUndefined),
     'no-execute-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
-    'no-delete-failed-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
+    'no-delete-failed-changeset': zod_1.z
+        .string()
+        .optional()
+        .transform(emptyToUndefined),
     'disable-rollback': zod_1.z.string().optional().transform(emptyToUndefined),
     'timeout-in-minutes': zod_1.z.string().optional().transform(emptyToUndefined),
     'notification-arns': zod_1.z.string().optional().transform(emptyToUndefined),
@@ -50862,7 +50868,10 @@ const executeSchema = baseSchema.extend({
     tags: zod_1.z.string().optional().transform(emptyToUndefined),
     'termination-protection': zod_1.z.string().optional().transform(emptyToUndefined),
     'change-set-name': zod_1.z.string().optional().transform(emptyToUndefined),
-    'include-nested-stacks-change-set': zod_1.z.string().optional().transform(emptyToUndefined)
+    'include-nested-stacks-change-set': zod_1.z
+        .string()
+        .optional()
+        .transform(emptyToUndefined)
 });
 function validateAndParseInputs(inputs) {
     const mode = inputs.mode || 'create-and-execute';

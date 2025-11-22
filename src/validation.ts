@@ -109,9 +109,15 @@ const executeSchema = baseSchema.extend({
   'parameter-overrides': z.string().optional().transform(emptyToUndefined),
   'deployment-mode': z.string().optional().transform(emptyToUndefined),
   capabilities: z.string().optional().transform(emptyToUndefined),
-  'no-fail-on-empty-changeset': z.string().optional().transform(emptyToUndefined),
+  'no-fail-on-empty-changeset': z
+    .string()
+    .optional()
+    .transform(emptyToUndefined),
   'no-execute-changeset': z.string().optional().transform(emptyToUndefined),
-  'no-delete-failed-changeset': z.string().optional().transform(emptyToUndefined),
+  'no-delete-failed-changeset': z
+    .string()
+    .optional()
+    .transform(emptyToUndefined),
   'disable-rollback': z.string().optional().transform(emptyToUndefined),
   'timeout-in-minutes': z.string().optional().transform(emptyToUndefined),
   'notification-arns': z.string().optional().transform(emptyToUndefined),
@@ -119,7 +125,10 @@ const executeSchema = baseSchema.extend({
   tags: z.string().optional().transform(emptyToUndefined),
   'termination-protection': z.string().optional().transform(emptyToUndefined),
   'change-set-name': z.string().optional().transform(emptyToUndefined),
-  'include-nested-stacks-change-set': z.string().optional().transform(emptyToUndefined)
+  'include-nested-stacks-change-set': z
+    .string()
+    .optional()
+    .transform(emptyToUndefined)
 })
 
 export function validateAndParseInputs(
