@@ -250,35 +250,38 @@ export async function cleanupChangeSet(
 
     // Get detailed failure information for change set creation failures
     let failureReason = `Failed to create Change Set: ${changeSetStatus.StatusReason}`
-    const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId
-    if (eventChangeSetId) {
-      try {
-        core.info(
-          `Attempting to get change set failure details for: ${eventChangeSetId}`
-        )
-        const events = await cfn.send(
-          new DescribeEventsCommand({
-            ChangeSetName: eventChangeSetId,
-            Filters: { FailedEvents: true }
-          })
-        )
-        core.info(
-          `Retrieved ${events.OperationEvents?.length || 0} failed events for change set`
-        )
-        const failedEvents = events.OperationEvents?.filter(
-          event => event.ResourceStatusReason
-        )
-        if (failedEvents && failedEvents.length > 0) {
-          const reasons = failedEvents
-            .map(
-              event =>
-                `${event.LogicalResourceId}: ${event.ResourceStatusReason}`
-            )
-            .join('; ')
-          failureReason += `. Failed resources: ${reasons}`
+    
+    // Only call DescribeEvents for validation failures (ExecutionStatus: UNAVAILABLE, Status: FAILED)
+    if (changeSetStatus.ExecutionStatus === 'UNAVAILABLE' && changeSetStatus.Status === 'FAILED') {
+      const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId
+      if (eventChangeSetId) {
+        try {
+          core.info(
+            `Attempting to get validation failure details for: ${eventChangeSetId}`
+          )
+          const events = await cfn.send(
+            new DescribeEventsCommand({
+              ChangeSetName: eventChangeSetId
+            })
+          )
+          core.info(
+            `Retrieved ${events.OperationEvents?.length || 0} events for change set`
+          )
+          const validationEvents = events.OperationEvents?.filter(
+            event => event.EventType === 'VALIDATION_ERROR'
+          )
+          if (validationEvents && validationEvents.length > 0) {
+            const reasons = validationEvents
+              .map(
+                event =>
+                  `${event.ValidationPath}: ${event.ValidationStatusReason}`
+              )
+              .join('; ')
+            failureReason += `. Validation errors: ${reasons}`
+          }
+        } catch (error) {
+          core.info(`Failed to get validation event details: ${error}`)
         }
-      } catch (error) {
-        core.info(`Failed to get change set event details: ${error}`)
       }
     }
 

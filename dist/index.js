@@ -50305,25 +50305,27 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
             }
             // Get detailed failure information for change set creation failures
             let failureReason = `Failed to create Change Set: ${changeSetStatus.StatusReason}`;
-            const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId;
-            if (eventChangeSetId) {
-                try {
-                    core.info(`Attempting to get change set failure details for: ${eventChangeSetId}`);
-                    const events = yield cfn.send(new client_cloudformation_1.DescribeEventsCommand({
-                        ChangeSetName: eventChangeSetId,
-                        Filters: { FailedEvents: true }
-                    }));
-                    core.info(`Retrieved ${((_a = events.OperationEvents) === null || _a === void 0 ? void 0 : _a.length) || 0} failed events for change set`);
-                    const failedEvents = (_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.filter(event => event.ResourceStatusReason);
-                    if (failedEvents && failedEvents.length > 0) {
-                        const reasons = failedEvents
-                            .map(event => `${event.LogicalResourceId}: ${event.ResourceStatusReason}`)
-                            .join('; ');
-                        failureReason += `. Failed resources: ${reasons}`;
+            // Only call DescribeEvents for validation failures (ExecutionStatus: UNAVAILABLE, Status: FAILED)
+            if (changeSetStatus.ExecutionStatus === 'UNAVAILABLE' && changeSetStatus.Status === 'FAILED') {
+                const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId;
+                if (eventChangeSetId) {
+                    try {
+                        core.info(`Attempting to get validation failure details for: ${eventChangeSetId}`);
+                        const events = yield cfn.send(new client_cloudformation_1.DescribeEventsCommand({
+                            ChangeSetName: eventChangeSetId
+                        }));
+                        core.info(`Retrieved ${((_a = events.OperationEvents) === null || _a === void 0 ? void 0 : _a.length) || 0} events for change set`);
+                        const validationEvents = (_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.filter(event => event.EventType === 'VALIDATION_ERROR');
+                        if (validationEvents && validationEvents.length > 0) {
+                            const reasons = validationEvents
+                                .map(event => `${event.ValidationPath}: ${event.ValidationStatusReason}`)
+                                .join('; ');
+                            failureReason += `. Validation errors: ${reasons}`;
+                        }
                     }
-                }
-                catch (error) {
-                    core.info(`Failed to get change set event details: ${error}`);
+                    catch (error) {
+                        core.info(`Failed to get validation event details: ${error}`);
+                    }
                 }
             }
             throw new Error(failureReason);
