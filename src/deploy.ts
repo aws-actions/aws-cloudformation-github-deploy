@@ -111,43 +111,64 @@ export async function getChangeSetInfo(
   changeSetName: string,
   stackName: string
 ): Promise<ChangeSetInfo> {
-  const changeSetStatus = await cfn.send(
-    new DescribeChangeSetCommand({
-      ChangeSetName: changeSetName,
-      StackName: stackName,
-      IncludePropertyValues: true
-    })
-  )
+  const MAX_CHANGES_IN_SUMMARY = 50 // Limit to prevent exceeding GitHub Actions output limits
+  let allChanges: any[] = []
+  let nextToken: string | undefined
 
-  const changes = changeSetStatus.Changes || []
-  const hasChanges = changes.length > 0
+  // Paginate through all changes
+  do {
+    const changeSetStatus = await cfn.send(
+      new DescribeChangeSetCommand({
+        ChangeSetName: changeSetName,
+        StackName: stackName,
+        IncludePropertyValues: true,
+        NextToken: nextToken
+      })
+    )
 
-  const changesSummary = {
-    changes: changes.map(change => ({
-      type: change.Type,
-      resourceChange: change.ResourceChange
-        ? {
-            action: change.ResourceChange.Action,
-            logicalResourceId: change.ResourceChange.LogicalResourceId,
-            physicalResourceId: change.ResourceChange.PhysicalResourceId,
-            resourceType: change.ResourceChange.ResourceType,
-            replacement: change.ResourceChange.Replacement,
-            scope: change.ResourceChange.Scope
-          }
-        : undefined
-    })),
-    executionStatus: changeSetStatus.ExecutionStatus,
-    status: changeSetStatus.Status,
-    creationTime: changeSetStatus.CreationTime
-  }
+    const changes = changeSetStatus.Changes || []
+    allChanges = allChanges.concat(changes)
+    nextToken = changeSetStatus.NextToken
 
-  return {
-    changeSetId: changeSetStatus.ChangeSetId,
-    changeSetName: changeSetStatus.ChangeSetName,
-    hasChanges,
-    changesCount: changes.length,
-    changesSummary: JSON.stringify(changesSummary, null, 2)
-  }
+    // Get the first response for metadata
+    if (!nextToken) {
+      const hasChanges = allChanges.length > 0
+      const limitedChanges = allChanges.slice(0, MAX_CHANGES_IN_SUMMARY)
+      const truncated = allChanges.length > MAX_CHANGES_IN_SUMMARY
+
+      const changesSummary = {
+        changes: limitedChanges.map(change => ({
+          type: change.Type,
+          resourceChange: change.ResourceChange
+            ? {
+                action: change.ResourceChange.Action,
+                logicalResourceId: change.ResourceChange.LogicalResourceId,
+                physicalResourceId: change.ResourceChange.PhysicalResourceId,
+                resourceType: change.ResourceChange.ResourceType,
+                replacement: change.ResourceChange.Replacement,
+                scope: change.ResourceChange.Scope
+              }
+            : undefined
+        })),
+        totalChanges: allChanges.length,
+        truncated,
+        executionStatus: changeSetStatus.ExecutionStatus,
+        status: changeSetStatus.Status,
+        creationTime: changeSetStatus.CreationTime
+      }
+
+      return {
+        changeSetId: changeSetStatus.ChangeSetId,
+        changeSetName: changeSetStatus.ChangeSetName,
+        hasChanges,
+        changesCount: allChanges.length,
+        changesSummary: JSON.stringify(changesSummary, null, 2)
+      }
+    }
+  } while (nextToken)
+
+  // This should never be reached, but TypeScript requires it
+  throw new Error('Unexpected end of pagination')
 }
 
 export async function cleanupChangeSet(
