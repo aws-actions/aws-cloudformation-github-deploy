@@ -50278,44 +50278,53 @@ function getStack(cfn, stackNameOrId) {
         }
     });
 }
+function buildCreateChangeSetParams(params, changeSetName) {
+    return {
+        ChangeSetName: changeSetName,
+        StackName: params.StackName,
+        TemplateBody: params.TemplateBody,
+        TemplateURL: params.TemplateURL,
+        Parameters: params.Parameters,
+        Capabilities: params.Capabilities,
+        ResourceTypes: params.ResourceTypes,
+        RoleARN: params.RoleARN,
+        RollbackConfiguration: params.RollbackConfiguration,
+        NotificationARNs: params.NotificationARNs,
+        Tags: params.Tags,
+        ChangeSetType: 'CREATE',
+        IncludeNestedStacks: params.IncludeNestedStacksChangeSet
+        // DeploymentMode is not valid for CREATE change sets
+    };
+}
+function buildUpdateChangeSetParams(params, changeSetName) {
+    return {
+        ChangeSetName: changeSetName,
+        StackName: params.StackName,
+        TemplateBody: params.TemplateBody,
+        TemplateURL: params.TemplateURL,
+        Parameters: params.Parameters,
+        Capabilities: params.Capabilities,
+        ResourceTypes: params.ResourceTypes,
+        RoleARN: params.RoleARN,
+        RollbackConfiguration: params.RollbackConfiguration,
+        NotificationARNs: params.NotificationARNs,
+        Tags: params.Tags,
+        ChangeSetType: 'UPDATE',
+        IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
+        DeploymentMode: params.DeploymentMode // Only valid for UPDATE change sets
+    };
+}
 function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
     return __awaiter(this, void 0, void 0, function* () {
         const stack = yield getStack(cfn, params.StackName);
         if (!stack) {
             core.debug(`Creating CloudFormation Stack via Change Set`);
-            // Use updateStack function but with CREATE change set type for new stacks
-            return yield updateStack(cfn, { StackId: undefined }, // No existing stack
-            {
-                ChangeSetName: changeSetName,
-                StackName: params.StackName,
-                TemplateBody: params.TemplateBody,
-                TemplateURL: params.TemplateURL,
-                Parameters: params.Parameters,
-                Capabilities: params.Capabilities,
-                ResourceTypes: params.ResourceTypes,
-                RoleARN: params.RoleARN,
-                RollbackConfiguration: params.RollbackConfiguration,
-                NotificationARNs: params.NotificationARNs,
-                Tags: params.Tags,
-                ChangeSetType: 'CREATE',
-                IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
-                DeploymentMode: params.DeploymentMode
-            }, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+            const createParams = buildCreateChangeSetParams(params, changeSetName);
+            return yield updateStack(cfn, { StackId: undefined }, createParams, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
         }
-        return yield updateStack(cfn, stack, Object.assign({ ChangeSetName: changeSetName }, {
-            StackName: params.StackName,
-            TemplateBody: params.TemplateBody,
-            TemplateURL: params.TemplateURL,
-            Parameters: params.Parameters,
-            Capabilities: params.Capabilities,
-            ResourceTypes: params.ResourceTypes,
-            RoleARN: params.RoleARN,
-            RollbackConfiguration: params.RollbackConfiguration,
-            NotificationARNs: params.NotificationARNs,
-            IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
-            Tags: params.Tags,
-            DeploymentMode: params.DeploymentMode
-        }), noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+        core.debug(`Updating CloudFormation Stack via Change Set`);
+        const updateParams = buildUpdateChangeSetParams(params, changeSetName);
+        return yield updateStack(cfn, stack, updateParams, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
     });
 }
 function getStackOutputs(cfn, stackId) {

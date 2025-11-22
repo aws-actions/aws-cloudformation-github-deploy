@@ -242,6 +242,50 @@ async function getStack(
   }
 }
 
+function buildCreateChangeSetParams(
+  params: CreateStackInputWithName,
+  changeSetName: string
+): CreateChangeSetInput {
+  return {
+    ChangeSetName: changeSetName,
+    StackName: params.StackName,
+    TemplateBody: params.TemplateBody,
+    TemplateURL: params.TemplateURL,
+    Parameters: params.Parameters,
+    Capabilities: params.Capabilities,
+    ResourceTypes: params.ResourceTypes,
+    RoleARN: params.RoleARN,
+    RollbackConfiguration: params.RollbackConfiguration,
+    NotificationARNs: params.NotificationARNs,
+    Tags: params.Tags,
+    ChangeSetType: 'CREATE',
+    IncludeNestedStacks: params.IncludeNestedStacksChangeSet
+    // DeploymentMode is not valid for CREATE change sets
+  }
+}
+
+function buildUpdateChangeSetParams(
+  params: CreateStackInputWithName,
+  changeSetName: string
+): CreateChangeSetInput {
+  return {
+    ChangeSetName: changeSetName,
+    StackName: params.StackName,
+    TemplateBody: params.TemplateBody,
+    TemplateURL: params.TemplateURL,
+    Parameters: params.Parameters,
+    Capabilities: params.Capabilities,
+    ResourceTypes: params.ResourceTypes,
+    RoleARN: params.RoleARN,
+    RollbackConfiguration: params.RollbackConfiguration,
+    NotificationARNs: params.NotificationARNs,
+    Tags: params.Tags,
+    ChangeSetType: 'UPDATE',
+    IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
+    DeploymentMode: params.DeploymentMode // Only valid for UPDATE change sets
+  }
+}
+
 export async function deployStack(
   cfn: CloudFormationClient,
   params: CreateStackInputWithName,
@@ -254,53 +298,25 @@ export async function deployStack(
 
   if (!stack) {
     core.debug(`Creating CloudFormation Stack via Change Set`)
-
-    // Use updateStack function but with CREATE change set type for new stacks
+    const createParams = buildCreateChangeSetParams(params, changeSetName)
+    
     return await updateStack(
       cfn,
-      { StackId: undefined } as Stack, // No existing stack
-      {
-        ChangeSetName: changeSetName,
-        StackName: params.StackName,
-        TemplateBody: params.TemplateBody,
-        TemplateURL: params.TemplateURL,
-        Parameters: params.Parameters,
-        Capabilities: params.Capabilities,
-        ResourceTypes: params.ResourceTypes,
-        RoleARN: params.RoleARN,
-        RollbackConfiguration: params.RollbackConfiguration,
-        NotificationARNs: params.NotificationARNs,
-        Tags: params.Tags,
-        ChangeSetType: 'CREATE',
-        IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
-        DeploymentMode: params.DeploymentMode
-      },
+      { StackId: undefined } as Stack,
+      createParams,
       noEmptyChangeSet,
       noExecuteChangeSet,
       noDeleteFailedChangeSet
     )
   }
 
+  core.debug(`Updating CloudFormation Stack via Change Set`)
+  const updateParams = buildUpdateChangeSetParams(params, changeSetName)
+  
   return await updateStack(
     cfn,
     stack,
-    {
-      ChangeSetName: changeSetName,
-      ...{
-        StackName: params.StackName,
-        TemplateBody: params.TemplateBody,
-        TemplateURL: params.TemplateURL,
-        Parameters: params.Parameters,
-        Capabilities: params.Capabilities,
-        ResourceTypes: params.ResourceTypes,
-        RoleARN: params.RoleARN,
-        RollbackConfiguration: params.RollbackConfiguration,
-        NotificationARNs: params.NotificationARNs,
-        IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
-        Tags: params.Tags,
-        DeploymentMode: params.DeploymentMode
-      }
-    },
+    updateParams,
     noEmptyChangeSet,
     noExecuteChangeSet,
     noDeleteFailedChangeSet
