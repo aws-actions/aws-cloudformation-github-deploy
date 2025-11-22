@@ -71,14 +71,18 @@ async function waitUntilStackOperationComplete(
         let failureReason = `Stack operation failed with status: ${status}`
         if (changeSetId) {
           try {
-            core.info(`Attempting to get failure details for change set: ${changeSetId}`)
+            core.info(
+              `Attempting to get failure details for change set: ${changeSetId}`
+            )
             const events = await client.send(
               new DescribeEventsCommand({
                 ChangeSetName: changeSetId,
                 Filters: { FailedEvents: true }
               })
             )
-            core.info(`Retrieved ${events.OperationEvents?.length || 0} failed events`)
+            core.info(
+              `Retrieved ${events.OperationEvents?.length || 0} failed events`
+            )
             const failedEvents = events.OperationEvents?.filter(
               event => event.ResourceStatusReason
             )
@@ -249,15 +253,18 @@ export async function cleanupChangeSet(
     const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId
     if (eventChangeSetId) {
       try {
-        core.info(`Attempting to get change set failure details for: ${eventChangeSetId}`)
+        core.info(
+          `Attempting to get change set failure details for: ${eventChangeSetId}`
+        )
         const events = await cfn.send(
           new DescribeEventsCommand({
-            StackName: params.StackName,
             ChangeSetName: eventChangeSetId,
             Filters: { FailedEvents: true }
           })
         )
-        core.info(`Retrieved ${events.OperationEvents?.length || 0} failed events for change set`)
+        core.info(
+          `Retrieved ${events.OperationEvents?.length || 0} failed events for change set`
+        )
         const failedEvents = events.OperationEvents?.filter(
           event => event.ResourceStatusReason
         )
@@ -349,7 +356,7 @@ export async function updateStack(
       client: cfn,
       maxWaitTime: 43200,
       minDelay: 10,
-      changeSetId: params.ChangeSetName
+      changeSetId: changeSetInfo.changeSetId
     },
     {
       StackName: params.StackName!
