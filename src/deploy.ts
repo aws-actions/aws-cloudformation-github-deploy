@@ -175,7 +175,7 @@ export async function cleanupChangeSet(
   cfn: CloudFormationClient,
   stack: Stack,
   params: CreateChangeSetInput,
-  noEmptyChangeSet: boolean,
+  failOnEmptyChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
 ): Promise<string | undefined> {
   const knownErrorMessages = [
@@ -204,7 +204,7 @@ export async function cleanupChangeSet(
     }
 
     if (
-      noEmptyChangeSet &&
+      !failOnEmptyChangeSet &&
       knownErrorMessages.some(err =>
         changeSetStatus.StatusReason?.includes(err)
       )
@@ -222,7 +222,7 @@ export async function updateStack(
   cfn: CloudFormationClient,
   stack: Stack,
   params: CreateChangeSetInput,
-  noEmptyChangeSet: boolean,
+  failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
@@ -255,7 +255,7 @@ export async function updateStack(
       cfn,
       stack,
       params,
-      noEmptyChangeSet,
+      failOnEmptyChangeSet,
       noDeleteFailedChangeSet
     )
     return { stackId: result, changeSetInfo }
@@ -370,7 +370,7 @@ export async function deployStack(
   cfn: CloudFormationClient,
   params: CreateStackInputWithName,
   changeSetName: string,
-  noEmptyChangeSet: boolean,
+  failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
@@ -384,7 +384,7 @@ export async function deployStack(
       cfn,
       { StackId: undefined } as Stack,
       createParams,
-      noEmptyChangeSet,
+      failOnEmptyChangeSet,
       noExecuteChangeSet,
       noDeleteFailedChangeSet
     )
@@ -397,7 +397,7 @@ export async function deployStack(
     cfn,
     stack,
     updateParams,
-    noEmptyChangeSet,
+    failOnEmptyChangeSet,
     noExecuteChangeSet,
     noDeleteFailedChangeSet
   )

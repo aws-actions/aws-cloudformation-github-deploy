@@ -50256,7 +50256,7 @@ function getChangeSetInfo(cfn, changeSetName, stackName) {
         throw new Error('Unexpected end of pagination');
     });
 }
-function cleanupChangeSet(cfn, stack, params, noEmptyChangeSet, noDeleteFailedChangeSet) {
+function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFailedChangeSet) {
     return __awaiter(this, void 0, void 0, function* () {
         const knownErrorMessages = [
             `No updates are to be performed`,
@@ -50275,7 +50275,7 @@ function cleanupChangeSet(cfn, stack, params, noEmptyChangeSet, noDeleteFailedCh
                     StackName: params.StackName
                 }));
             }
-            if (noEmptyChangeSet &&
+            if (!failOnEmptyChangeSet &&
                 knownErrorMessages.some(err => { var _a; return (_a = changeSetStatus.StatusReason) === null || _a === void 0 ? void 0 : _a.includes(err); })) {
                 return stack.StackId;
             }
@@ -50283,7 +50283,7 @@ function cleanupChangeSet(cfn, stack, params, noEmptyChangeSet, noDeleteFailedCh
         }
     });
 }
-function updateStack(cfn, stack, params, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
+function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
     return __awaiter(this, void 0, void 0, function* () {
         core.debug('Creating CloudFormation Change Set');
         yield cfn.send(new client_cloudformation_1.CreateChangeSetCommand(params));
@@ -50298,7 +50298,7 @@ function updateStack(cfn, stack, params, noEmptyChangeSet, noExecuteChangeSet, n
             core.debug('Change set creation waiter failed, getting change set info anyway');
             // Still try to get change set info even if waiter failed
             const changeSetInfo = yield getChangeSetInfo(cfn, params.ChangeSetName, params.StackName);
-            const result = yield cleanupChangeSet(cfn, stack, params, noEmptyChangeSet, noDeleteFailedChangeSet);
+            const result = yield cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFailedChangeSet);
             return { stackId: result, changeSetInfo };
         }
         // Get change set information
@@ -50377,17 +50377,17 @@ function buildUpdateChangeSetParams(params, changeSetName) {
         DeploymentMode: params.DeploymentMode // Only valid for UPDATE change sets
     };
 }
-function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
+function deployStack(cfn, params, changeSetName, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
     return __awaiter(this, void 0, void 0, function* () {
         const stack = yield getStack(cfn, params.StackName);
         if (!stack) {
             core.debug(`Creating CloudFormation Stack via Change Set`);
             const createParams = buildCreateChangeSetParams(params, changeSetName);
-            return yield updateStack(cfn, { StackId: undefined }, createParams, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+            return yield updateStack(cfn, { StackId: undefined }, createParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
         }
         core.debug(`Updating CloudFormation Stack via Change Set`);
         const updateParams = buildUpdateChangeSetParams(params, changeSetName);
-        return yield updateStack(cfn, stack, updateParams, noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+        return yield updateStack(cfn, stack, updateParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
     });
 }
 function getStackOutputs(cfn, stackId) {
@@ -50471,6 +50471,7 @@ let clientConfiguration = {
 };
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         try {
             /* istanbul ignore next */
             const { GITHUB_WORKSPACE = __dirname } = process.env;
@@ -50483,7 +50484,9 @@ function run() {
                 'parameter-overrides': core.getInput('parameter-overrides', {
                     required: false
                 }),
-                'no-fail-on-empty-changeset': core.getInput('no-fail-on-empty-changeset', { required: false }),
+                'fail-on-empty-changeset': core.getInput('fail-on-empty-changeset', {
+                    required: false
+                }),
                 'no-execute-changeset': core.getInput('no-execute-changeset', {
                     required: false
                 }),
@@ -50564,7 +50567,7 @@ function run() {
                 DeploymentMode: inputs['deployment-mode'],
                 Parameters: inputs['parameter-overrides']
             };
-            const result = yield (0, deploy_1.deployStack)(cfn, params, inputs['change-set-name'] || `${params.StackName}-CS`, inputs['no-fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset']);
+            const result = yield (0, deploy_1.deployStack)(cfn, params, inputs['change-set-name'] || `${params.StackName}-CS`, inputs['fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset']);
             core.setOutput('stack-id', result.stackId || 'UNKNOWN');
             // Set change set outputs when not executing
             if (result.changeSetInfo) {
@@ -50582,8 +50585,14 @@ function run() {
             }
         }
         catch (err) {
-            // @ts-expect-error: Object is of type 'unknown'
-            core.setFailed(err.message);
+            if (err instanceof client_cloudformation_1.CloudFormationServiceException &&
+                ((_a = err.message) === null || _a === void 0 ? void 0 : _a.includes('Member must have length less than or equal to 51200'))) {
+                core.setFailed('Template size exceeds CloudFormation limit (51,200 bytes). Consider using a template URL from S3 instead of inline template content.');
+            }
+            else {
+                // @ts-expect-error: Object is of type 'unknown'
+                core.setFailed(err.message || 'Unknown error occurred');
+            }
             // @ts-expect-error: Object is of type 'unknown'
             core.debug(err.stack);
         }
@@ -50844,7 +50853,7 @@ const createSchema = baseSchema.extend({
         .optional()
         .transform(val => val ? val.split(',').map(cap => cap.trim()) : ['CAPABILITY_IAM']),
     'parameter-overrides': zod_1.z.string().optional().transform(parseParameters),
-    'no-fail-on-empty-changeset': zod_1.z.string().optional().transform(parseBoolean),
+    'fail-on-empty-changeset': zod_1.z.string().optional().transform(parseBoolean),
     'no-execute-changeset': zod_1.z.string().optional().transform(parseBoolean),
     'no-delete-failed-changeset': zod_1.z.string().optional().transform(parseBoolean),
     'disable-rollback': zod_1.z.string().optional().transform(parseBoolean),
@@ -50882,7 +50891,7 @@ const executeSchema = baseSchema.extend({
     'parameter-overrides': zod_1.z.string().optional().transform(emptyToUndefined),
     'deployment-mode': zod_1.z.string().optional().transform(emptyToUndefined),
     capabilities: zod_1.z.string().optional().transform(emptyToUndefined),
-    'no-fail-on-empty-changeset': zod_1.z
+    'fail-on-empty-changeset': zod_1.z
         .string()
         .optional()
         .transform(emptyToUndefined),

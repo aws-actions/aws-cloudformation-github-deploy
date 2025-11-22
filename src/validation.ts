@@ -70,7 +70,7 @@ const createSchema = baseSchema.extend({
       val ? val.split(',').map(cap => cap.trim()) : ['CAPABILITY_IAM']
     ),
   'parameter-overrides': z.string().optional().transform(parseParameters),
-  'no-fail-on-empty-changeset': z.string().optional().transform(parseBoolean),
+  'fail-on-empty-changeset': z.string().optional().transform(parseBoolean),
   'no-execute-changeset': z.string().optional().transform(parseBoolean),
   'no-delete-failed-changeset': z.string().optional().transform(parseBoolean),
   'disable-rollback': z.string().optional().transform(parseBoolean),
@@ -109,7 +109,7 @@ const executeSchema = baseSchema.extend({
   'parameter-overrides': z.string().optional().transform(emptyToUndefined),
   'deployment-mode': z.string().optional().transform(emptyToUndefined),
   capabilities: z.string().optional().transform(emptyToUndefined),
-  'no-fail-on-empty-changeset': z
+  'fail-on-empty-changeset': z
     .string()
     .optional()
     .transform(emptyToUndefined),

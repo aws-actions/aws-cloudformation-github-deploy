@@ -4,7 +4,8 @@ import {
   CloudFormationClient,
   CreateChangeSetCommandInput,
   CreateStackCommandInput,
-  Capability
+  Capability,
+  CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import * as fs from 'fs'
 import {
@@ -52,10 +53,9 @@ export async function run(): Promise<void> {
       'parameter-overrides': core.getInput('parameter-overrides', {
         required: false
       }),
-      'no-fail-on-empty-changeset': core.getInput(
-        'no-fail-on-empty-changeset',
-        { required: false }
-      ),
+      'fail-on-empty-changeset': core.getInput('fail-on-empty-changeset', {
+        required: false
+      }),
       'no-execute-changeset': core.getInput('no-execute-changeset', {
         required: false
       }),
@@ -161,7 +161,7 @@ export async function run(): Promise<void> {
       cfn,
       params,
       inputs['change-set-name'] || `${params.StackName}-CS`,
-      inputs['no-fail-on-empty-changeset'],
+      inputs['fail-on-empty-changeset'],
       inputs['no-execute-changeset'] || inputs.mode === 'create-only',
       inputs['no-delete-failed-changeset']
     )
@@ -190,8 +190,14 @@ export async function run(): Promise<void> {
       }
     }
   } catch (err) {
-    // @ts-expect-error: Object is of type 'unknown'
-    core.setFailed(err.message)
+    if (err instanceof CloudFormationServiceException && 
+        err.message?.includes('Member must have length less than or equal to 51200')) {
+      core.setFailed('Template size exceeds CloudFormation limit (51,200 bytes). Consider using a template URL from S3 instead of inline template content.')
+    } else {
+      // @ts-expect-error: Object is of type 'unknown'
+      core.setFailed(err.message || 'Unknown error occurred')
+    }
+    
     // @ts-expect-error: Object is of type 'unknown'
     core.debug(err.stack)
   }

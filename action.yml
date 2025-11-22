@@ -29,8 +29,8 @@ inputs:
     description: "Indicates whether to delete to a failed change set. Default to '0' (will delete the failed changeset)"
     required: false
     default: "0"
-  no-fail-on-empty-changeset:
-    description: "If the CloudFormation change set is empty, do not fail. Defaults to '0' (will fail on empty change set)"
+  fail-on-empty-changeset:
+    description: "If the CloudFormation change set is empty, fail the action. Defaults to '0' (will not fail on empty change set)"
     required: false
     default: "0"
   disable-rollback:
