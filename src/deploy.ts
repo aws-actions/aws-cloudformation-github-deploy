@@ -42,7 +42,7 @@ async function waitUntilStackOperationComplete(
       }
 
       const status = stack.StackStatus
-      core.debug(`Stack status: ${status}`)
+      core.info(`Stack status: ${status}`)
 
       // Success states - operation completed successfully
       if (
@@ -50,7 +50,7 @@ async function waitUntilStackOperationComplete(
         status === 'UPDATE_COMPLETE' ||
         status === 'IMPORT_COMPLETE'
       ) {
-        core.debug(`Stack operation completed with status: ${status}`)
+        core.info(`Stack operation completed with status: ${status}`)
         return
       }
 
@@ -70,7 +70,7 @@ async function waitUntilStackOperationComplete(
       }
 
       // In-progress states - keep waiting
-      core.debug(`Stack still in progress, waiting ${minDelay} seconds...`)
+      core.info(`Stack still in progress, waiting ${minDelay} seconds...`)
       await new Promise(resolve => setTimeout(resolve, minDelay * 1000))
     } catch (error) {
       if (error instanceof Error && error.message.includes('does not exist')) {
