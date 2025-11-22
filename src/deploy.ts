@@ -69,27 +69,6 @@ async function waitUntilStackOperationComplete(
       ) {
         // Get failed events using change set ID if available
         let failureReason = `Stack operation failed with status: ${status}`
-        if (changeSetId) {
-          try {
-            core.info(
-              `Attempting to get failure details for change set: ${changeSetId}`
-            )
-            const events = await client.send(
-              new DescribeEventsCommand({
-                ChangeSetName: changeSetId
-              })
-            )
-            core.info(
-              `Retrieved ${events.OperationEvents?.length || 0} events`
-            )
-            // Log all events to see their structure
-            if (events.OperationEvents && events.OperationEvents.length > 0) {
-              core.info(`Events: ${JSON.stringify(events.OperationEvents, null, 2)}`)
-            }
-          } catch (error) {
-            core.info(`Failed to get event details: ${error}`)
-          }
-        }
         throw new Error(failureReason)
       }
 

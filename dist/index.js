@@ -50144,7 +50144,7 @@ const core = __importStar(__nccwpck_require__(7484));
 const client_cloudformation_1 = __nccwpck_require__(3805);
 function waitUntilStackOperationComplete(params, input) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
+        var _a;
         const { client, maxWaitTime, minDelay, changeSetId } = params;
         const startTime = Date.now();
         while (Date.now() - startTime < maxWaitTime * 1000) {
@@ -50175,22 +50175,6 @@ function waitUntilStackOperationComplete(params, input) {
                     status === 'IMPORT_ROLLBACK_FAILED') {
                     // Get failed events using change set ID if available
                     let failureReason = `Stack operation failed with status: ${status}`;
-                    if (changeSetId) {
-                        try {
-                            core.info(`Attempting to get failure details for change set: ${changeSetId}`);
-                            const events = yield client.send(new client_cloudformation_1.DescribeEventsCommand({
-                                ChangeSetName: changeSetId
-                            }));
-                            core.info(`Retrieved ${((_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.length) || 0} events`);
-                            // Log all events to see their structure
-                            if (events.OperationEvents && events.OperationEvents.length > 0) {
-                                core.info(`Events: ${JSON.stringify(events.OperationEvents, null, 2)}`);
-                            }
-                        }
-                        catch (error) {
-                            core.info(`Failed to get event details: ${error}`);
-                        }
-                    }
                     throw new Error(failureReason);
                 }
                 // In-progress states - keep waiting
