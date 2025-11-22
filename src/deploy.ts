@@ -5,7 +5,6 @@ import {
   DescribeChangeSetCommand,
   DeleteChangeSetCommand,
   waitUntilChangeSetCreateComplete,
-  waitUntilStackUpdateComplete,
   CreateChangeSetCommand,
   ExecuteChangeSetCommand,
   DescribeStacksCommand,
@@ -254,17 +253,14 @@ export async function updateStack(
   }
 
   core.debug('Executing CloudFormation change set')
-  core.info(`About to execute change set: ${params.ChangeSetName} on stack: ${params.StackName}`)
   await cfn.send(
     new ExecuteChangeSetCommand({
       ChangeSetName: params.ChangeSetName,
       StackName: params.StackName
     })
   )
-  core.info('ExecuteChangeSetCommand completed successfully')
 
   core.debug('Updating CloudFormation stack')
-  core.info('Starting waiter for stack operation completion')
   await waitUntilStackOperationComplete(
     { client: cfn, maxWaitTime: 43200, minDelay: 10 },
     {

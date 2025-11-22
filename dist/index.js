@@ -50290,14 +50290,11 @@ function updateStack(cfn, stack, params, noEmptyChangeSet, noExecuteChangeSet, n
             return { stackId: stack.StackId, changeSetInfo };
         }
         core.debug('Executing CloudFormation change set');
-        core.info(`About to execute change set: ${params.ChangeSetName} on stack: ${params.StackName}`);
         yield cfn.send(new client_cloudformation_1.ExecuteChangeSetCommand({
             ChangeSetName: params.ChangeSetName,
             StackName: params.StackName
         }));
-        core.info('ExecuteChangeSetCommand completed successfully');
         core.debug('Updating CloudFormation stack');
-        core.info('Starting waiter for stack operation completion');
         yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
             StackName: params.StackName
         });
