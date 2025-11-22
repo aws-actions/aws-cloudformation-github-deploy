@@ -50310,6 +50310,7 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
                 try {
                     core.info(`Attempting to get change set failure details for: ${eventChangeSetId}`);
                     const events = yield cfn.send(new client_cloudformation_1.DescribeEventsCommand({
+                        StackName: params.StackName,
                         ChangeSetName: eventChangeSetId,
                         Filters: { FailedEvents: true }
                     }));

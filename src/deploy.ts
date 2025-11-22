@@ -252,6 +252,7 @@ export async function cleanupChangeSet(
         core.info(`Attempting to get change set failure details for: ${eventChangeSetId}`)
         const events = await cfn.send(
           new DescribeEventsCommand({
+            StackName: params.StackName,
             ChangeSetName: eventChangeSetId,
             Filters: { FailedEvents: true }
           })
