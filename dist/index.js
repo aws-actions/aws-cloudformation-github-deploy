@@ -50155,12 +50155,12 @@ function waitUntilStackOperationComplete(params, input) {
                     throw new Error(`Stack ${input.StackName} not found`);
                 }
                 const status = stack.StackStatus;
-                core.debug(`Stack status: ${status}`);
+                core.info(`Stack status: ${status}`);
                 // Success states - operation completed successfully
                 if (status === 'CREATE_COMPLETE' ||
                     status === 'UPDATE_COMPLETE' ||
                     status === 'IMPORT_COMPLETE') {
-                    core.debug(`Stack operation completed with status: ${status}`);
+                    core.info(`Stack operation completed with status: ${status}`);
                     return;
                 }
                 // Failure states - operation failed
@@ -50176,7 +50176,7 @@ function waitUntilStackOperationComplete(params, input) {
                     throw new Error(`Stack operation failed with status: ${status}`);
                 }
                 // In-progress states - keep waiting
-                core.debug(`Stack still in progress, waiting ${minDelay} seconds...`);
+                core.info(`Stack still in progress, waiting ${minDelay} seconds...`);
                 yield new Promise(resolve => setTimeout(resolve, minDelay * 1000));
             }
             catch (error) {
@@ -50290,12 +50290,15 @@ function updateStack(cfn, stack, params, noEmptyChangeSet, noExecuteChangeSet, n
             return { stackId: stack.StackId, changeSetInfo };
         }
         core.debug('Executing CloudFormation change set');
+        core.info(`About to execute change set: ${params.ChangeSetName} on stack: ${params.StackName}`);
         yield cfn.send(new client_cloudformation_1.ExecuteChangeSetCommand({
             ChangeSetName: params.ChangeSetName,
             StackName: params.StackName
         }));
+        core.info('ExecuteChangeSetCommand completed successfully');
         core.debug('Updating CloudFormation stack');
-        yield (0, client_cloudformation_1.waitUntilStackUpdateComplete)({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
+        core.info('Starting waiter for stack operation completion');
+        yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
             StackName: params.StackName
         });
         return { stackId: stack.StackId };
