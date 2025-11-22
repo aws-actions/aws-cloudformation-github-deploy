@@ -76,24 +76,15 @@ async function waitUntilStackOperationComplete(
             )
             const events = await client.send(
               new DescribeEventsCommand({
-                ChangeSetName: changeSetId,
-                Filters: { FailedEvents: true }
+                ChangeSetName: changeSetId
               })
             )
             core.info(
-              `Retrieved ${events.OperationEvents?.length || 0} failed events`
+              `Retrieved ${events.OperationEvents?.length || 0} events`
             )
-            const failedEvents = events.OperationEvents?.filter(
-              event => event.ResourceStatusReason
-            )
-            if (failedEvents && failedEvents.length > 0) {
-              const reasons = failedEvents
-                .map(
-                  event =>
-                    `${event.LogicalResourceId}: ${event.ResourceStatusReason}`
-                )
-                .join('; ')
-              failureReason += `. Failed resources: ${reasons}`
+            // Log all events to see their structure
+            if (events.OperationEvents && events.OperationEvents.length > 0) {
+              core.info(`Events: ${JSON.stringify(events.OperationEvents, null, 2)}`)
             }
           } catch (error) {
             core.info(`Failed to get event details: ${error}`)
