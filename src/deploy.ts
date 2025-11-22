@@ -345,17 +345,38 @@ export async function updateStack(
   )
 
   core.debug('Updating CloudFormation stack')
-  await waitUntilStackOperationComplete(
-    {
-      client: cfn,
-      maxWaitTime: 43200,
-      minDelay: 10,
-      changeSetId: changeSetInfo.changeSetId
-    },
-    {
-      StackName: params.StackName!
+  try {
+    await waitUntilStackOperationComplete(
+      {
+        client: cfn,
+        maxWaitTime: 43200,
+        minDelay: 10,
+        changeSetId: changeSetInfo.changeSetId
+      },
+      {
+        StackName: params.StackName!
+      }
+    )
+  } catch (error) {
+    // Get execution failure details using OperationId
+    const stackResponse = await cfn.send(new DescribeStacksCommand({ StackName: params.StackName! }))
+    const executionOp = stackResponse.Stacks?.[0]?.LastOperations?.find(op => 
+      op.OperationType === 'UPDATE_STACK' || op.OperationType === 'CREATE_STACK'
+    )
+
+    if (executionOp?.OperationId) {
+      const eventsResponse = await cfn.send(new DescribeEventsCommand({
+        OperationId: executionOp.OperationId,
+        Filters: { FailedEvents: true }
+      }))
+      
+      if (eventsResponse.OperationEvents?.length) {
+        const failureEvent = eventsResponse.OperationEvents[0]
+        throw new Error(`Stack execution failed: ${failureEvent.ResourceStatusReason || failureEvent.ResourceStatus}`)
+      }
     }
-  )
+    throw error
+  }
 
   return { stackId: stack.StackId }
 }

@@ -50330,6 +50330,7 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
 }
 function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d;
         core.debug('Creating CloudFormation Change Set');
         const createResponse = yield cfn.send(new client_cloudformation_1.CreateChangeSetCommand(params));
         try {
@@ -50339,7 +50340,7 @@ function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSe
                 StackName: params.StackName
             });
         }
-        catch (_a) {
+        catch (_e) {
             core.debug('Change set creation waiter failed, getting change set info anyway');
             // Still try to get change set info even if waiter failed
             const changeSetInfo = yield getChangeSetInfo(cfn, params.ChangeSetName, params.StackName);
@@ -50358,14 +50359,32 @@ function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSe
             StackName: params.StackName
         }));
         core.debug('Updating CloudFormation stack');
-        yield waitUntilStackOperationComplete({
-            client: cfn,
-            maxWaitTime: 43200,
-            minDelay: 10,
-            changeSetId: changeSetInfo.changeSetId
-        }, {
-            StackName: params.StackName
-        });
+        try {
+            yield waitUntilStackOperationComplete({
+                client: cfn,
+                maxWaitTime: 43200,
+                minDelay: 10,
+                changeSetId: changeSetInfo.changeSetId
+            }, {
+                StackName: params.StackName
+            });
+        }
+        catch (error) {
+            // Get execution failure details using OperationId
+            const stackResponse = yield cfn.send(new client_cloudformation_1.DescribeStacksCommand({ StackName: params.StackName }));
+            const executionOp = (_c = (_b = (_a = stackResponse.Stacks) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.LastOperations) === null || _c === void 0 ? void 0 : _c.find(op => op.OperationType === 'UPDATE_STACK' || op.OperationType === 'CREATE_STACK');
+            if (executionOp === null || executionOp === void 0 ? void 0 : executionOp.OperationId) {
+                const eventsResponse = yield cfn.send(new client_cloudformation_1.DescribeEventsCommand({
+                    OperationId: executionOp.OperationId,
+                    Filters: { FailedEvents: true }
+                }));
+                if ((_d = eventsResponse.OperationEvents) === null || _d === void 0 ? void 0 : _d.length) {
+                    const failureEvent = eventsResponse.OperationEvents[0];
+                    throw new Error(`Stack execution failed: ${failureEvent.ResourceStatusReason || failureEvent.ResourceStatus}`);
+                }
+            }
+            throw error;
+        }
         return { stackId: stack.StackId };
     });
 }
