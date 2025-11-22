@@ -262,10 +262,10 @@ export async function updateStack(
   )
 
   core.debug('Updating CloudFormation stack')
-  await waitUntilStackUpdateComplete(
+  await waitUntilStackOperationComplete(
     { client: cfn, maxWaitTime: 43200, minDelay: 10 },
     {
-      StackName: params.StackName
+      StackName: params.StackName!
     }
   )
 
