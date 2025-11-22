@@ -207,7 +207,8 @@ export async function cleanupChangeSet(
   stack: Stack,
   params: CreateChangeSetInput,
   failOnEmptyChangeSet: boolean,
-  noDeleteFailedChangeSet: boolean
+  noDeleteFailedChangeSet: boolean,
+  changeSetId?: string
 ): Promise<string | undefined> {
   const knownErrorMessages = [
     `No updates are to be performed`,
@@ -243,9 +244,37 @@ export async function cleanupChangeSet(
       return stack.StackId
     }
 
-    throw new Error(
-      `Failed to create Change Set: ${changeSetStatus.StatusReason}`
-    )
+    // Get detailed failure information for change set creation failures
+    let failureReason = `Failed to create Change Set: ${changeSetStatus.StatusReason}`
+    const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId
+    if (eventChangeSetId) {
+      try {
+        core.info(`Attempting to get change set failure details for: ${eventChangeSetId}`)
+        const events = await cfn.send(
+          new DescribeEventsCommand({
+            ChangeSetName: eventChangeSetId,
+            Filters: { FailedEvents: true }
+          })
+        )
+        core.info(`Retrieved ${events.OperationEvents?.length || 0} failed events for change set`)
+        const failedEvents = events.OperationEvents?.filter(
+          event => event.ResourceStatusReason
+        )
+        if (failedEvents && failedEvents.length > 0) {
+          const reasons = failedEvents
+            .map(
+              event =>
+                `${event.LogicalResourceId}: ${event.ResourceStatusReason}`
+            )
+            .join('; ')
+          failureReason += `. Failed resources: ${reasons}`
+        }
+      } catch (error) {
+        core.info(`Failed to get change set event details: ${error}`)
+      }
+    }
+
+    throw new Error(failureReason)
   }
 }
 
@@ -258,7 +287,7 @@ export async function updateStack(
   noDeleteFailedChangeSet: boolean
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   core.debug('Creating CloudFormation Change Set')
-  await cfn.send(new CreateChangeSetCommand(params))
+  const createResponse = await cfn.send(new CreateChangeSetCommand(params))
 
   try {
     core.debug('Waiting for CloudFormation Change Set creation')
@@ -287,7 +316,8 @@ export async function updateStack(
       stack,
       params,
       failOnEmptyChangeSet,
-      noDeleteFailedChangeSet
+      noDeleteFailedChangeSet,
+      createResponse.Id
     )
     return { stackId: result, changeSetInfo }
   }

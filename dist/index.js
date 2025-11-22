@@ -50279,8 +50279,9 @@ function getChangeSetInfo(cfn, changeSetName, stackName) {
         throw new Error('Unexpected end of pagination');
     });
 }
-function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFailedChangeSet) {
+function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFailedChangeSet, changeSetId) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
         const knownErrorMessages = [
             `No updates are to be performed`,
             `The submitted information didn't contain changes`
@@ -50302,14 +50303,37 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
                 knownErrorMessages.some(err => { var _a; return (_a = changeSetStatus.StatusReason) === null || _a === void 0 ? void 0 : _a.includes(err); })) {
                 return stack.StackId;
             }
-            throw new Error(`Failed to create Change Set: ${changeSetStatus.StatusReason}`);
+            // Get detailed failure information for change set creation failures
+            let failureReason = `Failed to create Change Set: ${changeSetStatus.StatusReason}`;
+            const eventChangeSetId = changeSetId || changeSetStatus.ChangeSetId;
+            if (eventChangeSetId) {
+                try {
+                    core.info(`Attempting to get change set failure details for: ${eventChangeSetId}`);
+                    const events = yield cfn.send(new client_cloudformation_1.DescribeEventsCommand({
+                        ChangeSetName: eventChangeSetId,
+                        Filters: { FailedEvents: true }
+                    }));
+                    core.info(`Retrieved ${((_a = events.OperationEvents) === null || _a === void 0 ? void 0 : _a.length) || 0} failed events for change set`);
+                    const failedEvents = (_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.filter(event => event.ResourceStatusReason);
+                    if (failedEvents && failedEvents.length > 0) {
+                        const reasons = failedEvents
+                            .map(event => `${event.LogicalResourceId}: ${event.ResourceStatusReason}`)
+                            .join('; ');
+                        failureReason += `. Failed resources: ${reasons}`;
+                    }
+                }
+                catch (error) {
+                    core.info(`Failed to get change set event details: ${error}`);
+                }
+            }
+            throw new Error(failureReason);
         }
     });
 }
 function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
     return __awaiter(this, void 0, void 0, function* () {
         core.debug('Creating CloudFormation Change Set');
-        yield cfn.send(new client_cloudformation_1.CreateChangeSetCommand(params));
+        const createResponse = yield cfn.send(new client_cloudformation_1.CreateChangeSetCommand(params));
         try {
             core.debug('Waiting for CloudFormation Change Set creation');
             yield (0, client_cloudformation_1.waitUntilChangeSetCreateComplete)({ client: cfn, maxWaitTime: 1800, minDelay: 10 }, {
@@ -50321,7 +50345,7 @@ function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSe
             core.debug('Change set creation waiter failed, getting change set info anyway');
             // Still try to get change set info even if waiter failed
             const changeSetInfo = yield getChangeSetInfo(cfn, params.ChangeSetName, params.StackName);
-            const result = yield cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFailedChangeSet);
+            const result = yield cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFailedChangeSet, createResponse.Id);
             return { stackId: result, changeSetInfo };
         }
         // Get change set information
