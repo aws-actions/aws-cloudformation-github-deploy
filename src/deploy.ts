@@ -299,7 +299,7 @@ export async function deployStack(
   if (!stack) {
     core.debug(`Creating CloudFormation Stack via Change Set`)
     const createParams = buildCreateChangeSetParams(params, changeSetName)
-    
+
     return await updateStack(
       cfn,
       { StackId: undefined } as Stack,
@@ -312,7 +312,7 @@ export async function deployStack(
 
   core.debug(`Updating CloudFormation Stack via Change Set`)
   const updateParams = buildUpdateChangeSetParams(params, changeSetName)
-  
+
   return await updateStack(
     cfn,
     stack,
