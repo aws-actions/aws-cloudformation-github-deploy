@@ -8,6 +8,7 @@ import {
   CreateChangeSetCommand,
   ExecuteChangeSetCommand,
   DescribeStacksCommand,
+  DescribeEventsCommand,
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import { CreateChangeSetInput, CreateStackInputWithName } from './main'
@@ -25,10 +26,11 @@ async function waitUntilStackOperationComplete(
     client: CloudFormationClient
     maxWaitTime: number
     minDelay: number
+    changeSetId?: string
   },
   input: { StackName: string }
 ): Promise<void> {
-  const { client, maxWaitTime, minDelay } = params
+  const { client, maxWaitTime, minDelay, changeSetId } = params
   const startTime = Date.now()
 
   while (Date.now() - startTime < maxWaitTime * 1000) {
@@ -65,7 +67,26 @@ async function waitUntilStackOperationComplete(
         status === 'IMPORT_ROLLBACK_COMPLETE' ||
         status === 'IMPORT_ROLLBACK_FAILED'
       ) {
-        throw new Error(`Stack operation failed with status: ${status}`)
+        // Get failed events using change set ID if available
+        let failureReason = `Stack operation failed with status: ${status}`
+        if (changeSetId) {
+          try {
+            const events = await client.send(new DescribeEventsCommand({ 
+              ChangeSetName: changeSetId,
+              Filters: { FailedEvents: true }
+            }))
+            const failedEvents = events.OperationEvents?.filter(event => event.ResourceStatusReason)
+            if (failedEvents && failedEvents.length > 0) {
+              const reasons = failedEvents.map(event => 
+                `${event.LogicalResourceId}: ${event.ResourceStatusReason}`
+              ).join('; ')
+              failureReason += `. Failed resources: ${reasons}`
+            }
+          } catch {
+            // Ignore errors getting events
+          }
+        }
+        throw new Error(failureReason)
       }
 
       // In-progress states - keep waiting
@@ -283,7 +304,7 @@ export async function updateStack(
 
   core.debug('Updating CloudFormation stack')
   await waitUntilStackOperationComplete(
-    { client: cfn, maxWaitTime: 43200, minDelay: 10 },
+    { client: cfn, maxWaitTime: 43200, minDelay: 10, changeSetId: params.ChangeSetName },
     {
       StackName: params.StackName!
     }

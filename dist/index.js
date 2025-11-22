@@ -50144,8 +50144,8 @@ const core = __importStar(__nccwpck_require__(7484));
 const client_cloudformation_1 = __nccwpck_require__(3805);
 function waitUntilStackOperationComplete(params, input) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
-        const { client, maxWaitTime, minDelay } = params;
+        var _a, _b;
+        const { client, maxWaitTime, minDelay, changeSetId } = params;
         const startTime = Date.now();
         while (Date.now() - startTime < maxWaitTime * 1000) {
             try {
@@ -50173,7 +50173,25 @@ function waitUntilStackOperationComplete(params, input) {
                     status === 'UPDATE_ROLLBACK_FAILED' ||
                     status === 'IMPORT_ROLLBACK_COMPLETE' ||
                     status === 'IMPORT_ROLLBACK_FAILED') {
-                    throw new Error(`Stack operation failed with status: ${status}`);
+                    // Get failed events using change set ID if available
+                    let failureReason = `Stack operation failed with status: ${status}`;
+                    if (changeSetId) {
+                        try {
+                            const events = yield client.send(new client_cloudformation_1.DescribeEventsCommand({
+                                ChangeSetName: changeSetId,
+                                Filters: { FailedEvents: true }
+                            }));
+                            const failedEvents = (_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.filter(event => event.ResourceStatusReason);
+                            if (failedEvents && failedEvents.length > 0) {
+                                const reasons = failedEvents.map(event => `${event.LogicalResourceId}: ${event.ResourceStatusReason}`).join('; ');
+                                failureReason += `. Failed resources: ${reasons}`;
+                            }
+                        }
+                        catch (_c) {
+                            // Ignore errors getting events
+                        }
+                    }
+                    throw new Error(failureReason);
                 }
                 // In-progress states - keep waiting
                 core.info(`Stack still in progress, waiting ${minDelay} seconds...`);
@@ -50313,7 +50331,7 @@ function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSe
             StackName: params.StackName
         }));
         core.debug('Updating CloudFormation stack');
-        yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
+        yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime: 43200, minDelay: 10, changeSetId: params.ChangeSetName }, {
             StackName: params.StackName
         });
         return { stackId: stack.StackId };
