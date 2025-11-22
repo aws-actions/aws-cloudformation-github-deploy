@@ -71,15 +71,22 @@ async function waitUntilStackOperationComplete(
         let failureReason = `Stack operation failed with status: ${status}`
         if (changeSetId) {
           try {
-            const events = await client.send(new DescribeEventsCommand({ 
-              ChangeSetName: changeSetId,
-              Filters: { FailedEvents: true }
-            }))
-            const failedEvents = events.OperationEvents?.filter(event => event.ResourceStatusReason)
+            const events = await client.send(
+              new DescribeEventsCommand({
+                ChangeSetName: changeSetId,
+                Filters: { FailedEvents: true }
+              })
+            )
+            const failedEvents = events.OperationEvents?.filter(
+              event => event.ResourceStatusReason
+            )
             if (failedEvents && failedEvents.length > 0) {
-              const reasons = failedEvents.map(event => 
-                `${event.LogicalResourceId}: ${event.ResourceStatusReason}`
-              ).join('; ')
+              const reasons = failedEvents
+                .map(
+                  event =>
+                    `${event.LogicalResourceId}: ${event.ResourceStatusReason}`
+                )
+                .join('; ')
               failureReason += `. Failed resources: ${reasons}`
             }
           } catch {
@@ -133,6 +140,7 @@ export async function getChangeSetInfo(
   stackName: string
 ): Promise<ChangeSetInfo> {
   const MAX_CHANGES_IN_SUMMARY = 50 // Limit to prevent exceeding GitHub Actions output limits
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allChanges: any[] = []
   let nextToken: string | undefined
 
@@ -304,7 +312,12 @@ export async function updateStack(
 
   core.debug('Updating CloudFormation stack')
   await waitUntilStackOperationComplete(
-    { client: cfn, maxWaitTime: 43200, minDelay: 10, changeSetId: params.ChangeSetName },
+    {
+      client: cfn,
+      maxWaitTime: 43200,
+      minDelay: 10,
+      changeSetId: params.ChangeSetName
+    },
     {
       StackName: params.StackName!
     }

@@ -109,10 +109,7 @@ const executeSchema = baseSchema.extend({
   'parameter-overrides': z.string().optional().transform(emptyToUndefined),
   'deployment-mode': z.string().optional().transform(emptyToUndefined),
   capabilities: z.string().optional().transform(emptyToUndefined),
-  'fail-on-empty-changeset': z
-    .string()
-    .optional()
-    .transform(emptyToUndefined),
+  'fail-on-empty-changeset': z.string().optional().transform(emptyToUndefined),
   'no-execute-changeset': z.string().optional().transform(emptyToUndefined),
   'no-delete-failed-changeset': z
     .string()

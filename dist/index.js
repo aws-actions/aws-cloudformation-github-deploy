@@ -50183,7 +50183,9 @@ function waitUntilStackOperationComplete(params, input) {
                             }));
                             const failedEvents = (_b = events.OperationEvents) === null || _b === void 0 ? void 0 : _b.filter(event => event.ResourceStatusReason);
                             if (failedEvents && failedEvents.length > 0) {
-                                const reasons = failedEvents.map(event => `${event.LogicalResourceId}: ${event.ResourceStatusReason}`).join('; ');
+                                const reasons = failedEvents
+                                    .map(event => `${event.LogicalResourceId}: ${event.ResourceStatusReason}`)
+                                    .join('; ');
                                 failureReason += `. Failed resources: ${reasons}`;
                             }
                         }
@@ -50223,6 +50225,7 @@ function executeExistingChangeSet(cfn, stackName, changeSetId) {
 function getChangeSetInfo(cfn, changeSetName, stackName) {
     return __awaiter(this, void 0, void 0, function* () {
         const MAX_CHANGES_IN_SUMMARY = 50; // Limit to prevent exceeding GitHub Actions output limits
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let allChanges = [];
         let nextToken;
         // Paginate through all changes
@@ -50331,7 +50334,12 @@ function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSe
             StackName: params.StackName
         }));
         core.debug('Updating CloudFormation stack');
-        yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime: 43200, minDelay: 10, changeSetId: params.ChangeSetName }, {
+        yield waitUntilStackOperationComplete({
+            client: cfn,
+            maxWaitTime: 43200,
+            minDelay: 10,
+            changeSetId: params.ChangeSetName
+        }, {
             StackName: params.StackName
         });
         return { stackId: stack.StackId };
@@ -50909,10 +50917,7 @@ const executeSchema = baseSchema.extend({
     'parameter-overrides': zod_1.z.string().optional().transform(emptyToUndefined),
     'deployment-mode': zod_1.z.string().optional().transform(emptyToUndefined),
     capabilities: zod_1.z.string().optional().transform(emptyToUndefined),
-    'fail-on-empty-changeset': zod_1.z
-        .string()
-        .optional()
-        .transform(emptyToUndefined),
+    'fail-on-empty-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
     'no-execute-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
     'no-delete-failed-changeset': zod_1.z
         .string()

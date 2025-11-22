@@ -190,14 +190,20 @@ export async function run(): Promise<void> {
       }
     }
   } catch (err) {
-    if (err instanceof CloudFormationServiceException && 
-        err.message?.includes('Member must have length less than or equal to 51200')) {
-      core.setFailed('Template size exceeds CloudFormation limit (51,200 bytes). Consider using a template URL from S3 instead of inline template content.')
+    if (
+      err instanceof CloudFormationServiceException &&
+      err.message?.includes(
+        'Member must have length less than or equal to 51200'
+      )
+    ) {
+      core.setFailed(
+        'Template size exceeds CloudFormation limit (51,200 bytes). Consider using a template URL from S3 instead of inline template content.'
+      )
     } else {
       // @ts-expect-error: Object is of type 'unknown'
       core.setFailed(err.message || 'Unknown error occurred')
     }
-    
+
     // @ts-expect-error: Object is of type 'unknown'
     core.debug(err.stack)
   }
