@@ -105,21 +105,21 @@ const executeSchema = baseSchema.extend({
   'execute-change-set-id': z
     .string()
     .min(1, 'Change set ID is required for execute-only mode'),
-  template: z.undefined(),
-  'parameter-overrides': z.undefined(),
-  'deployment-mode': z.undefined(),
-  capabilities: z.undefined(),
-  'no-fail-on-empty-changeset': z.undefined(),
-  'no-execute-changeset': z.undefined(),
-  'no-delete-failed-changeset': z.undefined(),
-  'disable-rollback': z.undefined(),
-  'timeout-in-minutes': z.undefined(),
-  'notification-arns': z.undefined(),
-  'role-arn': z.undefined(),
-  tags: z.undefined(),
-  'termination-protection': z.undefined(),
-  'change-set-name': z.undefined(),
-  'include-nested-stacks-change-set': z.undefined()
+  template: z.string().optional().transform(emptyToUndefined),
+  'parameter-overrides': z.string().optional().transform(emptyToUndefined),
+  'deployment-mode': z.string().optional().transform(emptyToUndefined),
+  capabilities: z.string().optional().transform(emptyToUndefined),
+  'no-fail-on-empty-changeset': z.string().optional().transform(emptyToUndefined),
+  'no-execute-changeset': z.string().optional().transform(emptyToUndefined),
+  'no-delete-failed-changeset': z.string().optional().transform(emptyToUndefined),
+  'disable-rollback': z.string().optional().transform(emptyToUndefined),
+  'timeout-in-minutes': z.string().optional().transform(emptyToUndefined),
+  'notification-arns': z.string().optional().transform(emptyToUndefined),
+  'role-arn': z.string().optional().transform(emptyToUndefined),
+  tags: z.string().optional().transform(emptyToUndefined),
+  'termination-protection': z.string().optional().transform(emptyToUndefined),
+  'change-set-name': z.string().optional().transform(emptyToUndefined),
+  'include-nested-stacks-change-set': z.string().optional().transform(emptyToUndefined)
 })
 
 export function validateAndParseInputs(

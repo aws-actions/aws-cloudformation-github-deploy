@@ -50815,21 +50815,21 @@ const executeSchema = baseSchema.extend({
     'execute-change-set-id': zod_1.z
         .string()
         .min(1, 'Change set ID is required for execute-only mode'),
-    template: zod_1.z.undefined(),
-    'parameter-overrides': zod_1.z.undefined(),
-    'deployment-mode': zod_1.z.undefined(),
-    capabilities: zod_1.z.undefined(),
-    'no-fail-on-empty-changeset': zod_1.z.undefined(),
-    'no-execute-changeset': zod_1.z.undefined(),
-    'no-delete-failed-changeset': zod_1.z.undefined(),
-    'disable-rollback': zod_1.z.undefined(),
-    'timeout-in-minutes': zod_1.z.undefined(),
-    'notification-arns': zod_1.z.undefined(),
-    'role-arn': zod_1.z.undefined(),
-    tags: zod_1.z.undefined(),
-    'termination-protection': zod_1.z.undefined(),
-    'change-set-name': zod_1.z.undefined(),
-    'include-nested-stacks-change-set': zod_1.z.undefined()
+    template: zod_1.z.string().optional().transform(emptyToUndefined),
+    'parameter-overrides': zod_1.z.string().optional().transform(emptyToUndefined),
+    'deployment-mode': zod_1.z.string().optional().transform(emptyToUndefined),
+    capabilities: zod_1.z.string().optional().transform(emptyToUndefined),
+    'no-fail-on-empty-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
+    'no-execute-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
+    'no-delete-failed-changeset': zod_1.z.string().optional().transform(emptyToUndefined),
+    'disable-rollback': zod_1.z.string().optional().transform(emptyToUndefined),
+    'timeout-in-minutes': zod_1.z.string().optional().transform(emptyToUndefined),
+    'notification-arns': zod_1.z.string().optional().transform(emptyToUndefined),
+    'role-arn': zod_1.z.string().optional().transform(emptyToUndefined),
+    tags: zod_1.z.string().optional().transform(emptyToUndefined),
+    'termination-protection': zod_1.z.string().optional().transform(emptyToUndefined),
+    'change-set-name': zod_1.z.string().optional().transform(emptyToUndefined),
+    'include-nested-stacks-change-set': zod_1.z.string().optional().transform(emptyToUndefined)
 });
 function validateAndParseInputs(inputs) {
     const mode = inputs.mode || 'create-and-execute';
