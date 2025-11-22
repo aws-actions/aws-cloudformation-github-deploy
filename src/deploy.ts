@@ -6,6 +6,7 @@ import {
   DeleteChangeSetCommand,
   waitUntilChangeSetCreateComplete,
   waitUntilStackUpdateComplete,
+  waitUntilStackCreateComplete,
   CreateChangeSetCommand,
   ExecuteChangeSetCommand,
   DescribeStacksCommand,
@@ -19,6 +20,58 @@ export interface ChangeSetInfo {
   hasChanges: boolean
   changesCount: number
   changesSummary: string
+}
+
+async function waitUntilStackOperationComplete(
+  params: {
+    client: CloudFormationClient
+    maxWaitTime: number
+    minDelay: number
+  },
+  input: { StackName: string }
+): Promise<void> {
+  const { client, maxWaitTime, minDelay } = params
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < maxWaitTime * 1000) {
+    const result = await client.send(new DescribeStacksCommand(input))
+    const stacks = result.Stacks || []
+
+    for (const stack of stacks) {
+      const status = stack.StackStatus
+
+      // Success states - operation completed successfully
+      if (
+        status === 'CREATE_COMPLETE' ||
+        status === 'UPDATE_COMPLETE' ||
+        status === 'IMPORT_COMPLETE'
+      ) {
+        return
+      }
+
+      // Failure states - operation failed
+      if (
+        status === 'CREATE_FAILED' ||
+        status === 'UPDATE_FAILED' ||
+        status === 'DELETE_FAILED' ||
+        status === 'ROLLBACK_COMPLETE' ||
+        status === 'ROLLBACK_FAILED' ||
+        status === 'UPDATE_ROLLBACK_COMPLETE' ||
+        status === 'UPDATE_ROLLBACK_FAILED' ||
+        status === 'IMPORT_ROLLBACK_COMPLETE' ||
+        status === 'IMPORT_ROLLBACK_FAILED'
+      ) {
+        throw new Error(`Stack operation failed with status: ${status}`)
+      }
+
+      // In-progress states - keep waiting
+      // CREATE_IN_PROGRESS, UPDATE_IN_PROGRESS, etc.
+    }
+
+    await new Promise(resolve => setTimeout(resolve, minDelay * 1000))
+  }
+
+  throw new Error(`Timeout after ${maxWaitTime} seconds`)
 }
 
 export async function executeExistingChangeSet(
@@ -35,12 +88,10 @@ export async function executeExistingChangeSet(
     })
   )
 
-  core.debug('Waiting for CloudFormation stack update')
-  await waitUntilStackUpdateComplete(
+  core.debug('Waiting for CloudFormation stack operation to complete')
+  await waitUntilStackOperationComplete(
     { client: cfn, maxWaitTime: 43200, minDelay: 10 },
-    {
-      StackName: stackName
-    }
+    { StackName: stackName }
   )
 
   const stack = await getStack(cfn, stackName)

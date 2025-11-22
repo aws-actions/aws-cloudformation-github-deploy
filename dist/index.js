@@ -50142,6 +50142,41 @@ exports.deployStack = deployStack;
 exports.getStackOutputs = getStackOutputs;
 const core = __importStar(__nccwpck_require__(7484));
 const client_cloudformation_1 = __nccwpck_require__(3805);
+function waitUntilStackOperationComplete(params, input) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { client, maxWaitTime, minDelay } = params;
+        const startTime = Date.now();
+        while (Date.now() - startTime < maxWaitTime * 1000) {
+            const result = yield client.send(new client_cloudformation_1.DescribeStacksCommand(input));
+            const stacks = result.Stacks || [];
+            for (const stack of stacks) {
+                const status = stack.StackStatus;
+                // Success states - operation completed successfully
+                if (status === 'CREATE_COMPLETE' ||
+                    status === 'UPDATE_COMPLETE' ||
+                    status === 'IMPORT_COMPLETE') {
+                    return;
+                }
+                // Failure states - operation failed
+                if (status === 'CREATE_FAILED' ||
+                    status === 'UPDATE_FAILED' ||
+                    status === 'DELETE_FAILED' ||
+                    status === 'ROLLBACK_COMPLETE' ||
+                    status === 'ROLLBACK_FAILED' ||
+                    status === 'UPDATE_ROLLBACK_COMPLETE' ||
+                    status === 'UPDATE_ROLLBACK_FAILED' ||
+                    status === 'IMPORT_ROLLBACK_COMPLETE' ||
+                    status === 'IMPORT_ROLLBACK_FAILED') {
+                    throw new Error(`Stack operation failed with status: ${status}`);
+                }
+                // In-progress states - keep waiting
+                // CREATE_IN_PROGRESS, UPDATE_IN_PROGRESS, etc.
+            }
+            yield new Promise(resolve => setTimeout(resolve, minDelay * 1000));
+        }
+        throw new Error(`Timeout after ${maxWaitTime} seconds`);
+    });
+}
 function executeExistingChangeSet(cfn, stackName, changeSetId) {
     return __awaiter(this, void 0, void 0, function* () {
         core.debug(`Executing existing change set: ${changeSetId}`);
@@ -50149,10 +50184,8 @@ function executeExistingChangeSet(cfn, stackName, changeSetId) {
             ChangeSetName: changeSetId,
             StackName: stackName
         }));
-        core.debug('Waiting for CloudFormation stack update');
-        yield (0, client_cloudformation_1.waitUntilStackUpdateComplete)({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, {
-            StackName: stackName
-        });
+        core.debug('Waiting for CloudFormation stack operation to complete');
+        yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, { StackName: stackName });
         const stack = yield getStack(cfn, stackName);
         return stack === null || stack === void 0 ? void 0 : stack.StackId;
     });
