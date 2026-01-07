@@ -1,22 +1,22 @@
 ---
-name: 'AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions'
-description: "Deploys a AWS CloudFormation stack"
+name: AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
+description: Deploys a AWS CloudFormation stack
 branding:
-  icon: 'cloud'
-  color: 'orange'
+  icon: cloud
+  color: orange
 inputs:
   name:
-    description: "The name of the CloudFormation stack"
+    description: The name of the CloudFormation stack
     required: true
   template:
-    description: "The path or URL to the CloudFormation template"
+    description: The path or URL to the CloudFormation template
     required: true
   capabilities:
     description: >-
       The comma-delimited list of stack template capabilities to acknowledge.
       Defaults to 'CAPABILITY_IAM'
     required: false
-    default: "CAPABILITY_IAM"
+    default: CAPABILITY_IAM
   parameter-overrides:
     description: >-
       The parameters to override in the stack inputs. You can pass a comma-delimited
@@ -32,26 +32,26 @@ inputs:
       Indicates whether to execute to the change set or have it reviewed.
       Default to '0' (will execute the change set)
     required: false
-    default: "0"
+    default: 0
   no-delete-failed-changeset:
     description: >-
       Indicates whether to delete to a failed change set.
       Default to '0' (will delete the failed changeset)
     required: false
-    default: "0"
+    default: 0
   no-fail-on-empty-changeset:
     description: >-
       If the CloudFormation change set is empty, do not fail.
       Defaults to '0' (will fail on empty change set)
     required: false
-    default: "0"
+    default: 0
   disable-rollback:
     description: >-
       Disable rollback of the stack if stack creation fails.
       Defaults to '0' (will rollback if stack creation fails).
       This input is only used for stack creation, not for stack update
     required: false
-    default: "0"
+    default: 0
   timeout-in-minutes:
     description: >-
       The amount of time that can pass before the stack status becomes CREATE_FAILED.
@@ -95,9 +95,9 @@ inputs:
       Defaults to '0' (terminated protection will be disabled)
       This input is only used for stack creation, not for stack update
     required: false
-    default: "0"
+    default: 0
   http-proxy:
-    description: 'Proxy to use for the AWS SDK agent'
+    description: Proxy to use for the AWS SDK agent
     required: false
   change-set-name:
     description: >-
@@ -113,7 +113,7 @@ inputs:
       The format for warnings and errors output. Can be either 'json' or 'yaml'.
       Defaults to 'json' for backward compatibility.
     required: false
-    default: "json"
+    default: json
 outputs:
   stack-id:
     description: >-
@@ -122,5 +122,5 @@ outputs:
       e.g. if the stack has a stack output named 'foo', this action will also
       have an output named 'foo'.
 runs:
-  using: "node20"
-  main: "dist/index.js"
+  using: node20
+  main: dist/index.js
