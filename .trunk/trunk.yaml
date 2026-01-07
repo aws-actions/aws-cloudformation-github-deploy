@@ -26,6 +26,13 @@ lint:
     - prettier@3.7.4
     - trufflehog@3.92.4
     - yamllint@1.37.1
+  ignore:
+    - linters: [prettier]
+      paths:
+        - __tests__/params-invalid.test.json # Intentionally invalid JSON for testing
+    - linters: [ALL]
+      paths:
+        - __tests__/params-invalid.test.json # Intentionally invalid JSON for testing
 actions:
   enabled:
     - trunk-announce

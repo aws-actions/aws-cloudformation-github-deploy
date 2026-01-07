@@ -1,9 +1,9 @@
 import {
   CloudFormationClient,
-  DescribeStackEventsCommand,
-} from "@aws-sdk/client-cloudformation";
-import { ThrottlingException } from "@aws-sdk/client-marketplace-catalog";
-import * as core from "@actions/core";
+  DescribeStackEventsCommand
+} from '@aws-sdk/client-cloudformation'
+import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
+import * as core from '@actions/core'
 
 // Core event streaming interfaces and types
 
@@ -12,23 +12,23 @@ import * as core from "@actions/core";
  * Represents a single event from CloudFormation stack operations
  */
 export interface StackEvent {
-  Timestamp?: Date;
-  LogicalResourceId?: string;
-  ResourceType?: string;
-  ResourceStatus?: string;
-  ResourceStatusReason?: string;
-  PhysicalResourceId?: string;
+  Timestamp?: Date
+  LogicalResourceId?: string
+  ResourceType?: string
+  ResourceStatus?: string
+  ResourceStatusReason?: string
+  PhysicalResourceId?: string
 }
 
 /**
  * Configuration for EventMonitor
  */
 export interface EventMonitorConfig {
-  stackName: string;
-  client: CloudFormationClient;
-  enableColors: boolean;
-  pollIntervalMs: number;
-  maxPollIntervalMs: number;
+  stackName: string
+  client: CloudFormationClient
+  enableColors: boolean
+  pollIntervalMs: number
+  maxPollIntervalMs: number
 }
 
 /**
@@ -38,17 +38,17 @@ export interface EventMonitor {
   /**
    * Start monitoring stack events
    */
-  startMonitoring(): Promise<void>;
+  startMonitoring(): Promise<void>
 
   /**
    * Stop monitoring (called when stack reaches terminal state)
    */
-  stopMonitoring(): void;
+  stopMonitoring(): void
 
   /**
    * Check if monitoring is active
    */
-  isMonitoring(): boolean;
+  isMonitoring(): boolean
 }
 
 /**
@@ -58,28 +58,28 @@ export interface EventPoller {
   /**
    * Poll for new events since last check
    */
-  pollEvents(): Promise<StackEvent[]>;
+  pollEvents(): Promise<StackEvent[]>
 
   /**
    * Get current polling interval
    */
-  getCurrentInterval(): number;
+  getCurrentInterval(): number
 
   /**
    * Reset polling interval (called when new events found)
    */
-  resetInterval(): void;
+  resetInterval(): void
 }
 
 /**
  * Formatted event for display
  */
 export interface FormattedEvent {
-  timestamp: string;
-  resourceInfo: string;
-  status: string;
-  message?: string;
-  isError: boolean;
+  timestamp: string
+  resourceInfo: string
+  status: string
+  message?: string
+  isError: boolean
 }
 
 /**
@@ -89,12 +89,12 @@ export interface EventFormatter {
   /**
    * Format a single event for display
    */
-  formatEvent(event: StackEvent): FormattedEvent;
+  formatEvent(event: StackEvent): FormattedEvent
 
   /**
    * Format multiple events as a batch
    */
-  formatEvents(events: StackEvent[]): string;
+  formatEvents(events: StackEvent[]): string
 }
 
 /**
@@ -104,32 +104,32 @@ export interface ColorFormatter {
   /**
    * Apply color based on resource status
    */
-  colorizeStatus(status: string, text: string): string;
+  colorizeStatus(status: string, text: string): string
 
   /**
    * Apply color for timestamps
    */
-  colorizeTimestamp(timestamp: string): string;
+  colorizeTimestamp(timestamp: string): string
 
   /**
    * Apply color for resource information
    */
-  colorizeResource(resourceType: string, resourceId: string): string;
+  colorizeResource(resourceType: string, resourceId: string): string
 
   /**
    * Apply bold red formatting for errors
    */
-  colorizeError(message: string): string;
+  colorizeError(message: string): string
 }
 
 /**
  * Extracted error information from stack events
  */
 export interface ExtractedError {
-  message: string;
-  resourceId: string;
-  resourceType: string;
-  timestamp: Date;
+  message: string
+  resourceId: string
+  resourceType: string
+  timestamp: Date
 }
 
 /**
@@ -139,39 +139,39 @@ export interface ErrorExtractor {
   /**
    * Extract error information from a stack event
    */
-  extractError(event: StackEvent): ExtractedError | null;
+  extractError(event: StackEvent): ExtractedError | null
 
   /**
    * Check if an event represents an error condition
    */
-  isErrorEvent(event: StackEvent): boolean;
+  isErrorEvent(event: StackEvent): boolean
 
   /**
    * Format error message for display
    */
-  formatErrorMessage(error: ExtractedError): string;
+  formatErrorMessage(error: ExtractedError): string
 }
 
 /**
  * Configuration for event display formatting
  */
 export interface EventDisplayConfig {
-  showTimestamp: boolean;
-  showResourceType: boolean;
-  showPhysicalId: boolean;
-  maxResourceNameLength: number;
-  indentLevel: number;
+  showTimestamp: boolean
+  showResourceType: boolean
+  showPhysicalId: boolean
+  maxResourceNameLength: number
+  indentLevel: number
 }
 
 /**
  * ANSI color codes for event formatting
  */
 export enum EventColor {
-  SUCCESS = "\x1b[32m", // Green
-  WARNING = "\x1b[33m", // Yellow
-  ERROR = "\x1b[31m", // Red
-  INFO = "\x1b[34m", // Blue
-  RESET = "\x1b[0m", // Reset
+  SUCCESS = '\x1b[32m', // Green
+  WARNING = '\x1b[33m', // Yellow
+  ERROR = '\x1b[31m', // Red
+  INFO = '\x1b[34m', // Blue
+  RESET = '\x1b[0m' // Reset
 }
 
 /**
@@ -195,53 +195,53 @@ export const STATUS_COLORS = {
   UPDATE_FAILED: EventColor.ERROR,
   DELETE_FAILED: EventColor.ERROR,
   UPDATE_ROLLBACK_FAILED: EventColor.ERROR,
-  CREATE_ROLLBACK_FAILED: EventColor.ERROR,
-} as const;
+  CREATE_ROLLBACK_FAILED: EventColor.ERROR
+} as const
 
 /**
  * Type for valid CloudFormation resource statuses
  */
-export type ResourceStatus = keyof typeof STATUS_COLORS;
+export type ResourceStatus = keyof typeof STATUS_COLORS
 
 /**
  * Terminal stack states that indicate deployment completion
  */
 export const TERMINAL_STACK_STATES = [
-  "CREATE_COMPLETE",
-  "UPDATE_COMPLETE",
-  "DELETE_COMPLETE",
-  "CREATE_FAILED",
-  "UPDATE_FAILED",
-  "DELETE_FAILED",
-  "UPDATE_ROLLBACK_COMPLETE",
-  "UPDATE_ROLLBACK_FAILED",
-  "CREATE_ROLLBACK_COMPLETE",
-  "CREATE_ROLLBACK_FAILED",
-] as const;
+  'CREATE_COMPLETE',
+  'UPDATE_COMPLETE',
+  'DELETE_COMPLETE',
+  'CREATE_FAILED',
+  'UPDATE_FAILED',
+  'DELETE_FAILED',
+  'UPDATE_ROLLBACK_COMPLETE',
+  'UPDATE_ROLLBACK_FAILED',
+  'CREATE_ROLLBACK_COMPLETE',
+  'CREATE_ROLLBACK_FAILED'
+] as const
 
 /**
  * Type for terminal stack states
  */
-export type TerminalStackState = (typeof TERMINAL_STACK_STATES)[number];
+export type TerminalStackState = (typeof TERMINAL_STACK_STATES)[number]
 
 /**
  * Error status patterns for identifying error events
  */
-export const ERROR_STATUS_PATTERNS = ["FAILED", "ROLLBACK"] as const;
+export const ERROR_STATUS_PATTERNS = ['FAILED', 'ROLLBACK'] as const
 
 /**
  * Success status patterns for identifying successful events
  */
-export const SUCCESS_STATUS_PATTERNS = ["COMPLETE", "IN_PROGRESS"] as const;
+export const SUCCESS_STATUS_PATTERNS = ['COMPLETE', 'IN_PROGRESS'] as const
 
 /**
  * ColorFormatter implementation with ANSI color code support
  */
 export class ColorFormatterImpl implements ColorFormatter {
-  private enableColors: boolean;
+  private enableColors: boolean
 
   constructor(enableColors = true) {
-    this.enableColors = enableColors;
+    this.enableColors = enableColors
   }
 
   /**
@@ -250,12 +250,12 @@ export class ColorFormatterImpl implements ColorFormatter {
    */
   colorizeStatus(status: string, text: string): string {
     if (!this.enableColors) {
-      return text;
+      return text
     }
 
     // Get color for the status, default to INFO if not found
-    const color = STATUS_COLORS[status as ResourceStatus] || EventColor.INFO;
-    return `${color}${text}${EventColor.RESET}`;
+    const color = STATUS_COLORS[status as ResourceStatus] || EventColor.INFO
+    return `${color}${text}${EventColor.RESET}`
   }
 
   /**
@@ -263,10 +263,10 @@ export class ColorFormatterImpl implements ColorFormatter {
    */
   colorizeTimestamp(timestamp: string): string {
     if (!this.enableColors) {
-      return timestamp;
+      return timestamp
     }
 
-    return `${EventColor.INFO}${timestamp}${EventColor.RESET}`;
+    return `${EventColor.INFO}${timestamp}${EventColor.RESET}`
   }
 
   /**
@@ -274,10 +274,10 @@ export class ColorFormatterImpl implements ColorFormatter {
    */
   colorizeResource(resourceType: string, resourceId: string): string {
     if (!this.enableColors) {
-      return `${resourceType}/${resourceId}`;
+      return `${resourceType}/${resourceId}`
     }
 
-    return `${EventColor.INFO}${resourceType}/${resourceId}${EventColor.RESET}`;
+    return `${EventColor.INFO}${resourceType}/${resourceId}${EventColor.RESET}`
   }
 
   /**
@@ -286,25 +286,25 @@ export class ColorFormatterImpl implements ColorFormatter {
    */
   colorizeError(message: string): string {
     if (!this.enableColors) {
-      return message;
+      return message
     }
 
     // Bold red: \x1b[1m for bold, \x1b[31m for red
-    return `\x1b[1m${EventColor.ERROR}${message}${EventColor.RESET}`;
+    return `\x1b[1m${EventColor.ERROR}${message}${EventColor.RESET}`
   }
 
   /**
    * Check if colors are enabled
    */
   isColorsEnabled(): boolean {
-    return this.enableColors;
+    return this.enableColors
   }
 
   /**
    * Enable or disable colors
    */
   setColorsEnabled(enabled: boolean): void {
-    this.enableColors = enabled;
+    this.enableColors = enabled
   }
 }
 
@@ -312,10 +312,10 @@ export class ColorFormatterImpl implements ColorFormatter {
  * ErrorExtractor implementation for extracting error information from stack events
  */
 export class ErrorExtractorImpl implements ErrorExtractor {
-  private colorFormatter: ColorFormatter;
+  private colorFormatter: ColorFormatter
 
   constructor(colorFormatter: ColorFormatter) {
-    this.colorFormatter = colorFormatter;
+    this.colorFormatter = colorFormatter
   }
 
   /**
@@ -324,21 +324,21 @@ export class ErrorExtractorImpl implements ErrorExtractor {
    */
   extractError(event: StackEvent): ExtractedError | null {
     if (!this.isErrorEvent(event)) {
-      return null;
+      return null
     }
 
     // Extract required fields, providing defaults for missing data
-    const message = event.ResourceStatusReason || "Unknown error occurred";
-    const resourceId = event.LogicalResourceId || "Unknown resource";
-    const resourceType = event.ResourceType || "Unknown type";
-    const timestamp = event.Timestamp || new Date();
+    const message = event.ResourceStatusReason || 'Unknown error occurred'
+    const resourceId = event.LogicalResourceId || 'Unknown resource'
+    const resourceType = event.ResourceType || 'Unknown type'
+    const timestamp = event.Timestamp || new Date()
 
     return {
       message,
       resourceId,
       resourceType,
-      timestamp,
-    };
+      timestamp
+    }
   }
 
   /**
@@ -347,13 +347,13 @@ export class ErrorExtractorImpl implements ErrorExtractor {
    */
   isErrorEvent(event: StackEvent): boolean {
     if (!event.ResourceStatus) {
-      return false;
+      return false
     }
 
-    const status = event.ResourceStatus.toUpperCase();
+    const status = event.ResourceStatus.toUpperCase()
 
     // Check for error patterns in the status
-    return ERROR_STATUS_PATTERNS.some((pattern) => status.includes(pattern));
+    return ERROR_STATUS_PATTERNS.some(pattern => status.includes(pattern))
   }
 
   /**
@@ -362,29 +362,29 @@ export class ErrorExtractorImpl implements ErrorExtractor {
    */
   formatErrorMessage(error: ExtractedError): string {
     // Format timestamp in ISO 8601 format, handle invalid dates
-    let timestamp: string;
+    let timestamp: string
     try {
-      timestamp = error.timestamp.toISOString();
+      timestamp = error.timestamp.toISOString()
     } catch (e) {
       // Handle invalid dates by using current time
-      timestamp = new Date().toISOString();
-      core.debug(`Invalid timestamp in error, using current time: ${e}`);
+      timestamp = new Date().toISOString()
+      core.debug(`Invalid timestamp in error, using current time: ${e}`)
     }
 
     // Get the complete error message
-    const fullMessage = this.getCompleteErrorMessage(error.message);
+    const fullMessage = this.getCompleteErrorMessage(error.message)
 
     // Apply bold red formatting to the error message
-    const formattedMessage = this.colorFormatter.colorizeError(fullMessage);
+    const formattedMessage = this.colorFormatter.colorizeError(fullMessage)
 
     // Combine all parts with proper spacing and structure
-    const colorizedTimestamp = this.colorFormatter.colorizeTimestamp(timestamp);
+    const colorizedTimestamp = this.colorFormatter.colorizeTimestamp(timestamp)
     const colorizedResource = this.colorFormatter.colorizeResource(
       error.resourceType,
-      error.resourceId,
-    );
+      error.resourceId
+    )
 
-    return `${colorizedTimestamp} ${colorizedResource} ERROR: ${formattedMessage}`;
+    return `${colorizedTimestamp} ${colorizedResource} ERROR: ${formattedMessage}`
   }
 
   /**
@@ -393,19 +393,19 @@ export class ErrorExtractorImpl implements ErrorExtractor {
    */
   private getCompleteErrorMessage(message: string): string {
     // Check if message appears truncated (common indicators)
-    const truncationIndicators = ["...", "(truncated)", "[truncated]"];
-    const isTruncated = truncationIndicators.some((indicator) =>
-      message.includes(indicator),
-    );
+    const truncationIndicators = ['...', '(truncated)', '[truncated]']
+    const isTruncated = truncationIndicators.some(indicator =>
+      message.includes(indicator)
+    )
 
     if (isTruncated) {
       // For now, return the message as-is since we don't have access to
       // additional event details in this context. In a real implementation,
       // this could fetch additional details from CloudFormation API
-      core.debug(`Detected truncated error message: ${message}`);
+      core.debug(`Detected truncated error message: ${message}`)
     }
 
-    return message;
+    return message
   }
 
   /**
@@ -414,20 +414,20 @@ export class ErrorExtractorImpl implements ErrorExtractor {
    */
   formatMultipleErrors(errors: ExtractedError[]): string {
     if (errors.length === 0) {
-      return "";
+      return ''
     }
 
     if (errors.length === 1) {
-      return this.formatErrorMessage(errors[0]);
+      return this.formatErrorMessage(errors[0])
     }
 
     // Format multiple errors with clear separation
     const formattedErrors = errors.map((error, index) => {
-      const errorMessage = this.formatErrorMessage(error);
-      return `[${index + 1}] ${errorMessage}`;
-    });
+      const errorMessage = this.formatErrorMessage(error)
+      return `[${index + 1}] ${errorMessage}`
+    })
 
-    return formattedErrors.join("\n");
+    return formattedErrors.join('\n')
   }
 
   /**
@@ -435,16 +435,16 @@ export class ErrorExtractorImpl implements ErrorExtractor {
    * Returns array of ExtractedError objects for all error events
    */
   extractAllErrors(events: StackEvent[]): ExtractedError[] {
-    const errors: ExtractedError[] = [];
+    const errors: ExtractedError[] = []
 
     for (const event of events) {
-      const error = this.extractError(event);
+      const error = this.extractError(event)
       if (error) {
-        errors.push(error);
+        errors.push(error)
       }
     }
 
-    return errors;
+    return errors
   }
 }
 
@@ -452,25 +452,25 @@ export class ErrorExtractorImpl implements ErrorExtractor {
  * EventPoller implementation with exponential backoff and rate limiting
  */
 export class EventPollerImpl implements EventPoller {
-  private client: CloudFormationClient;
-  private stackName: string;
-  private currentIntervalMs: number;
-  private readonly initialIntervalMs: number;
-  private readonly maxIntervalMs: number;
-  private lastEventTimestamp?: Date;
-  private seenEventIds: Set<string> = new Set();
+  private client: CloudFormationClient
+  private stackName: string
+  private currentIntervalMs: number
+  private readonly initialIntervalMs: number
+  private readonly maxIntervalMs: number
+  private lastEventTimestamp?: Date
+  private seenEventIds: Set<string> = new Set()
 
   constructor(
     client: CloudFormationClient,
     stackName: string,
     initialIntervalMs = 2000,
-    maxIntervalMs = 30000,
+    maxIntervalMs = 30000
   ) {
-    this.client = client;
-    this.stackName = stackName;
-    this.initialIntervalMs = initialIntervalMs;
-    this.maxIntervalMs = maxIntervalMs;
-    this.currentIntervalMs = initialIntervalMs;
+    this.client = client
+    this.stackName = stackName
+    this.initialIntervalMs = initialIntervalMs
+    this.maxIntervalMs = maxIntervalMs
+    this.currentIntervalMs = initialIntervalMs
   }
 
   /**
@@ -481,42 +481,42 @@ export class EventPollerImpl implements EventPoller {
   async pollEvents(): Promise<StackEvent[]> {
     try {
       const command = new DescribeStackEventsCommand({
-        StackName: this.stackName,
-      });
+        StackName: this.stackName
+      })
 
-      const response = await this.client.send(command);
-      const allEvents = response.StackEvents || [];
+      const response = await this.client.send(command)
+      const allEvents = response.StackEvents || []
 
       // Filter for new events only
-      const newEvents = this.filterNewEvents(allEvents);
+      const newEvents = this.filterNewEvents(allEvents)
 
       if (newEvents.length > 0) {
         // Reset interval when new events are found
-        this.resetInterval();
+        this.resetInterval()
 
         // Update tracking
-        this.updateEventTracking(newEvents);
+        this.updateEventTracking(newEvents)
 
-        core.debug(`Found ${newEvents.length} new stack events`);
+        core.debug(`Found ${newEvents.length} new stack events`)
       } else {
         // Increase interval when no new events (exponential backoff)
-        this.increaseInterval();
+        this.increaseInterval()
         core.debug(
-          `No new events found, current interval: ${this.currentIntervalMs}ms`,
-        );
+          `No new events found, current interval: ${this.currentIntervalMs}ms`
+        )
       }
 
-      return newEvents;
+      return newEvents
     } catch (error) {
       // Handle specific AWS API errors
       if (error instanceof ThrottlingException) {
-        core.warning(`CloudFormation API throttling detected, backing off...`);
+        core.warning(`CloudFormation API throttling detected, backing off...`)
         // Double the interval on throttling
         this.currentIntervalMs = Math.min(
           this.currentIntervalMs * 2,
-          this.maxIntervalMs,
-        );
-        throw error;
+          this.maxIntervalMs
+        )
+        throw error
       }
 
       // Handle credential/permission errors first (most specific)
@@ -524,9 +524,9 @@ export class EventPollerImpl implements EventPoller {
         core.warning(
           `Credential or permission error during event polling: ${
             error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        throw error;
+          }`
+        )
+        throw error
       }
 
       // Handle timeout errors (before network errors since ETIMEDOUT can be both)
@@ -534,11 +534,11 @@ export class EventPollerImpl implements EventPoller {
         core.warning(
           `Timeout error during event polling: ${
             error instanceof Error ? error.message : String(error)
-          }`,
-        );
+          }`
+        )
         // Increase interval on timeout to reduce load
-        this.increaseInterval();
-        throw error;
+        this.increaseInterval()
+        throw error
       }
 
       // Handle network connectivity issues
@@ -546,11 +546,11 @@ export class EventPollerImpl implements EventPoller {
         core.warning(
           `Network connectivity issue during event polling: ${
             error instanceof Error ? error.message : String(error)
-          }`,
-        );
+          }`
+        )
         // Increase interval for network issues to avoid overwhelming failing connections
-        this.increaseInterval();
-        throw error;
+        this.increaseInterval()
+        throw error
       }
 
       // Handle AWS service errors (non-throttling)
@@ -558,18 +558,18 @@ export class EventPollerImpl implements EventPoller {
         core.warning(
           `AWS service error during event polling: ${
             error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        throw error;
+          }`
+        )
+        throw error
       }
 
       // Log unknown errors as warnings and re-throw
       core.warning(
         `Unknown error during event polling: ${
           error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      throw error;
+        }`
+      )
+      throw error
     }
   }
 
@@ -577,121 +577,123 @@ export class EventPollerImpl implements EventPoller {
    * Check if error is a network connectivity issue
    */
   private isNetworkError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
+    if (!(error instanceof Error)) return false
 
     const networkErrorPatterns = [
-      "ECONNREFUSED",
-      "ENOTFOUND",
-      "ECONNRESET",
-      "EHOSTUNREACH",
-      "ENETUNREACH",
-      "EAI_AGAIN",
-      "socket hang up",
-      "network timeout",
-      "connection timeout",
-    ];
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'ECONNRESET',
+      'EHOSTUNREACH',
+      'ENETUNREACH',
+      'EAI_AGAIN',
+      'socket hang up',
+      'network timeout',
+      'connection timeout'
+    ]
 
-    const errorMessage = error.message.toLowerCase();
-    return networkErrorPatterns.some((pattern) =>
-      errorMessage.includes(pattern.toLowerCase()),
-    );
+    const errorMessage = error.message.toLowerCase()
+    return networkErrorPatterns.some(pattern =>
+      errorMessage.includes(pattern.toLowerCase())
+    )
   }
 
   /**
    * Check if error is an AWS service error (non-throttling)
    */
   private isAWSServiceError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
+    if (!(error instanceof Error)) return false
 
     // Check for AWS SDK error properties
-    const awsError = error as any;
+    const awsError = error as Error & {
+      $metadata?: unknown
+      $fault?: unknown
+    }
     if (awsError.$metadata && awsError.$fault) {
-      return true;
+      return true
     }
 
     // Check for common AWS error patterns
     const awsErrorPatterns = [
-      "ValidationError",
-      "AccessDenied",
-      "InvalidParameterValue",
-      "ResourceNotFound",
-      "ServiceUnavailable",
-      "InternalFailure",
-    ];
+      'ValidationError',
+      'AccessDenied',
+      'InvalidParameterValue',
+      'ResourceNotFound',
+      'ServiceUnavailable',
+      'InternalFailure'
+    ]
 
     return awsErrorPatterns.some(
-      (pattern) => error.message.includes(pattern) || error.name === pattern,
-    );
+      pattern => error.message.includes(pattern) || error.name === pattern
+    )
   }
 
   /**
    * Check if error is a timeout error
    */
   private isTimeoutError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
+    if (!(error instanceof Error)) return false
 
     const timeoutPatterns = [
-      "timeout",
-      "ETIMEDOUT",
-      "TimeoutError",
-      "RequestTimeout",
-    ];
+      'timeout',
+      'ETIMEDOUT',
+      'TimeoutError',
+      'RequestTimeout'
+    ]
 
-    const errorMessage = error.message.toLowerCase();
-    const errorName = error.name.toLowerCase();
+    const errorMessage = error.message.toLowerCase()
+    const errorName = error.name.toLowerCase()
 
     return timeoutPatterns.some(
-      (pattern) =>
+      pattern =>
         errorMessage.includes(pattern.toLowerCase()) ||
-        errorName.includes(pattern.toLowerCase()),
-    );
+        errorName.includes(pattern.toLowerCase())
+    )
   }
 
   /**
    * Check if error is a credential or permission error
    */
   private isCredentialError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
+    if (!(error instanceof Error)) return false
 
     const credentialPatterns = [
-      "AccessDenied",
-      "Forbidden",
-      "UnauthorizedOperation",
-      "InvalidUserID.NotFound",
-      "TokenRefreshRequired",
-      "CredentialsError",
-      "SignatureDoesNotMatch",
-    ];
+      'AccessDenied',
+      'Forbidden',
+      'UnauthorizedOperation',
+      'InvalidUserID.NotFound',
+      'TokenRefreshRequired',
+      'CredentialsError',
+      'SignatureDoesNotMatch'
+    ]
 
     return credentialPatterns.some(
-      (pattern) =>
-        error.message.includes(pattern) || error.name.includes(pattern),
-    );
+      pattern => error.message.includes(pattern) || error.name.includes(pattern)
+    )
   }
 
   /**
    * Get current polling interval in milliseconds
    */
   getCurrentInterval(): number {
-    return this.currentIntervalMs;
+    return this.currentIntervalMs
   }
 
   /**
    * Reset polling interval to initial value (called when new events found)
    */
   resetInterval(): void {
-    this.currentIntervalMs = this.initialIntervalMs;
+    this.currentIntervalMs = this.initialIntervalMs
   }
 
   /**
    * Filter events to only return new ones since last poll
    */
   private filterNewEvents(allEvents: StackEvent[]): StackEvent[] {
-    const newEvents: StackEvent[] = [];
+    const newEvents: StackEvent[] = []
 
     for (const event of allEvents) {
       // Create unique event ID from timestamp + resource + status
-      const eventId = this.createEventId(event);
+      const eventId = this.createEventId(event)
 
       if (!this.seenEventIds.has(eventId)) {
         // Check if event is newer than our last seen timestamp
@@ -699,16 +701,16 @@ export class EventPollerImpl implements EventPoller {
           !this.lastEventTimestamp ||
           (event.Timestamp && event.Timestamp > this.lastEventTimestamp)
         ) {
-          newEvents.push(event);
+          newEvents.push(event)
         }
       }
     }
 
     // Sort by timestamp (oldest first) for proper display order
     return newEvents.sort((a, b) => {
-      if (!a.Timestamp || !b.Timestamp) return 0;
-      return a.Timestamp.getTime() - b.Timestamp.getTime();
-    });
+      if (!a.Timestamp || !b.Timestamp) return 0
+      return a.Timestamp.getTime() - b.Timestamp.getTime()
+    })
   }
 
   /**
@@ -716,15 +718,15 @@ export class EventPollerImpl implements EventPoller {
    */
   private updateEventTracking(newEvents: StackEvent[]): void {
     for (const event of newEvents) {
-      const eventId = this.createEventId(event);
-      this.seenEventIds.add(eventId);
+      const eventId = this.createEventId(event)
+      this.seenEventIds.add(eventId)
 
       // Update last seen timestamp
       if (
         event.Timestamp &&
         (!this.lastEventTimestamp || event.Timestamp > this.lastEventTimestamp)
       ) {
-        this.lastEventTimestamp = event.Timestamp;
+        this.lastEventTimestamp = event.Timestamp
       }
     }
   }
@@ -735,7 +737,7 @@ export class EventPollerImpl implements EventPoller {
   private createEventId(event: StackEvent): string {
     return `${event.Timestamp?.getTime()}-${event.LogicalResourceId}-${
       event.ResourceStatus
-    }`;
+    }`
   }
 
   /**
@@ -744,8 +746,8 @@ export class EventPollerImpl implements EventPoller {
   private increaseInterval(): void {
     this.currentIntervalMs = Math.min(
       this.currentIntervalMs * 1.5,
-      this.maxIntervalMs,
-    );
+      this.maxIntervalMs
+    )
   }
 }
 
@@ -754,31 +756,31 @@ export class EventPollerImpl implements EventPoller {
  * Manages the lifecycle of event monitoring with concurrent polling and display
  */
 export class EventMonitorImpl implements EventMonitor {
-  private config: EventMonitorConfig;
-  private poller: EventPoller;
-  private formatter: EventFormatter;
-  private isActive = false;
-  private pollingPromise?: Promise<void>;
-  private stopRequested = false;
-  private eventCount = 0;
-  private errorCount = 0;
-  private startTime?: Date;
+  private config: EventMonitorConfig
+  private poller: EventPoller
+  private formatter: EventFormatter
+  private isActive = false
+  private pollingPromise?: Promise<void>
+  private stopRequested = false
+  private eventCount = 0
+  private errorCount = 0
+  private startTime?: Date
 
   constructor(config: EventMonitorConfig) {
-    this.config = config;
+    this.config = config
 
     // Initialize components
-    const colorFormatter = new ColorFormatterImpl(config.enableColors);
-    const errorExtractor = new ErrorExtractorImpl(colorFormatter);
+    const colorFormatter = new ColorFormatterImpl(config.enableColors)
+    const errorExtractor = new ErrorExtractorImpl(colorFormatter)
 
     this.poller = new EventPollerImpl(
       config.client,
       config.stackName,
       config.pollIntervalMs,
-      config.maxPollIntervalMs,
-    );
+      config.maxPollIntervalMs
+    )
 
-    this.formatter = new EventFormatterImpl(colorFormatter, errorExtractor);
+    this.formatter = new EventFormatterImpl(colorFormatter, errorExtractor)
   }
 
   /**
@@ -787,30 +789,30 @@ export class EventMonitorImpl implements EventMonitor {
    */
   async startMonitoring(): Promise<void> {
     if (this.isActive) {
-      core.debug("Event monitoring already active");
-      return;
+      core.debug('Event monitoring already active')
+      return
     }
 
-    this.isActive = true;
-    this.stopRequested = false;
-    this.startTime = new Date();
-    this.eventCount = 0;
-    this.errorCount = 0;
+    this.isActive = true
+    this.stopRequested = false
+    this.startTime = new Date()
+    this.eventCount = 0
+    this.errorCount = 0
 
-    core.info(`Starting event monitoring for stack: ${this.config.stackName}`);
+    core.info(`Starting event monitoring for stack: ${this.config.stackName}`)
 
     // Start the polling loop with comprehensive error handling
-    this.pollingPromise = this.pollLoop();
+    this.pollingPromise = this.pollLoop()
 
     try {
-      await this.pollingPromise;
+      await this.pollingPromise
     } catch (error) {
       // Log polling errors but don't throw - event streaming should not break deployment
       const errorMessage =
-        error instanceof Error ? error.message : String(error);
+        error instanceof Error ? error.message : String(error)
       core.warning(
-        `Event monitoring encountered an error but deployment will continue: ${errorMessage}`,
-      );
+        `Event monitoring encountered an error but deployment will continue: ${errorMessage}`
+      )
 
       // Log additional context for debugging
       core.debug(
@@ -821,12 +823,12 @@ export class EventMonitorImpl implements EventMonitor {
           errorCount: this.errorCount,
           duration: this.startTime
             ? Date.now() - this.startTime.getTime()
-            : undefined,
-        })}`,
-      );
+            : undefined
+        })}`
+      )
     } finally {
-      this.isActive = false;
-      core.debug("Event monitoring has been stopped");
+      this.isActive = false
+      core.debug('Event monitoring has been stopped')
     }
   }
 
@@ -835,22 +837,22 @@ export class EventMonitorImpl implements EventMonitor {
    */
   stopMonitoring(): void {
     if (!this.isActive) {
-      return;
+      return
     }
 
-    core.debug("Stopping event monitoring");
-    this.stopRequested = true;
-    this.isActive = false;
+    core.debug('Stopping event monitoring')
+    this.stopRequested = true
+    this.isActive = false
 
     // Display final summary
-    this.displayFinalSummary();
+    this.displayFinalSummary()
   }
 
   /**
    * Check if monitoring is active
    */
   isMonitoring(): boolean {
-    return this.isActive;
+    return this.isActive
   }
 
   /**
@@ -858,78 +860,78 @@ export class EventMonitorImpl implements EventMonitor {
    * Implements the 5-second timeliness requirement with comprehensive error handling
    */
   private async pollLoop(): Promise<void> {
-    let consecutiveErrors = 0;
-    const maxConsecutiveErrors = 5;
-    const errorBackoffMs = 5000;
+    let consecutiveErrors = 0
+    const maxConsecutiveErrors = 5
+    const errorBackoffMs = 5000
 
     while (this.isActive && !this.stopRequested) {
       try {
         // Poll for new events
-        const newEvents = await this.poller.pollEvents();
+        const newEvents = await this.poller.pollEvents()
 
         if (newEvents.length > 0) {
           // Display events immediately to meet 5-second requirement
-          await this.displayEvents(newEvents);
+          await this.displayEvents(newEvents)
 
           // Update counters
-          this.eventCount += newEvents.length;
-          this.errorCount += this.countErrors(newEvents);
+          this.eventCount += newEvents.length
+          this.errorCount += this.countErrors(newEvents)
 
           // Check if stack has reached terminal state
           if (this.hasTerminalEvent(newEvents)) {
-            core.debug("Terminal stack state detected, stopping monitoring");
-            this.stopRequested = true;
-            break;
+            core.debug('Terminal stack state detected, stopping monitoring')
+            this.stopRequested = true
+            break
           }
         }
 
         // Reset consecutive error count on successful poll
-        consecutiveErrors = 0;
+        consecutiveErrors = 0
 
         // Wait for next polling interval if still active
         if (this.isActive && !this.stopRequested) {
-          const interval = this.poller.getCurrentInterval();
-          await this.sleep(interval);
+          const interval = this.poller.getCurrentInterval()
+          await this.sleep(interval)
         }
       } catch (error) {
-        consecutiveErrors++;
+        consecutiveErrors++
 
         // Handle polling errors gracefully with progressive backoff
         if (error instanceof ThrottlingException) {
           core.warning(
-            `CloudFormation API throttling (attempt ${consecutiveErrors}/${maxConsecutiveErrors}), backing off...`,
-          );
+            `CloudFormation API throttling (attempt ${consecutiveErrors}/${maxConsecutiveErrors}), backing off...`
+          )
           // Wait longer on throttling with exponential backoff
           const backoffTime = Math.min(
             this.poller.getCurrentInterval() * Math.pow(2, consecutiveErrors),
-            30000,
-          );
-          await this.sleep(backoffTime);
+            30000
+          )
+          await this.sleep(backoffTime)
         } else {
           // Log other errors as warnings with context
           const errorMessage =
-            error instanceof Error ? error.message : String(error);
+            error instanceof Error ? error.message : String(error)
           core.warning(
-            `Event polling error (attempt ${consecutiveErrors}/${maxConsecutiveErrors}): ${errorMessage}`,
-          );
+            `Event polling error (attempt ${consecutiveErrors}/${maxConsecutiveErrors}): ${errorMessage}`
+          )
 
           // Implement graceful degradation
           if (consecutiveErrors >= maxConsecutiveErrors) {
             core.warning(
               `Maximum consecutive polling errors (${maxConsecutiveErrors}) reached. ` +
-                "Event streaming will be disabled to prevent deployment interference. " +
-                "Deployment will continue normally.",
-            );
-            this.stopRequested = true;
-            break;
+                'Event streaming will be disabled to prevent deployment interference. ' +
+                'Deployment will continue normally.'
+            )
+            this.stopRequested = true
+            break
           }
 
           // Progressive backoff for consecutive errors
           const backoffTime = Math.min(
             errorBackoffMs * consecutiveErrors,
-            30000,
-          );
-          await this.sleep(backoffTime);
+            30000
+          )
+          await this.sleep(backoffTime)
         }
 
         // Check if we should continue after error handling
@@ -938,9 +940,9 @@ export class EventMonitorImpl implements EventMonitor {
           !this.stopRequested &&
           consecutiveErrors < maxConsecutiveErrors
         ) {
-          continue;
+          continue
         } else {
-          break;
+          break
         }
       }
     }
@@ -948,10 +950,10 @@ export class EventMonitorImpl implements EventMonitor {
     // Log final status
     if (consecutiveErrors >= maxConsecutiveErrors) {
       core.warning(
-        "Event streaming stopped due to consecutive errors. Deployment continues normally.",
-      );
+        'Event streaming stopped due to consecutive errors. Deployment continues normally.'
+      )
     } else {
-      core.debug("Event monitoring polling loop completed normally");
+      core.debug('Event monitoring polling loop completed normally')
     }
   }
 
@@ -961,18 +963,18 @@ export class EventMonitorImpl implements EventMonitor {
    */
   private async displayEvents(events: StackEvent[]): Promise<void> {
     try {
-      const formattedOutput = this.formatter.formatEvents(events);
+      const formattedOutput = this.formatter.formatEvents(events)
 
       if (formattedOutput) {
         // Use core.info to ensure output appears in GitHub Actions logs
-        core.info(formattedOutput);
+        core.info(formattedOutput)
       }
     } catch (error) {
       core.warning(
         `Event formatting error: ${
           error instanceof Error ? error.message : String(error)
-        }`,
-      );
+        }`
+      )
     }
   }
 
@@ -980,20 +982,20 @@ export class EventMonitorImpl implements EventMonitor {
    * Count error events in a batch
    */
   private countErrors(events: StackEvent[]): number {
-    return events.filter((event) => {
-      const status = event.ResourceStatus || "";
-      return ERROR_STATUS_PATTERNS.some((pattern) => status.includes(pattern));
-    }).length;
+    return events.filter(event => {
+      const status = event.ResourceStatus || ''
+      return ERROR_STATUS_PATTERNS.some(pattern => status.includes(pattern))
+    }).length
   }
 
   /**
    * Check if any event indicates a terminal stack state
    */
   private hasTerminalEvent(events: StackEvent[]): boolean {
-    return events.some((event) => {
-      const status = event.ResourceStatus || "";
-      return TERMINAL_STACK_STATES.includes(status as TerminalStackState);
-    });
+    return events.some(event => {
+      const status = event.ResourceStatus || ''
+      return TERMINAL_STACK_STATES.includes(status as TerminalStackState)
+    })
   }
 
   /**
@@ -1003,11 +1005,11 @@ export class EventMonitorImpl implements EventMonitor {
     try {
       const duration = this.startTime
         ? Date.now() - this.startTime.getTime()
-        : undefined;
+        : undefined
 
       // Get the final status from the last known state
       // In a real implementation, this might query the stack status
-      const finalStatus = "DEPLOYMENT_COMPLETE"; // Placeholder
+      const finalStatus = 'DEPLOYMENT_COMPLETE' // Placeholder
 
       const summary = (
         this.formatter as EventFormatterImpl
@@ -1016,16 +1018,16 @@ export class EventMonitorImpl implements EventMonitor {
         finalStatus,
         this.eventCount,
         this.errorCount,
-        duration,
-      );
+        duration
+      )
 
-      core.info(summary);
+      core.info(summary)
     } catch (error) {
       core.warning(
         `Error displaying final summary: ${
           error instanceof Error ? error.message : String(error)
-        }`,
-      );
+        }`
+      )
     }
   }
 
@@ -1033,28 +1035,28 @@ export class EventMonitorImpl implements EventMonitor {
    * Sleep utility for polling intervals
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms))
   }
 
   /**
    * Get monitoring statistics
    */
   getStats(): {
-    eventCount: number;
-    errorCount: number;
-    isActive: boolean;
-    duration?: number;
+    eventCount: number
+    errorCount: number
+    isActive: boolean
+    duration?: number
   } {
     const duration = this.startTime
       ? Date.now() - this.startTime.getTime()
-      : undefined;
+      : undefined
 
     return {
       eventCount: this.eventCount,
       errorCount: this.errorCount,
       isActive: this.isActive,
-      duration,
-    };
+      duration
+    }
   }
 }
 
@@ -1063,17 +1065,17 @@ export class EventMonitorImpl implements EventMonitor {
  * Handles ISO 8601 timestamp formatting, resource name truncation, and nested indentation
  */
 export class EventFormatterImpl implements EventFormatter {
-  private colorFormatter: ColorFormatter;
-  private errorExtractor: ErrorExtractor;
-  private config: EventDisplayConfig;
+  private colorFormatter: ColorFormatter
+  private errorExtractor: ErrorExtractor
+  private config: EventDisplayConfig
 
   constructor(
     colorFormatter: ColorFormatter,
     errorExtractor: ErrorExtractor,
-    config: Partial<EventDisplayConfig> = {},
+    config: Partial<EventDisplayConfig> = {}
   ) {
-    this.colorFormatter = colorFormatter;
-    this.errorExtractor = errorExtractor;
+    this.colorFormatter = colorFormatter
+    this.errorExtractor = errorExtractor
 
     // Set default configuration with overrides
     this.config = {
@@ -1082,8 +1084,8 @@ export class EventFormatterImpl implements EventFormatter {
       showPhysicalId: false,
       maxResourceNameLength: 50,
       indentLevel: 0,
-      ...config,
-    };
+      ...config
+    }
   }
 
   /**
@@ -1092,26 +1094,26 @@ export class EventFormatterImpl implements EventFormatter {
    */
   formatEvent(event: StackEvent): FormattedEvent {
     // Format timestamp in ISO 8601 format with timezone
-    const timestamp = this.formatTimestamp(event.Timestamp);
+    const timestamp = this.formatTimestamp(event.Timestamp)
 
     // Format resource information with truncation
-    const resourceInfo = this.formatResourceInfo(event);
+    const resourceInfo = this.formatResourceInfo(event)
 
     // Format status with appropriate coloring
-    const status = this.formatStatus(event.ResourceStatus || "UNKNOWN");
+    const status = this.formatStatus(event.ResourceStatus || 'UNKNOWN')
 
     // Check if this is an error event and extract error message
-    const isError = this.errorExtractor.isErrorEvent(event);
-    let message: string | undefined;
+    const isError = this.errorExtractor.isErrorEvent(event)
+    let message: string | undefined
 
     if (isError) {
-      const extractedError = this.errorExtractor.extractError(event);
+      const extractedError = this.errorExtractor.extractError(event)
       if (extractedError) {
-        message = extractedError.message;
+        message = extractedError.message
       }
     } else if (event.ResourceStatusReason) {
       // Include status reason for non-error events if available
-      message = event.ResourceStatusReason;
+      message = event.ResourceStatusReason
     }
 
     return {
@@ -1119,8 +1121,8 @@ export class EventFormatterImpl implements EventFormatter {
       resourceInfo,
       status,
       message,
-      isError,
-    };
+      isError
+    }
   }
 
   /**
@@ -1129,18 +1131,18 @@ export class EventFormatterImpl implements EventFormatter {
    */
   formatEvents(events: StackEvent[]): string {
     if (events.length === 0) {
-      return "";
+      return ''
     }
 
-    const formattedLines: string[] = [];
+    const formattedLines: string[] = []
 
     for (const event of events) {
-      const formattedEvent = this.formatEvent(event);
-      const line = this.formatEventLine(formattedEvent, event);
-      formattedLines.push(line);
+      const formattedEvent = this.formatEvent(event)
+      const line = this.formatEventLine(formattedEvent, event)
+      formattedLines.push(line)
     }
 
-    return formattedLines.join("\n");
+    return formattedLines.join('\n')
   }
 
   /**
@@ -1149,16 +1151,16 @@ export class EventFormatterImpl implements EventFormatter {
    */
   private formatTimestamp(timestamp?: Date): string {
     if (!timestamp) {
-      return this.colorFormatter.colorizeTimestamp("Unknown time");
+      return this.colorFormatter.colorizeTimestamp('Unknown time')
     }
 
     try {
       // Format as ISO 8601 with timezone (e.g., "2023-12-07T10:30:45.123Z")
-      const isoString = timestamp.toISOString();
-      return this.colorFormatter.colorizeTimestamp(isoString);
+      const isoString = timestamp.toISOString()
+      return this.colorFormatter.colorizeTimestamp(isoString)
     } catch (error) {
-      core.debug(`Invalid timestamp format: ${error}`);
-      return this.colorFormatter.colorizeTimestamp("Invalid time");
+      core.debug(`Invalid timestamp format: ${error}`)
+      return this.colorFormatter.colorizeTimestamp('Invalid time')
     }
   }
 
@@ -1167,33 +1169,33 @@ export class EventFormatterImpl implements EventFormatter {
    * Handles long resource names by truncating them appropriately
    */
   private formatResourceInfo(event: StackEvent): string {
-    const resourceType = event.ResourceType || "Unknown";
-    const logicalId = event.LogicalResourceId || "Unknown";
-    const physicalId = event.PhysicalResourceId;
+    const resourceType = event.ResourceType || 'Unknown'
+    const logicalId = event.LogicalResourceId || 'Unknown'
+    const physicalId = event.PhysicalResourceId
 
     // Truncate logical resource ID if it exceeds max length
     const truncatedLogicalId = this.truncateResourceName(
       logicalId,
-      this.config.maxResourceNameLength,
-    );
+      this.config.maxResourceNameLength
+    )
 
     // Optionally include physical ID in the display
     if (this.config.showPhysicalId && physicalId) {
       const truncatedPhysicalId = this.truncateResourceName(
         physicalId,
-        this.config.maxResourceNameLength,
-      );
+        this.config.maxResourceNameLength
+      )
       // Return with physical ID included
       return this.colorFormatter.colorizeResource(
         resourceType,
-        `${truncatedLogicalId} (${truncatedPhysicalId})`,
-      );
+        `${truncatedLogicalId} (${truncatedPhysicalId})`
+      )
     }
 
     return this.colorFormatter.colorizeResource(
       resourceType,
-      truncatedLogicalId,
-    );
+      truncatedLogicalId
+    )
   }
 
   /**
@@ -1202,25 +1204,25 @@ export class EventFormatterImpl implements EventFormatter {
    */
   private truncateResourceName(name: string, maxLength: number): string {
     if (name.length <= maxLength) {
-      return name;
+      return name
     }
 
     // Truncate and add ellipsis, ensuring we don't exceed maxLength
-    const ellipsis = "...";
-    const truncateLength = maxLength - ellipsis.length;
+    const ellipsis = '...'
+    const truncateLength = maxLength - ellipsis.length
 
     if (truncateLength <= 0) {
-      return ellipsis;
+      return ellipsis
     }
 
-    return name.substring(0, truncateLength) + ellipsis;
+    return name.substring(0, truncateLength) + ellipsis
   }
 
   /**
    * Format status with appropriate coloring
    */
   private formatStatus(status: string): string {
-    return this.colorFormatter.colorizeStatus(status, status);
+    return this.colorFormatter.colorizeStatus(status, status)
   }
 
   /**
@@ -1229,42 +1231,42 @@ export class EventFormatterImpl implements EventFormatter {
    */
   private formatEventLine(
     formattedEvent: FormattedEvent,
-    originalEvent: StackEvent,
+    originalEvent: StackEvent
   ): string {
-    const parts: string[] = [];
+    const parts: string[] = []
 
     // Add indentation for nested resources
-    const indent = this.getResourceIndentation(originalEvent);
+    const indent = this.getResourceIndentation(originalEvent)
     if (indent) {
-      parts.push(indent);
+      parts.push(indent)
     }
 
     // Add timestamp if configured
     if (this.config.showTimestamp) {
-      parts.push(formattedEvent.timestamp);
+      parts.push(formattedEvent.timestamp)
     }
 
     // Add resource information
-    parts.push(formattedEvent.resourceInfo);
+    parts.push(formattedEvent.resourceInfo)
 
     // Add status
-    parts.push(formattedEvent.status);
+    parts.push(formattedEvent.status)
 
     // Add message if available
     if (formattedEvent.message) {
       if (formattedEvent.isError) {
         // Format error messages with bold red
         const errorMessage = this.colorFormatter.colorizeError(
-          formattedEvent.message,
-        );
-        parts.push(`ERROR: ${errorMessage}`);
+          formattedEvent.message
+        )
+        parts.push(`ERROR: ${errorMessage}`)
       } else {
         // Regular message
-        parts.push(`- ${formattedEvent.message}`);
+        parts.push(`- ${formattedEvent.message}`)
       }
     }
 
-    return parts.join(" ");
+    return parts.join(' ')
   }
 
   /**
@@ -1273,14 +1275,14 @@ export class EventFormatterImpl implements EventFormatter {
    */
   private getResourceIndentation(event: StackEvent): string {
     // Calculate indentation based on resource type and logical ID patterns
-    const indentLevel = this.calculateIndentLevel(event);
+    const indentLevel = this.calculateIndentLevel(event)
 
     if (indentLevel === 0) {
-      return "";
+      return ''
     }
 
     // Use 2 spaces per indent level
-    return "  ".repeat(indentLevel);
+    return '  '.repeat(indentLevel)
   }
 
   /**
@@ -1288,50 +1290,50 @@ export class EventFormatterImpl implements EventFormatter {
    * Uses heuristics to determine resource hierarchy depth
    */
   private calculateIndentLevel(event: StackEvent): number {
-    const logicalId = event.LogicalResourceId || "";
-    const resourceType = event.ResourceType || "";
+    const logicalId = event.LogicalResourceId || ''
+    const resourceType = event.ResourceType || ''
 
     // Base indentation from configuration
-    let indentLevel = this.config.indentLevel;
+    let indentLevel = this.config.indentLevel
 
     // Heuristics for determining nesting:
     // 1. Resources with dots in logical ID are often nested (e.g., "MyStack.NestedStack.Resource")
-    const dotCount = (logicalId.match(/\./g) || []).length;
-    indentLevel += dotCount;
+    const dotCount = (logicalId.match(/\./g) || []).length
+    indentLevel += dotCount
 
     // 2. Certain resource types are typically nested
     const nestedResourceTypes = [
-      "AWS::CloudFormation::Stack", // Nested stacks
-      "AWS::Lambda::Function", // Often nested in applications
-      "AWS::IAM::Role", // Often nested under other resources
-      "AWS::IAM::Policy", // Often nested under roles
-    ];
+      'AWS::CloudFormation::Stack', // Nested stacks
+      'AWS::Lambda::Function', // Often nested in applications
+      'AWS::IAM::Role', // Often nested under other resources
+      'AWS::IAM::Policy' // Often nested under roles
+    ]
 
     if (nestedResourceTypes.includes(resourceType)) {
-      indentLevel += 1;
+      indentLevel += 1
     }
 
     // 3. Resources with common prefixes might be grouped
     // This is a simple heuristic - in practice, you might want more sophisticated logic
-    if (logicalId.includes("Nested") || logicalId.includes("Child")) {
-      indentLevel += 1;
+    if (logicalId.includes('Nested') || logicalId.includes('Child')) {
+      indentLevel += 1
     }
 
-    return Math.max(0, indentLevel); // Ensure non-negative
+    return Math.max(0, indentLevel) // Ensure non-negative
   }
 
   /**
    * Update display configuration
    */
   updateConfig(newConfig: Partial<EventDisplayConfig>): void {
-    this.config = { ...this.config, ...newConfig };
+    this.config = { ...this.config, ...newConfig }
   }
 
   /**
    * Get current display configuration
    */
   getConfig(): EventDisplayConfig {
-    return { ...this.config };
+    return { ...this.config }
   }
 
   /**
@@ -1343,45 +1345,45 @@ export class EventFormatterImpl implements EventFormatter {
     finalStatus: string,
     totalEvents: number,
     errorCount: number,
-    duration?: number,
+    duration?: number
   ): string {
-    const lines: string[] = [];
+    const lines: string[] = []
 
-    lines.push(""); // Empty line for separation
-    lines.push("=".repeat(60));
-    lines.push(`Deployment Summary for ${stackName}`);
-    lines.push("=".repeat(60));
+    lines.push('') // Empty line for separation
+    lines.push('='.repeat(60))
+    lines.push(`Deployment Summary for ${stackName}`)
+    lines.push('='.repeat(60))
 
     // Format final status with appropriate color
     const colorizedStatus = this.colorFormatter.colorizeStatus(
       finalStatus,
-      finalStatus,
-    );
-    lines.push(`Final Status: ${colorizedStatus}`);
+      finalStatus
+    )
+    lines.push(`Final Status: ${colorizedStatus}`)
 
-    lines.push(`Total Events: ${totalEvents}`);
+    lines.push(`Total Events: ${totalEvents}`)
 
     if (errorCount > 0) {
       const errorText = this.colorFormatter.colorizeError(
-        `${errorCount} error(s)`,
-      );
-      lines.push(`Errors: ${errorText}`);
+        `${errorCount} error(s)`
+      )
+      lines.push(`Errors: ${errorText}`)
     } else {
       const successText = this.colorFormatter.colorizeStatus(
-        "CREATE_COMPLETE",
-        "No errors",
-      );
-      lines.push(`Errors: ${successText}`);
+        'CREATE_COMPLETE',
+        'No errors'
+      )
+      lines.push(`Errors: ${successText}`)
     }
 
     if (duration !== undefined) {
-      const durationText = `${Math.round(duration / 1000)}s`;
-      lines.push(`Duration: ${durationText}`);
+      const durationText = `${Math.round(duration / 1000)}s`
+      lines.push(`Duration: ${durationText}`)
     }
 
-    lines.push("=".repeat(60));
-    lines.push(""); // Empty line for separation
+    lines.push('='.repeat(60))
+    lines.push('') // Empty line for separation
 
-    return lines.join("\n");
+    return lines.join('\n')
   }
 }

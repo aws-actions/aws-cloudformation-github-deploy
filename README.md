@@ -1,4 +1,5 @@
 <!-- trunk-ignore-all(prettier/SyntaxError) -->
+
 # AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
 
 ![Package](https://github.com/aws-actions/aws-cloudformation-github-deploy/workflows/Package/badge.svg)
