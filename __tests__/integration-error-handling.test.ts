@@ -1,16 +1,11 @@
-import {
-  EventPollerImpl,
-  EventMonitorImpl,
-  EventMonitorConfig
-} from '../src/event-streaming'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { EventPollerImpl } from '../src/event-streaming'
 import { deployStack } from '../src/deploy'
 import { withRetry } from '../src/utils'
 import {
   DescribeStackEventsCommand,
   DescribeStacksCommand,
   CreateStackCommand,
-  CreateChangeSetCommand,
-  ExecuteChangeSetCommand,
   CloudFormationServiceException,
   waitUntilStackCreateComplete
 } from '@aws-sdk/client-cloudformation'

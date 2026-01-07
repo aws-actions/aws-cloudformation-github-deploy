@@ -18,5 +18,9 @@ module.exports = {
   verbose: true,
   // Suppress console output during tests
   silent: true,
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // Force Jest to exit after tests complete
+  forceExit: true,
+  // Detect open handles to help identify what's keeping tests running
+  detectOpenHandles: true
 }

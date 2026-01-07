@@ -27,3 +27,12 @@ beforeAll(() => {
 afterAll(() => {
   global.console = originalConsole
 })
+
+// Clean up any lingering timers after each test
+afterEach(() => {
+  // Clear all timers
+  jest.clearAllTimers()
+
+  // Use fake timers to ensure no real timers are left running
+  jest.useRealTimers()
+})

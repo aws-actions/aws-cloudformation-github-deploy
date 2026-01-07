@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import * as fc from 'fast-check'
 import {
   StackEvent,
@@ -14,11 +16,7 @@ import {
   EventMonitorConfig
 } from '../src/event-streaming'
 import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
-import {
-  CloudFormationClient,
-  Capability,
-  CloudFormationServiceException
-} from '@aws-sdk/client-cloudformation'
+import { CloudFormationServiceException } from '@aws-sdk/client-cloudformation'
 import { deployStack } from '../src/deploy'
 
 /**
@@ -2483,9 +2481,9 @@ describe('Deployment Integration Property Tests', () => {
         // Whether streaming is enabled or disabled, the original error should be preserved
         return true
       }),
-      { numRuns: 1, timeout: 2000 } // Single run for faster execution
+      { numRuns: 1, timeout: 1000 } // Single run for faster execution
     )
-  }, 15000) // Jest timeout
+  }, 5000) // Jest timeout
 
   /**
    * **Feature: cloudformation-event-streaming, Property 15: Event Streaming Configuration**
