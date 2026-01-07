@@ -1,2 +1,20 @@
 # Prettier friendly markdownlint config (all formatting rules disabled)
 extends: markdownlint/style/prettier
+
+# Allow same header
+MD024: false
+
+# Allow multiple top-level headings (front matter title + markdown h1)
+MD025: false
+
+# Allow trailng punctuation
+MD026: false
+
+# Allow inline HTML
+MD033: false
+
+# Allow inline HTML
+MD036: false
+
+# Table column style
+MD060: false
