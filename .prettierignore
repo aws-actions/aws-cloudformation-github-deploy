@@ -1,5 +1,0 @@
-# Ignore files that have prettier parsing issues
-.github/workflows/release.yml
-.kiro/steering/product.md
-.kiro/steering/structure.md
-.kiro/steering/tech.md

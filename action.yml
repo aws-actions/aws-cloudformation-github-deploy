@@ -114,6 +114,12 @@ inputs:
       Defaults to 'json' for backward compatibility.
     required: false
     default: json
+  enable-event-streaming:
+    description: >-
+      Enable real-time CloudFormation event streaming during deployment.
+      Defaults to '1' (enabled). Set to '0' to disable event streaming.
+    required: false
+    default: 1
 outputs:
   stack-id:
     description: >-
