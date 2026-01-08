@@ -158,6 +158,7 @@ function deployStack(cfn, params, changeSetName, noEmptyChangeSet, noExecuteChan
             RoleARN: params.RoleARN,
             RollbackConfiguration: params.RollbackConfiguration,
             NotificationARNs: params.NotificationARNs,
+            IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
             Tags: params.Tags
         }), noEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
     });
@@ -288,6 +289,9 @@ function run() {
             const changeSetDescription = (0, utils_1.parseString)(core.getInput('change-set-description', {
                 required: false
             }));
+            const includeNestedStacksChangeSet = !!+core.getInput('include-nested-stacks-change-set', {
+                required: false
+            });
             // Configures proxy
             const agent = (0, utils_1.configureProxy)(httpProxy);
             if (agent) {
@@ -324,7 +328,8 @@ function run() {
                 TemplateBody: templateBody,
                 TemplateURL: templateUrl,
                 Tags: tags,
-                EnableTerminationProtection: terminationProtections
+                EnableTerminationProtection: terminationProtections,
+                IncludeNestedStacksChangeSet: includeNestedStacksChangeSet
             };
             if (parameterOverrides) {
                 params.Parameters = (0, utils_1.parseParameters)(parameterOverrides);
