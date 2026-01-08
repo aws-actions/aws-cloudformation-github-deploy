@@ -8,6 +8,7 @@ import {
   EventFormatterImpl,
   ColorFormatterImpl,
   ErrorExtractorImpl,
+  ExtractedError,
   StackEvent
 } from '../src/event-streaming'
 import { CloudFormationClient } from '@aws-sdk/client-cloudformation'
@@ -478,6 +479,28 @@ describe('Event Streaming Coverage Tests', () => {
       )
     })
 
+    test('should handle invalid timestamp in formatErrorMessage', () => {
+      const colorFormatter = new ColorFormatterImpl(true)
+      const errorExtractor = new ErrorExtractorImpl(colorFormatter)
+
+      const invalidError: ExtractedError = {
+        message: 'Test error message',
+        resourceId: 'TestResource',
+        resourceType: 'AWS::S3::Bucket',
+        timestamp: new Date('invalid-date') // Invalid date
+      }
+
+      const result = errorExtractor.formatErrorMessage(invalidError)
+      expect(result).toContain('Test error message')
+      expect(result).toContain('TestResource')
+      expect(result).toContain('AWS::S3::Bucket')
+      expect(mockCoreDebug).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Invalid timestamp in error, using current time'
+        )
+      )
+    })
+
     test('should handle resource info with physical ID when showPhysicalId is true', () => {
       const colorFormatter = new ColorFormatterImpl(true)
       const errorExtractor = new ErrorExtractorImpl(colorFormatter)
@@ -742,6 +765,134 @@ describe('Event Streaming Coverage Tests', () => {
       // Test truncation with maxLength smaller than ellipsis
       const result = (formatter as any).truncateResourceName('LongName', 2)
       expect(result).toBe('...')
+    })
+
+    test('should handle no events detected scenario (empty changeset)', async () => {
+      const mockClient = {
+        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+      }
+
+      const config: EventMonitorConfig = {
+        stackName: 'test-stack',
+        client: mockClient as any,
+        enableColors: true,
+        pollIntervalMs: 10, // Very fast polling for test
+        maxPollIntervalMs: 100
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      const monitorPromise = monitor.startMonitoring()
+
+      // Wait long enough for 10+ polling cycles (maxNoEventsBeforeStop = 10)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      await monitorPromise
+
+      expect(mockCoreDebug).toHaveBeenCalledWith(
+        'No events detected after extended polling - likely empty changeset'
+      )
+    }, 10000)
+
+    test('should handle no events final status logging', async () => {
+      const mockClient = {
+        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+      }
+
+      const config: EventMonitorConfig = {
+        stackName: 'test-stack',
+        client: mockClient as any,
+        enableColors: true,
+        pollIntervalMs: 10,
+        maxPollIntervalMs: 100
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      // Start monitoring and let it complete naturally (no events scenario)
+      await monitor.startMonitoring()
+
+      expect(mockCoreInfo).toHaveBeenCalledWith(
+        '✅ No deployment events - stack is already up to date'
+      )
+      expect(mockCoreInfo).toHaveBeenCalledWith(
+        'No changes were applied to the CloudFormation stack'
+      )
+    }, 10000)
+
+    test('should handle throttling backoff calculation', async () => {
+      const mockClient = {
+        send: jest.fn().mockRejectedValue(
+          new ThrottlingException({
+            message: 'Rate exceeded',
+            $metadata: { requestId: 'test-request-id', attempts: 1 }
+          })
+        )
+      }
+
+      const config: EventMonitorConfig = {
+        stackName: 'test-stack',
+        client: mockClient as any,
+        enableColors: true,
+        pollIntervalMs: 100,
+        maxPollIntervalMs: 1000
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      // Mock sleep to track backoff time
+      const sleepSpy = jest
+        .spyOn(monitor as any, 'sleep')
+        .mockResolvedValue(undefined)
+
+      const monitorPromise = monitor.startMonitoring()
+
+      // Give it time to handle throttling
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      monitor.stopMonitoring()
+      await monitorPromise
+
+      // Should have called sleep with exponential backoff
+      expect(sleepSpy).toHaveBeenCalledWith(expect.any(Number))
+
+      sleepSpy.mockRestore()
+    }, 10000)
+
+    test('should handle NO_CHANGES final status in displayFinalSummary', async () => {
+      const config: EventMonitorConfig = {
+        stackName: 'test-stack',
+        client: new CloudFormationClient({}),
+        enableColors: true,
+        pollIntervalMs: 1000,
+        maxPollIntervalMs: 5000
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      // Set up the monitor state for NO_CHANGES scenario
+      ;(monitor as any).eventCount = 0
+      ;(monitor as any).errorCount = 0
+      ;(monitor as any).startTime = new Date()
+
+      // Mock the formatter
+      const mockFormatter = {
+        formatDeploymentSummary: jest.fn().mockReturnValue('NO_CHANGES summary')
+      }
+      ;(monitor as any).formatter = mockFormatter
+
+      // Call displayFinalSummary directly
+      ;(monitor as any).displayFinalSummary()
+
+      expect(mockFormatter.formatDeploymentSummary).toHaveBeenCalledWith(
+        'test-stack',
+        'NO_CHANGES',
+        0,
+        0,
+        expect.any(Number)
+      )
+
+      expect(mockCoreInfo).toHaveBeenCalledWith('NO_CHANGES summary')
     })
   })
 })

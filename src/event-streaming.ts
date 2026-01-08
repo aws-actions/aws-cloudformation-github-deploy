@@ -804,6 +804,7 @@ export class EventMonitorImpl implements EventMonitor {
   private eventCount = 0
   private errorCount = 0
   private startTime?: Date
+  private summaryDisplayed = false
 
   constructor(config: EventMonitorConfig) {
     this.config = config
@@ -837,6 +838,7 @@ export class EventMonitorImpl implements EventMonitor {
     this.startTime = new Date()
     this.eventCount = 0
     this.errorCount = 0
+    this.summaryDisplayed = false
 
     core.info(`Starting event monitoring for stack: ${this.config.stackName}`)
 
@@ -883,8 +885,12 @@ export class EventMonitorImpl implements EventMonitor {
     this.stopRequested = true
     this.isActive = false
 
-    // Display final summary
-    this.displayFinalSummary()
+    // Only display final summary if we haven't already displayed it
+    // This prevents duplicate summaries when called multiple times
+    if (!this.summaryDisplayed) {
+      this.displayFinalSummary()
+      this.summaryDisplayed = true
+    }
   }
 
   /**
@@ -924,7 +930,10 @@ export class EventMonitorImpl implements EventMonitor {
             core.debug('Terminal stack state detected, stopping monitoring')
             this.stopRequested = true
             // Display final summary when terminal state is reached
-            this.displayFinalSummary()
+            if (!this.summaryDisplayed) {
+              this.displayFinalSummary()
+              this.summaryDisplayed = true
+            }
             break
           }
         } else {
@@ -1013,7 +1022,10 @@ export class EventMonitorImpl implements EventMonitor {
     } else {
       core.debug('Event monitoring polling loop completed normally')
       // Display final summary when polling completes normally
-      this.displayFinalSummary()
+      if (!this.summaryDisplayed) {
+        this.displayFinalSummary()
+        this.summaryDisplayed = true
+      }
     }
   }
 
