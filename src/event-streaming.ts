@@ -697,7 +697,11 @@ export class EventPollerImpl implements EventPoller {
 
     for (const event of allEvents) {
       // Skip events that occurred before this deployment started
-      if (event.Timestamp && event.Timestamp < this.deploymentStartTime) {
+      // Add a small buffer (30 seconds) to account for clock skew
+      const deploymentStartWithBuffer = new Date(
+        this.deploymentStartTime.getTime() - 30000
+      )
+      if (event.Timestamp && event.Timestamp < deploymentStartWithBuffer) {
         continue
       }
 
@@ -886,6 +890,8 @@ export class EventMonitorImpl implements EventMonitor {
     let consecutiveErrors = 0
     const maxConsecutiveErrors = 5
     const errorBackoffMs = 5000
+    let noEventsCount = 0
+    const maxNoEventsBeforeStop = 10 // Stop after 10 polls with no events (20 seconds)
 
     while (this.isActive && !this.stopRequested) {
       try {
@@ -899,10 +905,22 @@ export class EventMonitorImpl implements EventMonitor {
           // Update counters
           this.eventCount += newEvents.length
           this.errorCount += this.countErrors(newEvents)
+          noEventsCount = 0 // Reset no-events counter
 
           // Check if stack has reached terminal state
           if (this.hasTerminalEvent(newEvents)) {
             core.debug('Terminal stack state detected, stopping monitoring')
+            this.stopRequested = true
+            break
+          }
+        } else {
+          noEventsCount++
+
+          // If we haven't seen any events for a while, check if this might be an empty changeset
+          if (noEventsCount >= maxNoEventsBeforeStop && this.eventCount === 0) {
+            core.debug(
+              'No events detected after extended polling - likely empty changeset'
+            )
             this.stopRequested = true
             break
           }
@@ -975,6 +993,9 @@ export class EventMonitorImpl implements EventMonitor {
       core.warning(
         'Event streaming stopped due to consecutive errors. Deployment continues normally.'
       )
+    } else if (this.eventCount === 0) {
+      core.info('✅ No deployment events - stack is already up to date')
+      core.info('No changes were applied to the CloudFormation stack')
     } else {
       core.debug('Event monitoring polling loop completed normally')
     }

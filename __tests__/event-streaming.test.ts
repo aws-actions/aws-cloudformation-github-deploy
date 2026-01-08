@@ -301,7 +301,7 @@ describe('EventPoller Implementation', () => {
 
       const allEvents: StackEvent[] = [
         {
-          Timestamp: new Date('2023-01-01T10:00:00Z'), // Before deployment start
+          Timestamp: new Date('2023-01-01T09:59:00Z'), // More than 30 seconds before deployment start
           LogicalResourceId: 'OldResource',
           ResourceStatus: 'CREATE_COMPLETE'
         },

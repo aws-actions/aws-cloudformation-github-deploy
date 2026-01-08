@@ -58,6 +58,16 @@ export async function cleanupChangeSet(
         changeSetStatus.StatusReason?.includes(err)
       )
     ) {
+      // Provide clear notification that no updates are needed
+      core.info(
+        '✅ No updates to deploy - CloudFormation stack is already up to date'
+      )
+      core.info(
+        `Stack "${stack.StackName || 'Unknown'}" has no changes to apply`
+      )
+      core.info(
+        'The template and parameters match the current stack configuration'
+      )
       return stack.StackId
     }
 
