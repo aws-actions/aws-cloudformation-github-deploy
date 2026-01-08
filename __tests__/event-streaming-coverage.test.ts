@@ -518,70 +518,59 @@ describe('Event Streaming Coverage Tests', () => {
       expect(result).toContain('- Resource created successfully')
     })
 
-    test('should calculate indent level with dots in logical ID', () => {
+    test('should calculate indent level with simplified logic', () => {
       const colorFormatter = new ColorFormatterImpl(true)
       const errorExtractor = new ErrorExtractorImpl(colorFormatter)
       const formatter = new EventFormatterImpl(colorFormatter, errorExtractor, {
         indentLevel: 1 // Base indent level of 1
       })
 
-      const event: StackEvent = {
-        LogicalResourceId: 'MyStack.NestedStack.Resource',
-        ResourceType: 'AWS::S3::Bucket'
-      }
-
-      const indentLevel = (formatter as any).calculateIndentLevel(event)
-      expect(indentLevel).toBe(4) // Base 1 + 2 dots + 1 for AWS::S3::Bucket = 4 total indent levels
+      const indentLevel = (formatter as any).calculateIndentLevel()
+      expect(indentLevel).toBe(1) // Simplified logic returns base indent level only
     })
 
-    test('should calculate indent level for nested resource types', () => {
+    test('should calculate indent level consistently for all resource types', () => {
       const colorFormatter = new ColorFormatterImpl(true)
       const errorExtractor = new ErrorExtractorImpl(colorFormatter)
       const formatter = new EventFormatterImpl(colorFormatter, errorExtractor, {
         indentLevel: 0
       })
 
-      const nestedTypes = [
+      const resourceTypes = [
         'AWS::CloudFormation::Stack',
         'AWS::Lambda::Function',
         'AWS::IAM::Role',
-        'AWS::IAM::Policy'
+        'AWS::IAM::Policy',
+        'AWS::S3::Bucket'
       ]
 
-      for (const resourceType of nestedTypes) {
-        const event: StackEvent = {
-          LogicalResourceId: 'TestResource',
-          ResourceType: resourceType
-        }
-
-        const indentLevel = (formatter as any).calculateIndentLevel(event)
-        expect(indentLevel).toBe(1) // Nested resource types get +1 indent
-      }
+      // Test that all resource types get the same indent level
+      resourceTypes.forEach(() => {
+        const indentLevel = (formatter as any).calculateIndentLevel()
+        expect(indentLevel).toBe(0) // All resource types get same base indent level
+      })
     })
 
-    test('should calculate indent level for resources with Nested or Child in name', () => {
+    test('should calculate indent level consistently for all resource names', () => {
       const colorFormatter = new ColorFormatterImpl(true)
       const errorExtractor = new ErrorExtractorImpl(colorFormatter)
       const formatter = new EventFormatterImpl(colorFormatter, errorExtractor, {
         indentLevel: 0
       })
 
-      const nestedNames = [
+      const resourceNames = [
         'NestedResource',
         'ChildResource',
         'MyNestedStack',
-        'ChildComponent'
+        'ChildComponent',
+        'SimpleResource'
       ]
 
-      for (const logicalId of nestedNames) {
-        const event: StackEvent = {
-          LogicalResourceId: logicalId,
-          ResourceType: 'AWS::S3::Bucket'
-        }
-
-        const indentLevel = (formatter as any).calculateIndentLevel(event)
-        expect(indentLevel).toBe(1) // Resources with Nested/Child get +1 indent
-      }
+      // Test that all resource names get the same indent level
+      resourceNames.forEach(() => {
+        const indentLevel = (formatter as any).calculateIndentLevel()
+        expect(indentLevel).toBe(0) // All resource names get same base indent level
+      })
     })
 
     test('should update and get configuration', () => {
@@ -601,6 +590,21 @@ describe('Event Streaming Coverage Tests', () => {
       expect(updatedConfig.maxResourceNameLength).toBe(100)
       // Other properties should remain unchanged
       expect(updatedConfig.showResourceType).toBe(true) // default value
+    })
+
+    test('should handle setColorsEnabled(false) for complete coverage', () => {
+      const colorFormatter = new ColorFormatterImpl(true)
+
+      // Test that colors are initially enabled
+      expect(colorFormatter.isColorsEnabled()).toBe(true)
+
+      // Test disabling colors
+      colorFormatter.setColorsEnabled(false)
+      expect(colorFormatter.isColorsEnabled()).toBe(false)
+
+      // Test enabling colors again
+      colorFormatter.setColorsEnabled(true)
+      expect(colorFormatter.isColorsEnabled()).toBe(true)
     })
 
     test('should handle zero indent level', () => {

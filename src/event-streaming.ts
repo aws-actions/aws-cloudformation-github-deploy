@@ -459,6 +459,7 @@ export class EventPollerImpl implements EventPoller {
   private readonly maxIntervalMs: number
   private lastEventTimestamp?: Date
   private seenEventIds: Set<string> = new Set()
+  private deploymentStartTime: Date
 
   constructor(
     client: CloudFormationClient,
@@ -471,6 +472,8 @@ export class EventPollerImpl implements EventPoller {
     this.initialIntervalMs = initialIntervalMs
     this.maxIntervalMs = maxIntervalMs
     this.currentIntervalMs = initialIntervalMs
+    // Track when this deployment session started to filter out old events
+    this.deploymentStartTime = new Date()
   }
 
   /**
@@ -687,11 +690,17 @@ export class EventPollerImpl implements EventPoller {
 
   /**
    * Filter events to only return new ones since last poll
+   * Only includes events from the current deployment session
    */
   private filterNewEvents(allEvents: StackEvent[]): StackEvent[] {
     const newEvents: StackEvent[] = []
 
     for (const event of allEvents) {
+      // Skip events that occurred before this deployment started
+      if (event.Timestamp && event.Timestamp < this.deploymentStartTime) {
+        continue
+      }
+
       // Create unique event ID from timestamp + resource + status
       const eventId = this.createEventId(event)
 
@@ -748,6 +757,20 @@ export class EventPollerImpl implements EventPoller {
       this.currentIntervalMs * 1.5,
       this.maxIntervalMs
     )
+  }
+
+  /**
+   * Set deployment start time (for testing purposes)
+   */
+  setDeploymentStartTime(startTime: Date): void {
+    this.deploymentStartTime = startTime
+  }
+
+  /**
+   * Get deployment start time (for testing purposes)
+   */
+  getDeploymentStartTime(): Date {
+    return this.deploymentStartTime
   }
 }
 
@@ -1138,7 +1161,7 @@ export class EventFormatterImpl implements EventFormatter {
 
     for (const event of events) {
       const formattedEvent = this.formatEvent(event)
-      const line = this.formatEventLine(formattedEvent, event)
+      const line = this.formatEventLine(formattedEvent)
       formattedLines.push(line)
     }
 
@@ -1229,14 +1252,11 @@ export class EventFormatterImpl implements EventFormatter {
    * Format a complete event line for display
    * Handles indentation for nested resources and error formatting
    */
-  private formatEventLine(
-    formattedEvent: FormattedEvent,
-    originalEvent: StackEvent
-  ): string {
+  private formatEventLine(formattedEvent: FormattedEvent): string {
     const parts: string[] = []
 
     // Add indentation for nested resources
-    const indent = this.getResourceIndentation(originalEvent)
+    const indent = this.getResourceIndentation()
     if (indent) {
       parts.push(indent)
     }
@@ -1271,55 +1291,29 @@ export class EventFormatterImpl implements EventFormatter {
 
   /**
    * Get indentation string for nested resources
-   * Determines nesting level based on resource hierarchy
+   * Uses consistent indentation based on resource type hierarchy
    */
-  private getResourceIndentation(event: StackEvent): string {
-    // Calculate indentation based on resource type and logical ID patterns
-    const indentLevel = this.calculateIndentLevel(event)
+  private getResourceIndentation(): string {
+    // Use consistent indentation - no complex heuristics that cause inconsistency
+    // All events get the same base indentation level from config
+    const indentLevel = this.config.indentLevel
 
     if (indentLevel === 0) {
       return ''
     }
 
-    // Use 2 spaces per indent level
+    // Use 2 spaces per indent level for consistent formatting
     return '  '.repeat(indentLevel)
   }
 
   /**
    * Calculate indentation level for nested resources
-   * Uses heuristics to determine resource hierarchy depth
+   * Simplified to avoid inconsistent formatting
    */
-  private calculateIndentLevel(event: StackEvent): number {
-    const logicalId = event.LogicalResourceId || ''
-    const resourceType = event.ResourceType || ''
-
-    // Base indentation from configuration
-    let indentLevel = this.config.indentLevel
-
-    // Heuristics for determining nesting:
-    // 1. Resources with dots in logical ID are often nested (e.g., "MyStack.NestedStack.Resource")
-    const dotCount = (logicalId.match(/\./g) || []).length
-    indentLevel += dotCount
-
-    // 2. Certain resource types are typically nested
-    const nestedResourceTypes = [
-      'AWS::CloudFormation::Stack', // Nested stacks
-      'AWS::Lambda::Function', // Often nested in applications
-      'AWS::IAM::Role', // Often nested under other resources
-      'AWS::IAM::Policy' // Often nested under roles
-    ]
-
-    if (nestedResourceTypes.includes(resourceType)) {
-      indentLevel += 1
-    }
-
-    // 3. Resources with common prefixes might be grouped
-    // This is a simple heuristic - in practice, you might want more sophisticated logic
-    if (logicalId.includes('Nested') || logicalId.includes('Child')) {
-      indentLevel += 1
-    }
-
-    return Math.max(0, indentLevel) // Ensure non-negative
+  private calculateIndentLevel(): number {
+    // Return the configured base indent level for all events
+    // This ensures consistent formatting across all event types
+    return Math.max(0, this.config.indentLevel)
   }
 
   /**

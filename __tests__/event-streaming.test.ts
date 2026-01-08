@@ -229,6 +229,9 @@ describe('EventPoller Implementation', () => {
 
   describe('Event filtering and tracking', () => {
     it('should filter new events correctly', () => {
+      // Set deployment start time to before the test events
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
       const allEvents: StackEvent[] = [
         {
           Timestamp: new Date('2023-01-01T10:00:00Z'),
@@ -249,6 +252,9 @@ describe('EventPoller Implementation', () => {
     })
 
     it('should not return duplicate events', () => {
+      // Set deployment start time to before the test event
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
       const event: StackEvent = {
         Timestamp: new Date('2023-01-01T10:00:00Z'),
         LogicalResourceId: 'Resource1',
@@ -268,6 +274,9 @@ describe('EventPoller Implementation', () => {
     })
 
     it('should sort events by timestamp', () => {
+      // Set deployment start time to before the test events
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
       const allEvents: StackEvent[] = [
         {
           Timestamp: new Date('2023-01-01T10:02:00Z'),
@@ -285,10 +294,43 @@ describe('EventPoller Implementation', () => {
       expect(newEvents[0].LogicalResourceId).toBe('Resource1') // Earlier timestamp
       expect(newEvents[1].LogicalResourceId).toBe('Resource2') // Later timestamp
     })
+
+    it('should filter out events from before deployment start time', () => {
+      // Set deployment start time to after some events
+      eventPoller.setDeploymentStartTime(new Date('2023-01-01T10:00:30Z'))
+
+      const allEvents: StackEvent[] = [
+        {
+          Timestamp: new Date('2023-01-01T10:00:00Z'), // Before deployment start
+          LogicalResourceId: 'OldResource',
+          ResourceStatus: 'CREATE_COMPLETE'
+        },
+        {
+          Timestamp: new Date('2023-01-01T10:01:00Z'), // After deployment start
+          LogicalResourceId: 'NewResource',
+          ResourceStatus: 'CREATE_IN_PROGRESS'
+        }
+      ]
+
+      const newEvents = eventPoller['filterNewEvents'](allEvents)
+      expect(newEvents).toHaveLength(1)
+      expect(newEvents[0].LogicalResourceId).toBe('NewResource')
+    })
+
+    it('should get and set deployment start time', () => {
+      const testTime = new Date('2023-01-01T12:00:00Z')
+      eventPoller.setDeploymentStartTime(testTime)
+
+      const retrievedTime = eventPoller.getDeploymentStartTime()
+      expect(retrievedTime).toEqual(testTime)
+    })
   })
 
   describe('API integration', () => {
     it('should call CloudFormation API with correct parameters', async () => {
+      // Set deployment start time to before the test event
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
       const mockResponse = {
         StackEvents: [
           {
@@ -345,6 +387,9 @@ describe('EventPoller Implementation', () => {
 
   describe('Event tracking behavior', () => {
     it('should reset interval when new events are found', async () => {
+      // Set deployment start time to before the test event
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
       const mockResponse = {
         StackEvents: [
           {
