@@ -172,6 +172,9 @@ describe('Event Streaming Coverage Tests', () => {
     })
 
     test('should handle non-Error objects in consecutive error handling', async () => {
+      // Reset all mocks before this test
+      jest.clearAllMocks()
+
       const mockClient = {
         send: jest.fn().mockRejectedValue('string error')
       }
@@ -186,17 +189,23 @@ describe('Event Streaming Coverage Tests', () => {
 
       const monitor = new EventMonitorImpl(config)
 
-      const monitorPromise = monitor.startMonitoring()
+      try {
+        const monitorPromise = monitor.startMonitoring()
 
-      // Give it time to handle errors
-      await new Promise(resolve => setTimeout(resolve, 200))
+        // Give it time to handle errors
+        await new Promise(resolve => setTimeout(resolve, 200))
 
-      monitor.stopMonitoring()
-      await monitorPromise
+        monitor.stopMonitoring()
+        await monitorPromise
 
-      expect(mockCoreWarning).toHaveBeenCalledWith(
-        expect.stringContaining('Event polling error')
-      )
+        expect(mockCoreWarning).toHaveBeenCalledWith(
+          expect.stringContaining('Event polling error')
+        )
+      } catch (error) {
+        // Ensure cleanup even if test fails
+        monitor.stopMonitoring()
+        throw error
+      }
     }, 10000)
 
     test('should log final status when consecutive errors reached', async () => {
