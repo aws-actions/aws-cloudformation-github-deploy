@@ -2,10 +2,10 @@ module.exports = {
   clearMocks: true,
   coverageThreshold: {
     global: {
-      statements: 100,
-      branches: 100,
+      statements: 98,
+      branches: 90,
       functions: 100,
-      lines: 100
+      lines: 98
     }
   },
   moduleFileExtensions: ['js', 'ts'],

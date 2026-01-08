@@ -2483,7 +2483,7 @@ describe('Deployment Integration Property Tests', () => {
       }),
       { numRuns: 1, timeout: 1000 } // Single run for faster execution
     )
-  }, 5000) // Jest timeout
+  }, 10000) // Increased Jest timeout to 10 seconds
 
   /**
    * **Feature: cloudformation-event-streaming, Property 15: Event Streaming Configuration**

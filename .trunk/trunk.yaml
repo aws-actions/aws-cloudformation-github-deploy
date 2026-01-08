@@ -13,10 +13,10 @@ plugins:
 runtimes:
   enabled:
     - node@22.16.0
-    - python@3.10.8
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
   enabled:
+    - taplo@0.10.0
     - actionlint@1.7.10
     - checkov@3.2.497
     - eslint@8.57.0
