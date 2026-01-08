@@ -894,5 +894,168 @@ describe('Event Streaming Coverage Tests', () => {
 
       expect(mockCoreInfo).toHaveBeenCalledWith('NO_CHANGES summary')
     })
+
+    test('should handle DEPLOYMENT_COMPLETE final status in displayFinalSummary', async () => {
+      const config: EventMonitorConfig = {
+        stackName: 'test-stack',
+        client: new CloudFormationClient({}),
+        enableColors: true,
+        pollIntervalMs: 1000,
+        maxPollIntervalMs: 5000
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      // Set up the monitor state for DEPLOYMENT_COMPLETE scenario (events but no errors)
+      ;(monitor as any).eventCount = 5
+      ;(monitor as any).errorCount = 0
+      ;(monitor as any).startTime = new Date()
+
+      // Mock the formatter
+      const mockFormatter = {
+        formatDeploymentSummary: jest
+          .fn()
+          .mockReturnValue('DEPLOYMENT_COMPLETE summary')
+      }
+      ;(monitor as any).formatter = mockFormatter
+
+      // Call displayFinalSummary directly
+      ;(monitor as any).displayFinalSummary()
+
+      expect(mockFormatter.formatDeploymentSummary).toHaveBeenCalledWith(
+        'test-stack',
+        'DEPLOYMENT_COMPLETE',
+        5,
+        0,
+        expect.any(Number)
+      )
+
+      expect(mockCoreInfo).toHaveBeenCalledWith('DEPLOYMENT_COMPLETE summary')
+    })
+
+    test('should handle progressive backoff calculation for consecutive errors', async () => {
+      const mockClient = {
+        send: jest.fn().mockRejectedValue(new Error('Persistent error'))
+      }
+
+      const config: EventMonitorConfig = {
+        stackName: 'test-stack',
+        client: mockClient as any,
+        enableColors: true,
+        pollIntervalMs: 100,
+        maxPollIntervalMs: 1000
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      // Mock sleep to track backoff calculations
+      const sleepSpy = jest
+        .spyOn(monitor as any, 'sleep')
+        .mockResolvedValue(undefined)
+
+      const monitorPromise = monitor.startMonitoring()
+
+      // Give it time to handle multiple consecutive errors
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      monitor.stopMonitoring()
+      await monitorPromise
+
+      // Should have called sleep with progressive backoff times
+      // errorBackoffMs (5000) * consecutiveErrors, capped at 30000
+      expect(sleepSpy).toHaveBeenCalledWith(5000) // First error: 5000 * 1
+      expect(sleepSpy).toHaveBeenCalledWith(10000) // Second error: 5000 * 2
+
+      sleepSpy.mockRestore()
+    }, 10000)
+
+    test('should handle normal completion with summary display', async () => {
+      const config: EventMonitorConfig = {
+        stackName: 'test-stack',
+        client: new CloudFormationClient({}),
+        enableColors: true,
+        pollIntervalMs: 1000,
+        maxPollIntervalMs: 5000
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      // Set up the monitor state for normal completion
+      ;(monitor as any).eventCount = 3
+      ;(monitor as any).errorCount = 0
+      ;(monitor as any).summaryDisplayed = false
+
+      // Mock the formatter
+      const mockFormatter = {
+        formatDeploymentSummary: jest.fn().mockReturnValue('deployment summary')
+      }
+      ;(monitor as any).formatter = mockFormatter
+
+      // Directly test the normal completion path by calling the internal method
+      // This simulates the else branch in the final status logging
+      ;(monitor as any).displayFinalSummary()
+      ;(monitor as any).summaryDisplayed = true
+
+      expect(mockFormatter.formatDeploymentSummary).toHaveBeenCalled()
+      expect(mockCoreInfo).toHaveBeenCalledWith('deployment summary')
+    })
+
+    test('should handle AWS error without $metadata and $fault properties', async () => {
+      const eventPoller = new EventPollerImpl(
+        {} as any,
+        'test-stack',
+        1000,
+        5000
+      )
+
+      // Test the isAWSServiceError method directly with an error that doesn't have AWS properties
+      const regularError = new Error('Regular AWS error')
+      const isAWSError = (eventPoller as any).isAWSServiceError(regularError)
+
+      expect(isAWSError).toBe(false) // Should return false for regular errors without AWS properties
+    })
+
+    test('should handle non-Error object in stack does not exist check', async () => {
+      const eventPoller = new EventPollerImpl(
+        {} as any,
+        'test-stack',
+        1000,
+        5000
+      )
+
+      // Test the isAWSServiceError method with a non-Error object
+      const nonErrorObject = { message: 'String error with does not exist' }
+      const isAWSError = (eventPoller as any).isAWSServiceError(nonErrorObject)
+
+      expect(isAWSError).toBe(false) // Should return false for non-Error objects
+    })
+
+    test('should handle events with missing timestamps in sorting', () => {
+      const eventPoller = new EventPollerImpl(
+        {} as any,
+        'test-stack',
+        1000,
+        5000
+      )
+
+      const events: StackEvent[] = [
+        {
+          LogicalResourceId: 'Resource1',
+          ResourceType: 'AWS::S3::Bucket',
+          ResourceStatus: 'CREATE_COMPLETE'
+          // No Timestamp
+        },
+        {
+          LogicalResourceId: 'Resource2',
+          ResourceType: 'AWS::S3::Bucket',
+          ResourceStatus: 'CREATE_COMPLETE',
+          Timestamp: new Date()
+        }
+      ]
+
+      // This should handle the case where some events don't have timestamps
+      const result = (eventPoller as any).filterNewEvents(events)
+      expect(result).toHaveLength(2) // Both events should be included
+    })
   })
 })
