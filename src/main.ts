@@ -23,6 +23,7 @@ import { NodeHttpHandler } from '@smithy/node-http-handler'
 // Validated by core.getInput() which throws if not set
 export type CreateStackInputWithName = CreateStackCommandInput & {
   StackName: string
+  IncludeNestedStacksChangeSet?: boolean
 }
 
 export type CreateChangeSetInput = CreateChangeSetCommandInput
@@ -121,6 +122,12 @@ export async function run(): Promise<void> {
       })
     )
 
+    const includeNestedStacksChangeSet = !!+core.getInput(
+      'include-nested-stacks-change-set',
+      {
+        required: false
+      }
+    )
     // Configures proxy
     const agent = configureProxy(httpProxy)
     if (agent) {
@@ -163,7 +170,8 @@ export async function run(): Promise<void> {
       TemplateBody: templateBody,
       TemplateURL: templateUrl,
       Tags: tags,
-      EnableTerminationProtection: terminationProtections
+      EnableTerminationProtection: terminationProtections,
+      IncludeNestedStacksChangeSet: includeNestedStacksChangeSet
     }
 
     if (parameterOverrides) {

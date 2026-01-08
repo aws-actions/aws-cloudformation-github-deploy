@@ -215,6 +215,7 @@ export async function deployStack(
         RoleARN: params.RoleARN,
         RollbackConfiguration: params.RollbackConfiguration,
         NotificationARNs: params.NotificationARNs,
+        IncludeNestedStacks: params.IncludeNestedStacksChangeSet,
         Tags: params.Tags
       }
     },
