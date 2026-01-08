@@ -24,7 +24,6 @@ describe('Integration Testing and Error Handling', () => {
   let mockClient: any
   let mockCoreWarning: jest.SpyInstance
   let mockCoreError: jest.SpyInstance
-  let mockCoreDebug: jest.SpyInstance
   let mockWaitUntilStackCreateComplete: jest.MockedFunction<
     typeof waitUntilStackCreateComplete
   >
@@ -35,7 +34,6 @@ describe('Integration Testing and Error Handling', () => {
     // Mock core functions
     mockCoreWarning = jest.spyOn(core, 'warning').mockImplementation()
     mockCoreError = jest.spyOn(core, 'error').mockImplementation()
-    mockCoreDebug = jest.spyOn(core, 'debug').mockImplementation()
     jest.spyOn(core, 'info').mockImplementation()
 
     // Mock CloudFormation client
@@ -934,8 +932,8 @@ describe('Integration Testing and Error Handling', () => {
 
     it('should maintain deployment performance when streaming is disabled due to errors', async () => {
       // Mock scenario where streaming fails but deployment continues at normal speed
-      let deploymentStartTime: number
-      let deploymentEndTime: number
+      let deploymentStartTime
+      let deploymentEndTime
 
       mockClient.send.mockImplementation((command: any) => {
         if (command instanceof DescribeStacksCommand) {
@@ -992,7 +990,9 @@ describe('Integration Testing and Error Handling', () => {
 
       // Deployment should complete in reasonable time despite streaming errors
       const totalTime = overallEndTime - overallStartTime
-      const deploymentTime = deploymentEndTime! - deploymentStartTime!
+      const deploymentTime =
+        (deploymentEndTime || overallEndTime) -
+        (deploymentStartTime || overallStartTime)
 
       // Total time should not be significantly longer than deployment time
       expect(totalTime).toBeLessThan(deploymentTime + 200) // Allow 200ms overhead
