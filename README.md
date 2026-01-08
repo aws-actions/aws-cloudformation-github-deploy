@@ -48,7 +48,7 @@ Event streaming is **enabled by default**. To disable it:
 
 When event streaming is enabled, you'll see output like this in your GitHub Actions logs:
 
-```
+```text
 Starting event monitoring for stack: MyStack
 2023-12-07T10:30:45.123Z AWS::CloudFormation::Stack/MyStack CREATE_IN_PROGRESS
 2023-12-07T10:30:47.456Z AWS::S3::Bucket/MyBucket CREATE_IN_PROGRESS
