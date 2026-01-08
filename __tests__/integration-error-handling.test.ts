@@ -24,6 +24,7 @@ describe('Integration Testing and Error Handling', () => {
   let mockClient: any
   let mockCoreWarning: jest.SpyInstance
   let mockCoreError: jest.SpyInstance
+  let mockCoreDebug: jest.SpyInstance
   let mockWaitUntilStackCreateComplete: jest.MockedFunction<
     typeof waitUntilStackCreateComplete
   >
@@ -34,6 +35,7 @@ describe('Integration Testing and Error Handling', () => {
     // Mock core functions
     mockCoreWarning = jest.spyOn(core, 'warning').mockImplementation()
     mockCoreError = jest.spyOn(core, 'error').mockImplementation()
+    mockCoreDebug = jest.spyOn(core, 'debug').mockImplementation()
     jest.spyOn(core, 'info').mockImplementation()
 
     // Mock CloudFormation client
@@ -126,10 +128,12 @@ describe('Integration Testing and Error Handling', () => {
 
       const poller = new EventPollerImpl(mockClient, 'test-stack', 1000, 5000)
 
-      await expect(poller.pollEvents()).rejects.toThrow(validationError)
+      // Should return empty array for "Stack does not exist" during initial polling
+      const result = await poller.pollEvents()
+      expect(result).toEqual([])
 
-      expect(mockCoreWarning).toHaveBeenCalledWith(
-        expect.stringContaining('AWS service error during event polling')
+      expect(mockCoreDebug).toHaveBeenCalledWith(
+        expect.stringContaining('Stack not yet created during event polling')
       )
     })
 

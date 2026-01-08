@@ -558,6 +558,18 @@ export class EventPollerImpl implements EventPoller {
 
       // Handle AWS service errors (non-throttling)
       if (this.isAWSServiceError(error)) {
+        // Special handling for "Stack does not exist" during initial polling
+        if (
+          error instanceof Error &&
+          error.message.includes('does not exist')
+        ) {
+          core.debug(
+            `Stack not yet created during event polling: ${error.message}`
+          )
+          // Don't throw for stack not existing - this is expected during initial deployment
+          return []
+        }
+
         core.warning(
           `AWS service error during event polling: ${
             error instanceof Error ? error.message : String(error)
@@ -911,6 +923,8 @@ export class EventMonitorImpl implements EventMonitor {
           if (this.hasTerminalEvent(newEvents)) {
             core.debug('Terminal stack state detected, stopping monitoring')
             this.stopRequested = true
+            // Display final summary when terminal state is reached
+            this.displayFinalSummary()
             break
           }
         } else {
@@ -998,6 +1012,8 @@ export class EventMonitorImpl implements EventMonitor {
       core.info('No changes were applied to the CloudFormation stack')
     } else {
       core.debug('Event monitoring polling loop completed normally')
+      // Display final summary when polling completes normally
+      this.displayFinalSummary()
     }
   }
 
@@ -1034,11 +1050,19 @@ export class EventMonitorImpl implements EventMonitor {
 
   /**
    * Check if any event indicates a terminal stack state
+   * Only considers the main stack events, not individual resources
    */
   private hasTerminalEvent(events: StackEvent[]): boolean {
     return events.some(event => {
       const status = event.ResourceStatus || ''
-      return TERMINAL_STACK_STATES.includes(status as TerminalStackState)
+      const resourceType = event.ResourceType || ''
+
+      // Only check terminal states for the main CloudFormation stack
+      if (resourceType === 'AWS::CloudFormation::Stack') {
+        return TERMINAL_STACK_STATES.includes(status as TerminalStackState)
+      }
+
+      return false
     })
   }
 
@@ -1051,9 +1075,13 @@ export class EventMonitorImpl implements EventMonitor {
         ? Date.now() - this.startTime.getTime()
         : undefined
 
-      // Get the final status from the last known state
-      // In a real implementation, this might query the stack status
-      const finalStatus = 'DEPLOYMENT_COMPLETE' // Placeholder
+      // Determine final status based on error count and event count
+      let finalStatus = 'DEPLOYMENT_COMPLETE'
+      if (this.errorCount > 0) {
+        finalStatus = 'DEPLOYMENT_FAILED'
+      } else if (this.eventCount === 0) {
+        finalStatus = 'NO_CHANGES'
+      }
 
       const summary = (
         this.formatter as EventFormatterImpl
