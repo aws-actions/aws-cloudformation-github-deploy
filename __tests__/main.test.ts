@@ -12,6 +12,7 @@ import {
   DeleteChangeSetCommand,
   ExecuteChangeSetCommand,
   DescribeStacksCommand,
+  DescribeStackEventsCommand,
   CreateStackCommand
 } from '@aws-sdk/client-cloudformation'
 import { mockClient } from 'aws-sdk-client-mock'
@@ -72,7 +73,8 @@ describe('Deploy CloudFormation Stack', () => {
       'notification-arns': '',
       'role-arn': '',
       tags: '',
-      'termination-protection': ''
+      'termination-protection': '',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -175,18 +177,49 @@ describe('Deploy CloudFormation Stack', () => {
   })
 
   test('deploys the stack with template from relative path', async () => {
+    // Override the global inputs to enable event streaming for this test
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template: 'template.yaml',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '0',
+      'disable-rollback': '0',
+      'timeout-in-minutes': '',
+      'notification-arns': '',
+      'role-arn': '',
+      tags: '',
+      'termination-protection': ''
+      // enable-event-streaming is enabled by default (not set to '0')
+    }
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
     expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 3)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(
+      DescribeStackEventsCommand,
+      1
+    )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
       1,
+      DescribeStackEventsCommand,
+      {
+        StackName: 'MockStack'
+      }
+    )
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(
+      2,
       DescribeStacksCommand,
       {
         StackName: 'MockStack'
       }
     )
-    expect(mockCfnClient).toHaveReceivedNthCommandWith(2, CreateStackCommand, {
+    expect(mockCfnClient).toHaveReceivedNthCommandWith(3, CreateStackCommand, {
       Capabilities: ['CAPABILITY_IAM'],
       DisableRollback: false,
       EnableTerminationProtection: false,
@@ -207,7 +240,7 @@ describe('Deploy CloudFormation Stack', () => {
       TimeoutInMinutes: undefined
     })
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
-      3,
+      4,
       DescribeStacksCommand,
       {
         StackName: 'MockStack'
@@ -229,7 +262,8 @@ describe('Deploy CloudFormation Stack', () => {
       'notification-arns': '',
       'role-arn': '',
       tags: '',
-      'termination-protection': ''
+      'termination-protection': '',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -390,7 +424,8 @@ describe('Deploy CloudFormation Stack', () => {
       'role-arn': '',
       tags: '',
       'termination-protection': '',
-      'http-proxy': 'http://localhost:8080'
+      'http-proxy': 'http://localhost:8080',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -538,7 +573,8 @@ describe('Deploy CloudFormation Stack', () => {
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-fail-on-empty-changeset': '1'
+      'no-fail-on-empty-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -587,7 +623,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
-      'termination-protection': '1'
+      'termination-protection': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -645,7 +682,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
-      'disable-rollback': '1'
+      'disable-rollback': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -704,7 +742,8 @@ describe('Deploy CloudFormation Stack', () => {
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
       'notification-arns':
-        'arn:aws:sns:us-east-2:123456789012:MyTopic,arn:aws:sns:us-east-2:123456789012:MyTopic2'
+        'arn:aws:sns:us-east-2:123456789012:MyTopic,arn:aws:sns:us-east-2:123456789012:MyTopic2',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -765,7 +804,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
-      'role-arn': 'arn:aws:iam::123456789012:role/my-role'
+      'role-arn': 'arn:aws:iam::123456789012:role/my-role',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -823,7 +863,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
-      tags: '[{"Key":"Test","Value":"Value"}]'
+      tags: '[{"Key":"Test","Value":"Value"}]',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -881,7 +922,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
-      'timeout-in-minutes': '10'
+      'timeout-in-minutes': '10',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -938,7 +980,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '0',
-      'change-set-description': 'My test change set description'
+      'change-set-description': 'My test change set description',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1122,7 +1165,8 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-execute-changeset': '1'
+      'no-execute-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1344,7 +1388,8 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-fail-on-empty-changeset': '1'
+      'no-fail-on-empty-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1463,7 +1508,8 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-fail-on-empty-changeset': '1'
+      'no-fail-on-empty-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1566,7 +1612,8 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-fail-on-empty-changeset': '1'
+      'no-fail-on-empty-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1669,7 +1716,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
       'no-fail-on-empty-changeset': '1',
-      'no-delete-failed-changeset': '1'
+      'no-delete-failed-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1766,7 +1814,8 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-delete-failed-changeset': '1'
+      'no-delete-failed-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1861,7 +1910,8 @@ describe('Deploy CloudFormation Stack', () => {
       template: 'template.yaml',
       capabilities: 'CAPABILITY_IAM',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-fail-on-empty-changeset': '1'
+      'no-fail-on-empty-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
@@ -1966,6 +2016,26 @@ describe('Deploy CloudFormation Stack', () => {
   })
 
   test('error is caught by core.setFailed', async () => {
+    // Add enable-event-streaming: '0' to the global inputs mock
+    const inputs: Inputs = {
+      name: 'MockStack',
+      template: 'template.yaml',
+      capabilities: 'CAPABILITY_IAM',
+      'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
+      'no-fail-on-empty-changeset': '0',
+      'disable-rollback': '0',
+      'timeout-in-minutes': '',
+      'notification-arns': '',
+      'role-arn': '',
+      tags: '',
+      'termination-protection': '',
+      'enable-event-streaming': '0'
+    }
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+
     mockCfnClient.reset().on(DescribeStacksCommand).rejects(new Error())
 
     await run()
@@ -1980,7 +2050,8 @@ describe('Deploy CloudFormation Stack', () => {
       capabilities: 'CAPABILITY_IAM, CAPABILITY_AUTO_EXPAND',
       'change-set-name': 'Build-213123123-CS',
       'parameter-overrides': 'AdminEmail=no-reply@amazon.com',
-      'no-fail-on-empty-changeset': '1'
+      'no-fail-on-empty-changeset': '1',
+      'enable-event-streaming': '0'
     }
 
     jest.spyOn(core, 'getInput').mockImplementation((name: string) => {

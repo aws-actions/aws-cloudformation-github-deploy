@@ -493,6 +493,224 @@ describe('Format Error', () => {
       }
     })
   })
+
+  test('formats waiter result object as JSON', () => {
+    const waiterError = {
+      state: 'FAILURE',
+      reason: {
+        $metadata: { httpStatusCode: 400 },
+        Stacks: [
+          { StackName: 'test-stack', StackStatus: 'UPDATE_ROLLBACK_COMPLETE' }
+        ]
+      }
+    }
+    const result = formatError(waiterError, 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      deploymentResult: {
+        state: 'FAILURE',
+        reason: waiterError.reason
+      }
+    })
+  })
+
+  test('formats waiter result object as YAML', () => {
+    const waiterError = {
+      state: 'FAILURE',
+      reason: {
+        $metadata: { httpStatusCode: 400 },
+        Stacks: [
+          { StackName: 'test-stack', StackStatus: 'UPDATE_ROLLBACK_COMPLETE' }
+        ]
+      }
+    }
+    const result = formatError(waiterError, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      deploymentResult: {
+        state: 'FAILURE',
+        reason: waiterError.reason
+      }
+    })
+  })
+
+  test('formats string error as JSON', () => {
+    const result = formatError('Simple error message', 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'Simple error message'
+      }
+    })
+  })
+
+  test('formats string error as YAML', () => {
+    const result = formatError('Simple error message', 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'Simple error message'
+      }
+    })
+  })
+
+  test('formats JSON string error as YAML', () => {
+    const jsonError = '{"state":"FAILURE","reason":{"message":"Stack failed"}}'
+    const result = formatError(jsonError, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        state: 'FAILURE',
+        reason: {
+          message: 'Stack failed'
+        }
+      }
+    })
+  })
+
+  test('formats Error with JSON message as YAML', () => {
+    const jsonMessage =
+      '{"state":"FAILURE","reason":{"Stacks":[{"StackName":"test"}]}}'
+    const error = new Error(jsonMessage)
+    const result = formatError(error, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        state: 'FAILURE',
+        reason: {
+          Stacks: [{ StackName: 'test' }]
+        }
+      }
+    })
+  })
+
+  test('formats Error with JSON message as JSON', () => {
+    const jsonMessage =
+      '{"state":"FAILURE","reason":{"Stacks":[{"StackName":"test"}]}}'
+    const error = new Error(jsonMessage)
+    const result = formatError(error, 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      error: {
+        state: 'FAILURE',
+        reason: {
+          Stacks: [{ StackName: 'test' }]
+        }
+      }
+    })
+  })
+
+  test('formats non-Error object with JSON string as YAML', () => {
+    const jsonObject = '{"deploymentFailed":true,"reason":"Stack error"}'
+    const result = formatError(jsonObject, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        deploymentFailed: true,
+        reason: 'Stack error'
+      }
+    })
+  })
+
+  test('formats non-Error object with JSON string as JSON', () => {
+    const jsonObject = '{"deploymentFailed":true,"reason":"Stack error"}'
+    const result = formatError(jsonObject, 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      error: {
+        deploymentFailed: true,
+        reason: 'Stack error'
+      }
+    })
+  })
+
+  test('formats non-Error object with non-JSON string as YAML', () => {
+    const nonJsonObject = 'Simple deployment error'
+    const result = formatError(nonJsonObject, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'Simple deployment error'
+      }
+    })
+  })
+
+  test('formats non-Error object with non-JSON string as JSON', () => {
+    const nonJsonObject = 'Simple deployment error'
+    const result = formatError(nonJsonObject, 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'Simple deployment error'
+      }
+    })
+  })
+
+  test('formats number as YAML', () => {
+    const numberError = 12345
+    const result = formatError(numberError, 'yaml')
+    const parsed = yaml.load(result)
+    // Number gets converted to string "12345", which is valid JSON (a number),
+    // so it gets parsed as the number 12345
+    expect(parsed).toEqual({
+      error: 12345
+    })
+  })
+
+  test('formats number as JSON', () => {
+    const numberError = 12345
+    const result = formatError(numberError, 'json')
+    const parsed = JSON.parse(result)
+    // Number gets converted to string "12345", which is valid JSON (a number),
+    // so it gets parsed as the number 12345
+    expect(parsed).toEqual({
+      error: 12345
+    })
+  })
+
+  test('formats object with JSON-like string representation as YAML', () => {
+    const objectError = { toString: () => '{"error":"custom error"}' }
+    const result = formatError(objectError, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        error: 'custom error'
+      }
+    })
+  })
+
+  test('formats object with JSON-like string representation as JSON', () => {
+    const objectError = { toString: () => '{"error":"custom error"}' }
+    const result = formatError(objectError, 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      error: {
+        error: 'custom error'
+      }
+    })
+  })
+
+  test('formats object with non-JSON string representation as YAML', () => {
+    const objectError = { toString: () => 'invalid json string {' }
+    const result = formatError(objectError, 'yaml')
+    const parsed = yaml.load(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'invalid json string {'
+      }
+    })
+  })
+
+  test('formats object with non-JSON string representation as JSON', () => {
+    const objectError = { toString: () => 'invalid json string {' }
+    const result = formatError(objectError, 'json')
+    const parsed = JSON.parse(result)
+    expect(parsed).toEqual({
+      error: {
+        message: 'invalid json string {'
+      }
+    })
+  })
 })
 
 describe('withRetry', () => {

@@ -121,6 +121,10 @@ export async function run(): Promise<void> {
         required: false
       })
     )
+    const enableEventStreaming =
+      core.getInput('enable-event-streaming', {
+        required: false
+      }) !== '0' // Default to enabled unless explicitly set to '0'
 
     const includeNestedStacksChangeSet = !!+core.getInput(
       'include-nested-stacks-change-set',
@@ -185,7 +189,8 @@ export async function run(): Promise<void> {
       noEmptyChangeSet,
       noExecuteChangeSet,
       noDeleteFailedChangeSet,
-      changeSetDescription
+      changeSetDescription,
+      enableEventStreaming
     )
     core.setOutput('stack-id', stackId || 'UNKNOWN')
 
@@ -196,9 +201,7 @@ export async function run(): Promise<void> {
       }
     }
   } catch (err) {
-    // @ts-expect-error: Object is of type 'unknown'
     core.setFailed(formatError(err, outputFormat))
-    // @ts-expect-error: Object is of type 'unknown'
     core.debug(formatError(err, outputFormat))
   }
 }

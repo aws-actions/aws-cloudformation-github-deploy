@@ -7,21 +7,109 @@ import * as yaml from 'js-yaml'
 import * as core from '@actions/core'
 import { OutputFormat } from './main'
 
-export function formatError(error: Error, format: OutputFormat): string {
-  if (format === 'yaml') {
-    return yaml.dump({
-      error: {
+export function formatError(error: unknown, format: OutputFormat): string {
+  // Handle waiter result objects that contain state and reason
+  if (
+    error &&
+    typeof error === 'object' &&
+    'state' in error &&
+    'reason' in error
+  ) {
+    const waiterError = error as { state: string; reason: unknown }
+    if (format === 'yaml') {
+      return yaml.dump({
+        deploymentResult: {
+          state: waiterError.state,
+          reason: waiterError.reason
+        }
+      })
+    }
+    return JSON.stringify(
+      {
+        deploymentResult: {
+          state: waiterError.state,
+          reason: waiterError.reason
+        }
+      },
+      null,
+      2
+    )
+  }
+
+  // Handle standard Error objects
+  if (error instanceof Error) {
+    // Check if the error message is a JSON string and parse it
+    let errorData: unknown
+    try {
+      errorData = JSON.parse(error.message)
+    } catch {
+      // Not JSON, use as-is
+      errorData = {
         message: error.message,
         stack: error.stack
       }
+    }
+
+    if (format === 'yaml') {
+      return yaml.dump({
+        error: errorData
+      })
+    }
+    return JSON.stringify(
+      {
+        error: errorData
+      },
+      null,
+      2
+    )
+  }
+
+  // Handle string errors that might be JSON
+  if (typeof error === 'string') {
+    let errorData: unknown
+    try {
+      errorData = JSON.parse(error)
+    } catch {
+      // Not JSON, use as-is
+      errorData = { message: error }
+    }
+
+    if (format === 'yaml') {
+      return yaml.dump({
+        error: errorData
+      })
+    }
+    return JSON.stringify(
+      {
+        error: errorData
+      },
+      null,
+      2
+    )
+  }
+
+  // Handle other types of errors
+  const errorMessage = String(error)
+  let errorData: unknown
+  try {
+    errorData = JSON.parse(errorMessage)
+  } catch {
+    // Not JSON, use as-is
+    errorData = { message: errorMessage }
+  }
+
+  if (format === 'yaml') {
+    return yaml.dump({
+      error: errorData
     })
   }
-  return JSON.stringify({
-    error: {
-      message: error.message,
-      stack: error.stack
-    }
-  })
+  return JSON.stringify(
+    {
+      error: errorData
+    },
+    null,
+    2
+  )
 }
 
 export function isUrl(s: string): boolean {

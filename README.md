@@ -1,4 +1,3 @@
-<!-- trunk-ignore-all(prettier/SyntaxError) -->
 # AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
 
 ![Package](https://github.com/aws-actions/aws-cloudformation-github-deploy/workflows/Package/badge.svg)
@@ -19,9 +18,71 @@ Deploys AWS CloudFormation Stacks.
 
 The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
 
+## Real-time Event Streaming
+
+This action provides **real-time CloudFormation event streaming** during deployments, giving you immediate visibility into your stack operations without needing to check the AWS Console. Events are displayed with color-coded status indicators and clear error messages directly in your GitHub Actions logs.
+
+### Event Streaming Features
+
+- **Real-time Monitoring**: See CloudFormation stack events as they happen during deployment
+- **Color-coded Status**: Green for success, yellow for warnings, red for errors, blue for informational
+- **Error Highlighting**: Failed operations show detailed error messages in bold red formatting
+- **Structured Display**: Events include timestamps, resource types, resource names, and status information
+- **Performance Optimized**: Uses exponential backoff polling with AWS API rate limiting respect
+- **Fault Tolerant**: Event streaming errors don't affect your deployment - they're logged as warnings
+
+### Event Streaming Configuration
+
+Event streaming is **enabled by default**. To disable it:
+
+```yaml
+- name: Deploy to AWS CloudFormation
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+    enable-event-streaming: "0"  # Disable event streaming
+```
+
+### Example Event Output
+
+When event streaming is enabled, you'll see output like this in your GitHub Actions logs:
+
+```text
+Starting event monitoring for stack: MyStack
+2023-12-07T10:30:45.123Z AWS::CloudFormation::Stack/MyStack CREATE_IN_PROGRESS
+2023-12-07T10:30:47.456Z AWS::S3::Bucket/MyBucket CREATE_IN_PROGRESS
+2023-12-07T10:30:52.789Z AWS::S3::Bucket/MyBucket CREATE_COMPLETE
+2023-12-07T10:31:15.234Z AWS::Lambda::Function/MyFunction CREATE_FAILED ERROR: The role defined for the function cannot be assumed by Lambda.
+
+============================================================
+Deployment Summary for MyStack
+============================================================
+Final Status: CREATE_FAILED
+Total Events: 4
+Errors: 1 error(s)
+Duration: 45s
+============================================================
+```
+
 ### Inputs
 
 A few inputs are highlighted below. See [action.yml](action.yml) for the full documentation for this action's inputs and outputs.
+
+#### enable-event-streaming (OPTIONAL)
+
+Controls real-time CloudFormation event streaming during deployment. Defaults to `"1"` (enabled).
+
+- `"1"` (default): Enable real-time event streaming with color-coded output
+- `"0"`: Disable event streaming for minimal log output
+
+```yaml
+- uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+    enable-event-streaming: "1"  # Show real-time events (default)
+```
 
 #### parameter-overrides (OPTIONAL)
 
@@ -146,13 +207,16 @@ This action requires the following minimum set of permissions:
                 "cloudformation:CreateChangeSet",
                 "cloudformation:DescribeChangeSet",
                 "cloudformation:DeleteChangeSet",
-                "cloudformation:ExecuteChangeSet"
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:DescribeStackEvents"
             ],
             "Resource": "*"
         }
     ]
 }
 ```
+
+**Note**: The `cloudformation:DescribeStackEvents` permission is used by the real-time event streaming feature. If you disable event streaming with `enable-event-streaming: "0"`, this permission is not required.
 
 > The policy above prevents the stack to be deleted by a policy for production
 
@@ -210,6 +274,7 @@ jobs:
         name: ${{ steps.env-name.outputs.environment }}-cluster
         template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
         no-fail-on-empty-changeset: "1"
+        enable-event-streaming: "1"  # Enable real-time event monitoring
         parameter-overrides: |
           AvailabilityZones:
             - ${{ github.event.inputs.region }}a
