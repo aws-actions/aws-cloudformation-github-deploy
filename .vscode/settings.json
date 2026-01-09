@@ -1,10 +1,10 @@
 {
-    "editor.codeActionsOnSave": {
-        "source.fixAll": "explicit"
-    },
-    "search.exclude": {
-        "**/node_modules": true,
-        "**/bower_components": true,
-        "dist/**/*": true
-    }
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "dist/**/*": true
+  }
 }

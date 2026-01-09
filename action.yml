@@ -1,63 +1,132 @@
-name: 'AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions'
-description: "Deploys a AWS CloudFormation stack"
+---
+name: AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
+description: Deploys a AWS CloudFormation stack
 branding:
-  icon: "cloud"
-  color: "orange"
+  icon: cloud
+  color: orange
 inputs:
   name:
-    description: "The name of the CloudFormation stack"
+    description: The name of the CloudFormation stack
     required: true
   template:
-    description: "The path or URL to the CloudFormation template"
+    description: The path or URL to the CloudFormation template
     required: true
   capabilities:
-    description: "The comma-delimited list of stack template capabilities to acknowledge. Defaults to 'CAPABILITY_IAM'"
+    description: >-
+      The comma-delimited list of stack template capabilities to acknowledge.
+      Defaults to 'CAPABILITY_IAM'
     required: false
-    default: "CAPABILITY_IAM"
+    default: CAPABILITY_IAM
   parameter-overrides:
-    description: 'The parameters to override in the stack inputs. You can pass a comma-delimited list or a file URL. Comma-delimited list has each entry formatted as <ParameterName>=<ParameterValue> or <ParameterName>="<ParameterValue>,<ParameterValue>". A JSON file can be a local file with a "file://" prefix or remote URL. The file should look like: [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]'
+    description: >-
+      The parameters to override in the stack inputs. You can pass a comma-delimited
+      list, a file URL, or a native YAML object. Comma-delimited list has each entry
+      formatted as <ParameterName>=<ParameterValue> or
+      <ParameterName>="<ParameterValue>,<ParameterValue>". A JSON file can be a local
+      file with a "file://" prefix or remote URL. The file should look like:
+      [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]. For YAML
+      objects, provide parameter keys and values directly in the YAML structure.
     required: false
   no-execute-changeset:
-    description: "Indicates whether to execute to the change set or have it reviewed. Default to '0' (will execute the change set)"
+    description: >-
+      Indicates whether to execute to the change set or have it reviewed.
+      Default to '0' (will execute the change set)
     required: false
-    default: "0"
+    default: 0
   no-delete-failed-changeset:
-    description: "Indicates whether to delete to a failed change set. Default to '0' (will delete the failed changeset)"
+    description: >-
+      Indicates whether to delete to a failed change set.
+      Default to '0' (will delete the failed changeset)
     required: false
-    default: "0"
+    default: 0
   no-fail-on-empty-changeset:
-    description: "If the CloudFormation change set is empty, do not fail. Defaults to '0' (will fail on empty change set)"
+    description: >-
+      If the CloudFormation change set is empty, do not fail.
+      Defaults to '0' (will fail on empty change set)
     required: false
-    default: "0"
+    default: 0
   disable-rollback:
-    description: "Disable rollback of the stack if stack creation fails. Defaults to '0' (will rollback if stack creation fails). This input is only used for stack creation, not for stack update"
+    description: >-
+      Disable rollback of the stack if stack creation fails.
+      Defaults to '0' (will rollback if stack creation fails).
+      This input is only used for stack creation, not for stack update
     required: false
-    default: "0"
+    default: 0
   timeout-in-minutes:
-    description: "The amount of time that can pass before the stack status becomes CREATE_FAILED. This input is only used for stack creation, not for stack update"
+    description: >-
+      The amount of time that can pass before the stack status becomes CREATE_FAILED.
+      This input is only used for stack creation, not for stack update
     required: false
   notification-arns:
-    description: "The comma-delimited list of Amazon SNS topic ARNs to publish stack related events"
+    description: >-
+      The comma-delimited list of Amazon SNS topic ARNs to publish stack
+      related events
     required: false
   role-arn:
-    description: "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that AWS CloudFormation assumes to create the stack. AWS CloudFormation uses the role's credentials to make calls on your behalf. AWS CloudFormation always uses this role for all future operations on the stack. As long as users have permission to operate on the stack, AWS CloudFormation uses this role even if the users don't have permission to pass it. Ensure that the role grants least privilege. If you don't specify a value, AWS CloudFormation uses the role that was previously associated with the stack"
+    description: >-
+      The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM)
+      role that AWS CloudFormation assumes to create the stack. AWS CloudFormation
+      uses the role's credentials to make calls on your behalf. AWS CloudFormation
+      always uses this role for all future operations on the stack. As long as users
+      have permission to operate on the stack, AWS CloudFormation uses this role even
+      if the users don't have permission to pass it. Ensure that the role grants
+      least privilege. If you don't specify a value, AWS CloudFormation uses the
+      role that was previously associated with the stack
     required: false
   tags:
-    description: 'Key-value pairs to associate with this stack. This input should be JSON-formatted, for example [ { "Key": "string", "Value": "string" } ]'
+    description: >-
+      Key-value pairs to associate with this stack. Can be specified in three formats:
+      1. As a YAML array:
+         tags:
+           - Key: Environment
+             Value: Production
+           - Key: Team
+             Value: DevOps
+      2. As a YAML object:
+         tags:
+           Environment: Production
+           Team: DevOps
+      3. As a JSON string:
+         tags: '[{"Key":"Environment","Value":"Production"},{"Key":"Team","Value":"DevOps"}]'
     required: false
   termination-protection:
-    description: "Whether to enable termination protection on the specified stack. Defaults to '0' (terminated protection will be disabled) This input is only used for stack creation, not for stack update"
+    description: >-
+      Whether to enable termination protection on the specified stack.
+      Defaults to '0' (terminated protection will be disabled)
+      This input is only used for stack creation, not for stack update
     required: false
-    default: "0"
+    default: 0
   http-proxy:
-    description: 'Proxy to use for the AWS SDK agent'
+    description: Proxy to use for the AWS SDK agent
     required: false
   change-set-name:
-    description: "The name of the change set to create. Defaults to '<stack-name>-CS'"
+    description: >-
+      The name of the change set to create.
+      Defaults to '<stack-name>-CS'
     required: false
+  change-set-description:
+    description: >-
+      A description of the change set that helps you identify its purpose.
+    required: false
+  output-format:
+    description: >-
+      The format for warnings and errors output. Can be either 'json' or 'yaml'.
+      Defaults to 'json' for backward compatibility.
+    required: false
+    default: json
+  enable-event-streaming:
+    description: >-
+      Enable real-time CloudFormation event streaming during deployment.
+      Defaults to '1' (enabled). Set to '0' to disable event streaming.
+    required: false
+    default: 1
 outputs:
   stack-id:
-    description: "The id of the deployed stack. In addition, any outputs declared in the deployed CloudFormation stack will also be set as outputs for the action, e.g. if the stack has a stack output named 'foo', this action will also have an output named 'foo'."
+    description: >-
+      The id of the deployed stack. In addition, any outputs declared in the
+      deployed CloudFormation stack will also be set as outputs for the action,
+      e.g. if the stack has a stack output named 'foo', this action will also
+      have an output named 'foo'.
 runs:
-  using: "node20"
-  main: "dist/index.js"
+  using: node20
+  main: dist/index.js

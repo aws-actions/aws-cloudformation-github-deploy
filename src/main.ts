@@ -9,6 +9,7 @@ import {
 import * as fs from 'fs'
 import { deployStack, getStackOutputs } from './deploy'
 import {
+  formatError,
   isUrl,
   parseTags,
   parseString,
@@ -32,6 +33,8 @@ export type InputCapabilities =
   | 'CAPABILITY_NAMED_IAM'
   | 'CAPABILITY_AUTO_EXPAND'
 
+export type OutputFormat = 'json' | 'yaml'
+
 export type Inputs = {
   [key: string]: string
 }
@@ -41,6 +44,10 @@ let clientConfiguration = {
   customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
 }
 export async function run(): Promise<void> {
+  const outputFormat =
+    (core.getInput('output-format', { required: false }) as OutputFormat) ||
+    'json'
+
   try {
     /* istanbul ignore next */
     const { GITHUB_WORKSPACE = __dirname } = process.env
@@ -48,6 +55,7 @@ export async function run(): Promise<void> {
     // Get inputs
     const template = core.getInput('template', { required: true })
     const stackName = core.getInput('name', { required: true })
+
     const capabilities = core
       .getInput('capabilities', {
         required: false
@@ -55,9 +63,11 @@ export async function run(): Promise<void> {
       .split(',')
       .map(capability => capability.trim()) as Capability[]
 
+    // Get parameter overrides - could be a string or a parsed YAML object
     const parameterOverrides = core.getInput('parameter-overrides', {
       required: false
     })
+
     const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
       required: false
     })
@@ -106,13 +116,22 @@ export async function run(): Promise<void> {
         required: false
       })
     )
+    const changeSetDescription = parseString(
+      core.getInput('change-set-description', {
+        required: false
+      })
+    )
+    const enableEventStreaming =
+      core.getInput('enable-event-streaming', {
+        required: false
+      }) !== '0' // Default to enabled unless explicitly set to '0'
+
     const includeNestedStacksChangeSet = !!+core.getInput(
       'include-nested-stacks-change-set',
       {
         required: false
       }
     )
-
     // Configures proxy
     const agent = configureProxy(httpProxy)
     if (agent) {
@@ -160,7 +179,7 @@ export async function run(): Promise<void> {
     }
 
     if (parameterOverrides) {
-      params.Parameters = parseParameters(parameterOverrides.trim())
+      params.Parameters = parseParameters(parameterOverrides)
     }
 
     const stackId = await deployStack(
@@ -169,7 +188,9 @@ export async function run(): Promise<void> {
       changeSetName ? changeSetName : `${params.StackName}-CS`,
       noEmptyChangeSet,
       noExecuteChangeSet,
-      noDeleteFailedChangeSet
+      noDeleteFailedChangeSet,
+      changeSetDescription,
+      enableEventStreaming
     )
     core.setOutput('stack-id', stackId || 'UNKNOWN')
 
@@ -180,10 +201,8 @@ export async function run(): Promise<void> {
       }
     }
   } catch (err) {
-    // @ts-expect-error: Object is of type 'unknown'
-    core.setFailed(err.message)
-    // @ts-expect-error: Object is of type 'unknown'
-    core.debug(err.stack)
+    core.setFailed(formatError(err, outputFormat))
+    core.debug(formatError(err, outputFormat))
   }
 }
 
