@@ -8,7 +8,7 @@ on:
 name: Create Release
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
