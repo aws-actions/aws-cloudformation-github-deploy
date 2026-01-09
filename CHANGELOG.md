@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## Features
 
+### 2.0.0
+
+- **Real-time Event Streaming**: Added comprehensive CloudFormation stack event monitoring during deployments
+  - Color-coded event display (green for success, yellow for warnings, red for errors)
+  - Real-time event polling with exponential backoff
+  - Error message extraction and highlighting
+  - Structured event formatting with timestamps and resource information
+  - Integration with existing deployment flow
+- **Enhanced Error Handling**: Improved error extraction and display from CloudFormation events
+- **Performance Optimizations**: Efficient event polling with AWS API rate limit respect
+- **GitHub Actions Workflow Fixes**: Fixed permission issues in package.yml and release.yml workflows
+
 ### 1.6.1 , 1.6.2
 
 - Change log updates
