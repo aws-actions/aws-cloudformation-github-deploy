@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/aws-actions/aws-cloudformation-github-deploy#readme",
   "dependencies": {
-    "@actions/core": "1.11.1",
+    "@actions/core": "2.0.2",
     "@aws-sdk/client-cloudformation": "3.935.0",
     "@smithy/node-http-handler": "4.4.5",
     "https-proxy-agent": "7.0.6",
