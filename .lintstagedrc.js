@@ -1,6 +1,6 @@
 module.exports = {
     // Prettier
-    '**/*.{md}': ['prettier --ignore-path .gitignore --write'],
+    '**/*.md': ['prettier --ignore-path .gitignore --write'],
   
     // Eslint
     '**/*.{ts,tsx}': ['eslint --fix'],
