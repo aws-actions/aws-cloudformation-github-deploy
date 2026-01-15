@@ -15,7 +15,8 @@ export function isUrl(s: string): boolean {
   return url.protocol === 'https:'
 }
 
-export function parseTags(s: string): Tag[] | undefined {
+export function parseTags(s?: string): Tag[] | undefined {
+  if (!s || s.trim().length === 0) return undefined
   let json
 
   try {
@@ -25,19 +26,30 @@ export function parseTags(s: string): Tag[] | undefined {
   return json
 }
 
-export function parseARNs(s: string): string[] | undefined {
-  return s?.length > 0 ? s.split(',') : undefined
+export function parseARNs(s?: string): string[] | undefined {
+  return s?.length ? s.split(',') : undefined
 }
 
-export function parseString(s: string): string | undefined {
-  return s?.length > 0 ? s : undefined
+export function parseString(s?: string): string | undefined {
+  return s?.length ? s : undefined
 }
 
-export function parseNumber(s: string): number | undefined {
-  return parseInt(s) || undefined
+export function parseNumber(s?: string): number | undefined {
+  if (!s) return undefined
+  const num = parseInt(s, 10)
+  return isNaN(num) ? undefined : num
 }
 
-export function parseParameters(parameterOverrides: string): Parameter[] {
+export function parseBoolean(s?: string): boolean {
+  return s ? !!+s : false
+}
+
+export function parseParameters(
+  parameterOverrides?: string
+): Parameter[] | undefined {
+  if (!parameterOverrides || parameterOverrides.trim().length === 0)
+    return undefined
+
   try {
     const path = new URL(parameterOverrides)
     const rawParameters = fs.readFileSync(path, 'utf-8')

@@ -50386,6 +50386,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.waitUntilStackOperationComplete = waitUntilStackOperationComplete;
 exports.executeExistingChangeSet = executeExistingChangeSet;
 exports.getChangeSetInfo = getChangeSetInfo;
 exports.cleanupChangeSet = cleanupChangeSet;
@@ -50956,6 +50957,7 @@ exports.parseTags = parseTags;
 exports.parseARNs = parseARNs;
 exports.parseString = parseString;
 exports.parseNumber = parseNumber;
+exports.parseBoolean = parseBoolean;
 exports.parseParameters = parseParameters;
 exports.parseDeploymentMode = parseDeploymentMode;
 exports.configureProxy = configureProxy;
@@ -50972,6 +50974,8 @@ function isUrl(s) {
     return url.protocol === 'https:';
 }
 function parseTags(s) {
+    if (!s || s.trim().length === 0)
+        return undefined;
     let json;
     try {
         json = JSON.parse(s);
@@ -50980,15 +50984,23 @@ function parseTags(s) {
     return json;
 }
 function parseARNs(s) {
-    return (s === null || s === void 0 ? void 0 : s.length) > 0 ? s.split(',') : undefined;
+    return (s === null || s === void 0 ? void 0 : s.length) ? s.split(',') : undefined;
 }
 function parseString(s) {
-    return (s === null || s === void 0 ? void 0 : s.length) > 0 ? s : undefined;
+    return (s === null || s === void 0 ? void 0 : s.length) ? s : undefined;
 }
 function parseNumber(s) {
-    return parseInt(s) || undefined;
+    if (!s)
+        return undefined;
+    const num = parseInt(s, 10);
+    return isNaN(num) ? undefined : num;
+}
+function parseBoolean(s) {
+    return s ? !!+s : false;
 }
 function parseParameters(parameterOverrides) {
+    if (!parameterOverrides || parameterOverrides.trim().length === 0)
+        return undefined;
     try {
         const path = new URL(parameterOverrides);
         const rawParameters = fs.readFileSync(path, 'utf-8');
@@ -51056,94 +51068,16 @@ function configureProxy(proxyServer) {
 /***/ }),
 
 /***/ 4344:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validateAndParseInputs = validateAndParseInputs;
 const zod_1 = __nccwpck_require__(924);
-const fs = __importStar(__nccwpck_require__(9896));
+const utils_1 = __nccwpck_require__(1798);
 // Helper transformers
 const emptyToUndefined = (val) => val && val.trim().length > 0 ? val : undefined;
-const parseBoolean = (val) => (val ? !!+val : false);
-const parseNumber = (val) => val ? parseInt(val) || undefined : undefined;
-const parseARNs = (val) => ((val === null || val === void 0 ? void 0 : val.length) ? val.split(',') : undefined);
-const parseTags = (val) => {
-    if (!val || val.trim().length === 0)
-        return undefined;
-    try {
-        return JSON.parse(val);
-    }
-    catch (_a) {
-        return undefined;
-    }
-};
-const parseParameters = (val) => {
-    if (!val || val.trim().length === 0)
-        return undefined;
-    try {
-        const path = new URL(val);
-        const rawParameters = fs.readFileSync(path, 'utf-8');
-        return JSON.parse(rawParameters);
-    }
-    catch (err) {
-        // @ts-expect-error: Object is of type 'unknown'
-        if (err.code !== 'ERR_INVALID_URL') {
-            throw err;
-        }
-    }
-    const parameters = new Map();
-    val.split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g).forEach(parameter => {
-        const values = parameter.trim().split('=');
-        const key = values[0];
-        const value = values.slice(1).join('=');
-        let param = parameters.get(key);
-        param = !param ? value : [param, value].join(',');
-        if ((param.startsWith("'") && param.endsWith("'")) ||
-            (param.startsWith('"') && param.endsWith('"'))) {
-            param = param.substring(1, param.length - 1);
-        }
-        parameters.set(key, param);
-    });
-    return [...parameters.keys()].map(key => ({
-        ParameterKey: key,
-        ParameterValue: parameters.get(key)
-    }));
-};
 const baseSchema = zod_1.z.object({
     mode: zod_1.z
         .enum(['create-and-execute', 'create-only', 'execute-only'])
@@ -51158,21 +51092,21 @@ const createSchema = baseSchema.extend({
         .string()
         .optional()
         .transform(val => val ? val.split(',').map(cap => cap.trim()) : ['CAPABILITY_IAM']),
-    'parameter-overrides': zod_1.z.string().optional().transform(parseParameters),
-    'fail-on-empty-changeset': zod_1.z.string().optional().transform(parseBoolean),
-    'no-execute-changeset': zod_1.z.string().optional().transform(parseBoolean),
-    'no-delete-failed-changeset': zod_1.z.string().optional().transform(parseBoolean),
-    'disable-rollback': zod_1.z.string().optional().transform(parseBoolean),
-    'timeout-in-minutes': zod_1.z.string().optional().transform(parseNumber),
-    'notification-arns': zod_1.z.string().optional().transform(parseARNs),
+    'parameter-overrides': zod_1.z.string().optional().transform(utils_1.parseParameters),
+    'fail-on-empty-changeset': zod_1.z.string().optional().transform(utils_1.parseBoolean),
+    'no-execute-changeset': zod_1.z.string().optional().transform(utils_1.parseBoolean),
+    'no-delete-failed-changeset': zod_1.z.string().optional().transform(utils_1.parseBoolean),
+    'disable-rollback': zod_1.z.string().optional().transform(utils_1.parseBoolean),
+    'timeout-in-minutes': zod_1.z.string().optional().transform(utils_1.parseNumber),
+    'notification-arns': zod_1.z.string().optional().transform(utils_1.parseARNs),
     'role-arn': zod_1.z.string().optional().transform(emptyToUndefined),
-    tags: zod_1.z.string().optional().transform(parseTags),
-    'termination-protection': zod_1.z.string().optional().transform(parseBoolean),
+    tags: zod_1.z.string().optional().transform(utils_1.parseTags),
+    'termination-protection': zod_1.z.string().optional().transform(utils_1.parseBoolean),
     'change-set-name': zod_1.z.string().optional().transform(emptyToUndefined),
     'include-nested-stacks-change-set': zod_1.z
         .string()
         .optional()
-        .transform(parseBoolean),
+        .transform(utils_1.parseBoolean),
     'deployment-mode': zod_1.z
         .string()
         .optional()

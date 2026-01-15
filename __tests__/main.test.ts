@@ -1381,4 +1381,130 @@ describe('Deploy CloudFormation Stack', () => {
       }
     )
   })
+
+  it('create-only mode creates change set without executing', async () => {
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      const inputs = createInputs({
+        mode: 'create-only'
+      })
+      return inputs[name]
+    })
+
+    mockCfnClient
+      .reset()
+      .on(DescribeStacksCommand)
+      .resolves({
+        Stacks: [
+          {
+            StackId: mockStackId,
+            StackName: 'MockStack',
+            StackStatus: StackStatus.CREATE_COMPLETE,
+            CreationTime: new Date(),
+            Tags: [],
+            Outputs: []
+          }
+        ]
+      })
+      .on(CreateChangeSetCommand)
+      .resolves({ Id: 'test-changeset-id' })
+      .on(DescribeChangeSetCommand)
+      .resolves({
+        ChangeSetId: 'test-changeset-id',
+        ChangeSetName: 'test-changeset',
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [{ Type: 'Resource' }]
+      })
+
+    await run()
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockCfnClient).toHaveReceivedCommandWith(CreateChangeSetCommand, {
+      StackName: 'MockStack'
+    })
+    expect(mockCfnClient).not.toHaveReceivedCommand(ExecuteChangeSetCommand)
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'change-set-id',
+      'test-changeset-id'
+    )
+    expect(core.setOutput).toHaveBeenCalledWith('has-changes', 'true')
+  })
+
+  it('execute-only mode executes existing change set', async () => {
+    const changeSetId =
+      'arn:aws:cloudformation:us-east-1:123456789012:changeSet/test-cs/abc123'
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      const inputs = createInputs({
+        mode: 'execute-only',
+        'execute-change-set-id': changeSetId
+      })
+      return inputs[name]
+    })
+
+    mockCfnClient
+      .reset()
+      .on(ExecuteChangeSetCommand)
+      .resolves({})
+      .on(DescribeStacksCommand)
+      .resolves({
+        Stacks: [
+          {
+            StackId: mockStackId,
+            StackName: 'MockStack',
+            StackStatus: StackStatus.UPDATE_COMPLETE,
+            CreationTime: new Date(),
+            Tags: [],
+            Outputs: []
+          }
+        ]
+      })
+
+    await run()
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockCfnClient).toHaveReceivedCommandWith(ExecuteChangeSetCommand, {
+      ChangeSetName: changeSetId,
+      StackName: 'MockStack'
+    })
+    expect(mockCfnClient).not.toHaveReceivedCommand(CreateChangeSetCommand)
+    expect(core.setOutput).toHaveBeenCalledWith('stack-id', mockStackId)
+  })
+
+  it('create-only mode with empty change set', async () => {
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      const inputs = createInputs({
+        mode: 'create-only',
+        'fail-on-empty-changeset': '0'
+      })
+      return inputs[name]
+    })
+
+    mockCfnClient
+      .reset()
+      .on(DescribeStacksCommand)
+      .resolves({
+        Stacks: [
+          {
+            StackId: mockStackId,
+            StackName: 'MockStack',
+            StackStatus: StackStatus.CREATE_COMPLETE,
+            CreationTime: new Date(),
+            Tags: [],
+            Outputs: []
+          }
+        ]
+      })
+      .on(CreateChangeSetCommand)
+      .resolves({ Id: 'test-changeset-id' })
+      .on(DescribeChangeSetCommand)
+      .resolves({
+        Status: ChangeSetStatus.FAILED,
+        StatusReason: "The submitted information didn't contain changes."
+      })
+      .on(DeleteChangeSetCommand)
+      .resolves({})
+
+    await run()
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(core.setOutput).toHaveBeenCalledWith('has-changes', 'false')
+    expect(core.setOutput).toHaveBeenCalledWith('changes-count', '0')
+  })
 })

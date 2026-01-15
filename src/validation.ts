@@ -1,56 +1,15 @@
 import { z } from 'zod'
-import * as fs from 'fs'
+import {
+  parseARNs,
+  parseNumber,
+  parseTags,
+  parseParameters,
+  parseBoolean
+} from './utils'
 
 // Helper transformers
 const emptyToUndefined = (val?: string) =>
   val && val.trim().length > 0 ? val : undefined
-const parseBoolean = (val?: string) => (val ? !!+val : false)
-const parseNumber = (val?: string) =>
-  val ? parseInt(val) || undefined : undefined
-const parseARNs = (val?: string) => (val?.length ? val.split(',') : undefined)
-const parseTags = (val?: string) => {
-  if (!val || val.trim().length === 0) return undefined
-  try {
-    return JSON.parse(val)
-  } catch {
-    return undefined
-  }
-}
-const parseParameters = (val?: string) => {
-  if (!val || val.trim().length === 0) return undefined
-
-  try {
-    const path = new URL(val)
-    const rawParameters = fs.readFileSync(path, 'utf-8')
-    return JSON.parse(rawParameters)
-  } catch (err) {
-    // @ts-expect-error: Object is of type 'unknown'
-    if (err.code !== 'ERR_INVALID_URL') {
-      throw err
-    }
-  }
-
-  const parameters = new Map<string, string>()
-  val.split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g).forEach(parameter => {
-    const values = parameter.trim().split('=')
-    const key = values[0]
-    const value = values.slice(1).join('=')
-    let param = parameters.get(key)
-    param = !param ? value : [param, value].join(',')
-    if (
-      (param.startsWith("'") && param.endsWith("'")) ||
-      (param.startsWith('"') && param.endsWith('"'))
-    ) {
-      param = param.substring(1, param.length - 1)
-    }
-    parameters.set(key, param)
-  })
-
-  return [...parameters.keys()].map(key => ({
-    ParameterKey: key,
-    ParameterValue: parameters.get(key)
-  }))
-}
 
 const baseSchema = z.object({
   mode: z

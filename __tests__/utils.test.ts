@@ -1,4 +1,13 @@
-import { configureProxy, parseTags, isUrl, parseParameters } from '../src/utils'
+import {
+  configureProxy,
+  parseTags,
+  isUrl,
+  parseParameters,
+  parseARNs,
+  parseString,
+  parseNumber,
+  parseBoolean
+} from '../src/utils'
 import * as path from 'path'
 
 jest.mock('@actions/core')
@@ -174,5 +183,67 @@ describe('Configure Proxy', () => {
     process.env.HTTP_PROXY = 'http://localhost:8080'
     const agent = configureProxy('')
     expect(agent).toBeDefined()
+  })
+})
+
+describe('Parse utility functions', () => {
+  test('parseARNs returns undefined on empty string', () => {
+    expect(parseARNs('')).toBeUndefined()
+  })
+
+  test('parseARNs returns undefined on undefined', () => {
+    expect(parseARNs(undefined)).toBeUndefined()
+  })
+
+  test('parseARNs splits comma-separated values', () => {
+    expect(parseARNs('arn1,arn2,arn3')).toEqual(['arn1', 'arn2', 'arn3'])
+  })
+
+  test('parseString returns undefined on empty string', () => {
+    expect(parseString('')).toBeUndefined()
+  })
+
+  test('parseString returns undefined on undefined', () => {
+    expect(parseString(undefined)).toBeUndefined()
+  })
+
+  test('parseString returns value on non-empty string', () => {
+    expect(parseString('test')).toBe('test')
+  })
+
+  test('parseNumber returns undefined on empty string', () => {
+    expect(parseNumber('')).toBeUndefined()
+  })
+
+  test('parseNumber returns undefined on undefined', () => {
+    expect(parseNumber(undefined)).toBeUndefined()
+  })
+
+  test('parseNumber parses valid number', () => {
+    expect(parseNumber('42')).toBe(42)
+  })
+
+  test('parseNumber handles zero correctly', () => {
+    expect(parseNumber('0')).toBe(0)
+  })
+
+  test('parseNumber returns undefined for invalid input', () => {
+    expect(parseNumber('abc')).toBeUndefined()
+  })
+
+  test('parseBoolean returns false on empty string', () => {
+    expect(parseBoolean('')).toBe(false)
+  })
+
+  test('parseBoolean returns false on undefined', () => {
+    expect(parseBoolean(undefined)).toBe(false)
+  })
+
+  test('parseBoolean returns true on "1"', () => {
+    expect(parseBoolean('1')).toBe(true)
+  })
+
+  test('parseBoolean returns false on "0"', () => {
+    expect(parseBoolean('0')).toBe(false)
   })
 })

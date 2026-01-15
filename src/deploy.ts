@@ -21,7 +21,7 @@ export interface ChangeSetInfo {
   changesSummary: string
 }
 
-async function waitUntilStackOperationComplete(
+export async function waitUntilStackOperationComplete(
   params: {
     client: CloudFormationClient
     maxWaitTime: number
