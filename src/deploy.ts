@@ -235,8 +235,10 @@ export async function deployStack(
         cfn.send(
           new CreateStackCommand({
             StackName: params.StackName,
-            TemplateBody: params.TemplateBody,
-            TemplateURL: params.TemplateURL,
+            ...(params.TemplateBody
+              ? { TemplateBody: params.TemplateBody }
+              : {}),
+            ...(params.TemplateURL ? { TemplateURL: params.TemplateURL } : {}),
             Parameters: params.Parameters,
             Capabilities: params.Capabilities,
             ResourceTypes: params.ResourceTypes,
@@ -268,8 +270,10 @@ export async function deployStack(
           Description: changeSetDescription,
           ...{
             StackName: params.StackName,
-            TemplateBody: params.TemplateBody,
-            TemplateURL: params.TemplateURL,
+            ...(params.TemplateBody
+              ? { TemplateBody: params.TemplateBody }
+              : {}),
+            ...(params.TemplateURL ? { TemplateURL: params.TemplateURL } : {}),
             Parameters: params.Parameters,
             Capabilities: params.Capabilities,
             ResourceTypes: params.ResourceTypes,

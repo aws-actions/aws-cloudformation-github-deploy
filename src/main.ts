@@ -161,6 +161,22 @@ export async function run(): Promise<void> {
         ? template
         : path.join(GITHUB_WORKSPACE, template)
       templateBody = fs.readFileSync(templateFilePath, 'utf8')
+
+      // CloudFormation has a 51,200 byte limit for template body
+      const templateSizeBytes = Buffer.byteLength(templateBody, 'utf8')
+      const maxTemplateSizeBytes = 51200
+
+      if (templateSizeBytes > maxTemplateSizeBytes) {
+        throw new Error(
+          `Template size (${templateSizeBytes} bytes) exceeds CloudFormation limit (${maxTemplateSizeBytes} bytes). ` +
+            `Please upload your template to S3 and use the S3 URL instead. ` +
+            `You can use the 'template' input with an S3 URL like: https://s3.amazonaws.com/bucket/template.yml`
+        )
+      }
+
+      core.debug(
+        `Template size: ${templateSizeBytes} bytes (limit: ${maxTemplateSizeBytes} bytes)`
+      )
     }
 
     // CloudFormation Stack Parameter for the creation or update
@@ -171,8 +187,8 @@ export async function run(): Promise<void> {
       NotificationARNs: notificationARNs,
       DisableRollback: disableRollback,
       TimeoutInMinutes: timeoutInMinutes,
-      TemplateBody: templateBody,
-      TemplateURL: templateUrl,
+      ...(templateBody ? { TemplateBody: templateBody } : {}),
+      ...(templateUrl ? { TemplateURL: templateUrl } : {}),
       Tags: tags,
       EnableTerminationProtection: terminationProtections,
       IncludeNestedStacksChangeSet: includeNestedStacksChangeSet
