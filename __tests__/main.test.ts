@@ -236,7 +236,6 @@ describe('Deploy CloudFormation Stack', () => {
       StackName: 'MockStack',
       Tags: undefined,
       TemplateBody: mockTemplate,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -298,7 +297,6 @@ describe('Deploy CloudFormation Stack', () => {
       StackName: 'MockStack',
       Tags: undefined,
       TemplateBody: mockTemplate,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -380,8 +378,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -460,7 +457,6 @@ describe('Deploy CloudFormation Stack', () => {
       StackName: 'MockStack',
       Tags: undefined,
       TemplateBody: mockTemplate,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -550,7 +546,6 @@ describe('Deploy CloudFormation Stack', () => {
       StackName: 'MockStack',
       Tags: undefined,
       TemplateBody: mockTemplate,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -596,7 +591,6 @@ describe('Deploy CloudFormation Stack', () => {
       StackName: 'MockStack',
       TemplateURL:
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
-      TemplateBody: undefined,
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -658,7 +652,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       StackName: 'MockStack',
       Tags: undefined,
-      TemplateBody: undefined,
       TemplateURL:
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
       TimeoutInMinutes: undefined
@@ -717,7 +710,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       StackName: 'MockStack',
       Tags: undefined,
-      TemplateBody: undefined,
       TemplateURL:
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
       TimeoutInMinutes: undefined
@@ -780,7 +772,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       StackName: 'MockStack',
       Tags: undefined,
-      TemplateBody: undefined,
       TemplateURL:
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
       TimeoutInMinutes: undefined
@@ -839,7 +830,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       StackName: 'MockStack',
       Tags: undefined,
-      TemplateBody: undefined,
       TemplateURL:
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
       TimeoutInMinutes: undefined
@@ -898,7 +888,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       StackName: 'MockStack',
       Tags: [{ Key: 'Test', Value: 'Value' }],
-      TemplateBody: undefined,
       TemplateURL:
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
       TimeoutInMinutes: undefined
@@ -957,7 +946,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       StackName: 'MockStack',
       Tags: undefined,
-      TemplateBody: undefined,
       TemplateURL:
         'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
       TimeoutInMinutes: 10
@@ -1122,8 +1110,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1226,8 +1213,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1351,8 +1337,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1471,8 +1456,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1591,8 +1575,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1694,8 +1677,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1784,8 +1766,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1880,8 +1861,7 @@ describe('Deploy CloudFormation Stack', () => {
         RollbackConfiguration: undefined,
         StackName: 'MockStack',
         Tags: undefined,
-        TemplateBody: mockTemplate,
-        TemplateURL: undefined
+        TemplateBody: mockTemplate
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -1976,8 +1956,7 @@ describe('Deploy CloudFormation Stack', () => {
         ResourceTypes: undefined,
         RollbackConfiguration: undefined,
         RoleARN: undefined,
-        Tags: undefined,
-        TemplateURL: undefined
+        Tags: undefined
       }
     )
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
@@ -2115,9 +2094,41 @@ describe('Deploy CloudFormation Stack', () => {
         ResourceTypes: undefined,
         RollbackConfiguration: undefined,
         RoleARN: undefined,
-        Tags: undefined,
-        TemplateURL: undefined
+        Tags: undefined
       }
     )
   })
+})
+
+it('fails when template size exceeds CloudFormation limit', async () => {
+  // Create a template that exceeds 51,200 bytes
+  const largeTemplate = 'x'.repeat(51201)
+
+  jest.spyOn(fs, 'readFileSync').mockReturnValue(largeTemplate)
+
+  jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+    switch (name) {
+      case 'name':
+        return 'MockStack'
+      case 'template':
+        return 'template.yaml'
+      case 'capabilities':
+        return 'CAPABILITY_IAM'
+      case 'parameter-overrides':
+        return 'AdminEmail=no-reply@amazon.com'
+      default:
+        return ''
+    }
+  })
+
+  await run()
+
+  expect(core.setFailed).toHaveBeenCalledWith(
+    expect.stringContaining(
+      'Template size (51201 bytes) exceeds CloudFormation limit (51200 bytes)'
+    )
+  )
+  expect(core.setFailed).toHaveBeenCalledWith(
+    expect.stringContaining('Please upload your template to S3')
+  )
 })
