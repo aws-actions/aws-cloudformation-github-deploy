@@ -50444,15 +50444,26 @@ function waitUntilStackOperationComplete(params, input) {
         throw new Error(`Timeout after ${maxWaitTime} seconds`);
     });
 }
-function executeExistingChangeSet(cfn, stackName, changeSetId) {
-    return __awaiter(this, void 0, void 0, function* () {
+function executeExistingChangeSet(cfn_1, stackName_1, changeSetId_1) {
+    return __awaiter(this, arguments, void 0, function* (cfn, stackName, changeSetId, maxWaitTime = 21000) {
         core.debug(`Executing existing change set: ${changeSetId}`);
         yield cfn.send(new client_cloudformation_1.ExecuteChangeSetCommand({
             ChangeSetName: changeSetId,
             StackName: stackName
         }));
         core.debug('Waiting for CloudFormation stack operation to complete');
-        yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime: 43200, minDelay: 10 }, { StackName: stackName });
+        try {
+            yield waitUntilStackOperationComplete({ client: cfn, maxWaitTime, minDelay: 10 }, { StackName: stackName });
+        }
+        catch (error) {
+            if (error instanceof Error && error.message.includes('Timeout after')) {
+                core.warning(`Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
+                    `Check AWS CloudFormation console for stack '${stackName}' status.`);
+                const stack = yield getStack(cfn, stackName);
+                return stack === null || stack === void 0 ? void 0 : stack.StackId;
+            }
+            throw error;
+        }
         const stack = yield getStack(cfn, stackName);
         return stack === null || stack === void 0 ? void 0 : stack.StackId;
     });
@@ -50566,8 +50577,8 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
         }
     });
 }
-function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
-    return __awaiter(this, void 0, void 0, function* () {
+function updateStack(cfn_1, stack_1, params_1, failOnEmptyChangeSet_1, noExecuteChangeSet_1, noDeleteFailedChangeSet_1) {
+    return __awaiter(this, arguments, void 0, function* (cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime = 21000) {
         var _a, _b, _c, _d;
         core.debug('Creating CloudFormation Change Set');
         const createResponse = yield cfn.send(new client_cloudformation_1.CreateChangeSetCommand(params));
@@ -50600,13 +50611,19 @@ function updateStack(cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSe
         try {
             yield waitUntilStackOperationComplete({
                 client: cfn,
-                maxWaitTime: 43200,
+                maxWaitTime,
                 minDelay: 10
             }, {
                 StackName: params.StackName
             });
         }
         catch (error) {
+            // Handle timeout gracefully
+            if (error instanceof Error && error.message.includes('Timeout after')) {
+                core.warning(`Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
+                    `Check AWS CloudFormation console for stack '${params.StackName}' status.`);
+                return { stackId: stack.StackId };
+            }
             // Get execution failure details using OperationId
             const stackResponse = yield cfn.send(new client_cloudformation_1.DescribeStacksCommand({ StackName: params.StackName }));
             const executionOp = (_c = (_b = (_a = stackResponse.Stacks) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.LastOperations) === null || _c === void 0 ? void 0 : _c.find(op => op.OperationType === 'UPDATE_STACK' ||
@@ -50684,17 +50701,17 @@ function buildUpdateChangeSetParams(params, changeSetName) {
         DeploymentMode: params.DeploymentMode // Only valid for UPDATE change sets
     };
 }
-function deployStack(cfn, params, changeSetName, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet) {
-    return __awaiter(this, void 0, void 0, function* () {
+function deployStack(cfn_1, params_1, changeSetName_1, failOnEmptyChangeSet_1, noExecuteChangeSet_1, noDeleteFailedChangeSet_1) {
+    return __awaiter(this, arguments, void 0, function* (cfn, params, changeSetName, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime = 21000) {
         const stack = yield getStack(cfn, params.StackName);
         if (!stack) {
             core.debug(`Creating CloudFormation Stack via Change Set`);
             const createParams = buildCreateChangeSetParams(params, changeSetName);
-            return yield updateStack(cfn, { StackId: undefined }, createParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+            return yield updateStack(cfn, { StackId: undefined }, createParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime);
         }
         core.debug(`Updating CloudFormation Stack via Change Set`);
         const updateParams = buildUpdateChangeSetParams(params, changeSetName);
-        return yield updateStack(cfn, stack, updateParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet);
+        return yield updateStack(cfn, stack, updateParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime);
     });
 }
 function getStackOutputs(cfn, stackId) {
@@ -50834,7 +50851,13 @@ function run() {
             const cfn = new client_cloudformation_1.CloudFormationClient(Object.assign({}, clientConfiguration));
             // Execute existing change set mode
             if (inputs.mode === 'execute-only') {
-                const stackId = yield (0, deploy_1.executeExistingChangeSet)(cfn, inputs.name, inputs['execute-change-set-id']);
+                // Calculate maxWaitTime for execute-only mode
+                const defaultMaxWaitTime = 21000; // 5 hours 50 minutes in seconds
+                const timeoutMinutes = inputs['timeout-in-minutes'];
+                const maxWaitTime = typeof timeoutMinutes === 'number'
+                    ? timeoutMinutes * 60
+                    : defaultMaxWaitTime;
+                const stackId = yield (0, deploy_1.executeExistingChangeSet)(cfn, inputs.name, inputs['execute-change-set-id'], maxWaitTime);
                 core.setOutput('stack-id', stackId || 'UNKNOWN');
                 if (stackId) {
                     const outputs = yield (0, deploy_1.getStackOutputs)(cfn, stackId);
@@ -50874,7 +50897,13 @@ function run() {
                 DeploymentMode: inputs['deployment-mode'],
                 Parameters: inputs['parameter-overrides']
             };
-            const result = yield (0, deploy_1.deployStack)(cfn, params, inputs['change-set-name'] || `${params.StackName}-CS`, inputs['fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset']);
+            // Calculate maxWaitTime: use timeout-in-minutes if provided, otherwise default to 5h50m (safe for GitHub Actions 6h limit)
+            const defaultMaxWaitTime = 21000; // 5 hours 50 minutes in seconds
+            const timeoutMinutes = inputs['timeout-in-minutes'];
+            const maxWaitTime = typeof timeoutMinutes === 'number'
+                ? timeoutMinutes * 60
+                : defaultMaxWaitTime;
+            const result = yield (0, deploy_1.deployStack)(cfn, params, inputs['change-set-name'] || `${params.StackName}-CS`, inputs['fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset'], maxWaitTime);
             core.setOutput('stack-id', result.stackId || 'UNKNOWN');
             // Set change set outputs when not executing
             if (result.changeSetInfo) {
