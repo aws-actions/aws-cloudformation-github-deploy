@@ -88,7 +88,8 @@ export async function waitUntilStackOperationComplete(
 export async function executeExistingChangeSet(
   cfn: CloudFormationClient,
   stackName: string,
-  changeSetId: string
+  changeSetId: string,
+  maxWaitTime: number = 21000
 ): Promise<string | undefined> {
   core.debug(`Executing existing change set: ${changeSetId}`)
 
@@ -100,10 +101,22 @@ export async function executeExistingChangeSet(
   )
 
   core.debug('Waiting for CloudFormation stack operation to complete')
-  await waitUntilStackOperationComplete(
-    { client: cfn, maxWaitTime: 43200, minDelay: 10 },
-    { StackName: stackName }
-  )
+  try {
+    await waitUntilStackOperationComplete(
+      { client: cfn, maxWaitTime, minDelay: 10 },
+      { StackName: stackName }
+    )
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Timeout after')) {
+      core.warning(
+        `Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
+          `Check AWS CloudFormation console for stack '${stackName}' status.`
+      )
+      const stack = await getStack(cfn, stackName)
+      return stack?.StackId
+    }
+    throw error
+  }
 
   const stack = await getStack(cfn, stackName)
   return stack?.StackId
@@ -267,7 +280,8 @@ export async function updateStack(
   params: CreateChangeSetInput,
   failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
-  noDeleteFailedChangeSet: boolean
+  noDeleteFailedChangeSet: boolean,
+  maxWaitTime: number = 21000
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   core.debug('Creating CloudFormation Change Set')
   const createResponse = await cfn.send(new CreateChangeSetCommand(params))
@@ -330,7 +344,7 @@ export async function updateStack(
     await waitUntilStackOperationComplete(
       {
         client: cfn,
-        maxWaitTime: 43200,
+        maxWaitTime,
         minDelay: 10
       },
       {
@@ -338,6 +352,15 @@ export async function updateStack(
       }
     )
   } catch (error) {
+    // Handle timeout gracefully
+    if (error instanceof Error && error.message.includes('Timeout after')) {
+      core.warning(
+        `Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
+          `Check AWS CloudFormation console for stack '${params.StackName}' status.`
+      )
+      return { stackId: stack.StackId }
+    }
+
     // Get execution failure details using OperationId
     const stackResponse = await cfn.send(
       new DescribeStacksCommand({ StackName: params.StackName! })
@@ -449,7 +472,8 @@ export async function deployStack(
   changeSetName: string,
   failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
-  noDeleteFailedChangeSet: boolean
+  noDeleteFailedChangeSet: boolean,
+  maxWaitTime: number = 21000
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   const stack = await getStack(cfn, params.StackName)
 
@@ -463,7 +487,8 @@ export async function deployStack(
       createParams,
       failOnEmptyChangeSet,
       noExecuteChangeSet,
-      noDeleteFailedChangeSet
+      noDeleteFailedChangeSet,
+      maxWaitTime
     )
   }
 
@@ -476,7 +501,8 @@ export async function deployStack(
     updateParams,
     failOnEmptyChangeSet,
     noExecuteChangeSet,
-    noDeleteFailedChangeSet
+    noDeleteFailedChangeSet,
+    maxWaitTime
   )
 }
 

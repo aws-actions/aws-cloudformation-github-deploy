@@ -4,14 +4,27 @@ import {
   DescribeChangeSetCommand,
   DescribeEventsCommand,
   CreateChangeSetCommand,
+  ExecuteChangeSetCommand,
   StackStatus,
-  ChangeSetStatus
+  ChangeSetStatus,
+  Stack
 } from '@aws-sdk/client-cloudformation'
 import { mockClient } from 'aws-sdk-client-mock'
-import { waitUntilStackOperationComplete, updateStack } from '../src/deploy'
+import {
+  waitUntilStackOperationComplete,
+  updateStack,
+  executeExistingChangeSet
+} from '../src/deploy'
 import * as core from '@actions/core'
 
-jest.mock('@actions/core')
+jest.mock('@actions/core', () => ({
+  ...jest.requireActual('@actions/core'),
+  info: jest.fn(),
+  warning: jest.fn(),
+  setOutput: jest.fn(),
+  setFailed: jest.fn(),
+  debug: jest.fn()
+}))
 
 const mockCfnClient = mockClient(CloudFormationClient)
 const cfn = new CloudFormationClient({ region: 'us-east-1' })
@@ -25,6 +38,7 @@ describe('Deploy error scenarios', () => {
 
   afterEach(() => {
     jest.useRealTimers()
+    jest.restoreAllMocks()
   })
 
   describe('waitUntilStackOperationComplete', () => {
@@ -361,6 +375,193 @@ describe('Deploy error scenarios', () => {
       expect(core.info).toHaveBeenCalledWith(
         expect.stringContaining('Failed to get validation event details')
       )
+    })
+  })
+
+  describe('Timeout handling', () => {
+    it('should timeout after maxWaitTime', async () => {
+      const realDateNow = Date.now
+      const realSetTimeout = global.setTimeout
+      let mockTime = 1000000
+      Date.now = jest.fn(() => mockTime)
+      // Mock setTimeout to resolve immediately
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(global.setTimeout as any) = jest.fn((cb: () => void) => {
+        cb()
+        return 0 as unknown as NodeJS.Timeout
+      })
+
+      mockCfnClient.on(DescribeStacksCommand).callsFake(() => {
+        // Advance mock time by 2 seconds each call
+        mockTime += 2000
+        return {
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackStatus: StackStatus.CREATE_IN_PROGRESS,
+              CreationTime: new Date()
+            }
+          ]
+        }
+      })
+
+      await expect(
+        waitUntilStackOperationComplete(
+          { client: cfn, maxWaitTime: 1, minDelay: 0 },
+          { StackName: 'TestStack' }
+        )
+      ).rejects.toThrow('Timeout after 1 seconds')
+
+      Date.now = realDateNow
+      global.setTimeout = realSetTimeout
+    })
+
+    it('should handle timeout gracefully in executeExistingChangeSet', async () => {
+      const realDateNow = Date.now
+      const realSetTimeout = global.setTimeout
+      let mockTime = 1000000
+      Date.now = jest.fn(() => mockTime)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(global.setTimeout as any) = jest.fn((cb: () => void) => {
+        cb()
+        return 0 as unknown as NodeJS.Timeout
+      })
+
+      mockCfnClient
+        .on(ExecuteChangeSetCommand)
+        .resolves({})
+        .on(DescribeStacksCommand)
+        .callsFake(() => {
+          mockTime += 2000
+          return {
+            Stacks: [
+              {
+                StackName: 'TestStack',
+                StackId: 'test-stack-id',
+                StackStatus: StackStatus.UPDATE_IN_PROGRESS,
+                CreationTime: new Date()
+              }
+            ]
+          }
+        })
+
+      const result = await executeExistingChangeSet(
+        cfn,
+        'TestStack',
+        'test-cs-id',
+        1 // 1 second timeout
+      )
+
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Stack operation exceeded')
+      )
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('TestStack')
+      )
+      expect(result).toBe('test-stack-id')
+
+      Date.now = realDateNow
+      global.setTimeout = realSetTimeout
+    })
+
+    it('should handle timeout gracefully in updateStack', async () => {
+      const realDateNow = Date.now
+      const realSetTimeout = global.setTimeout
+      let mockTime = 1000000
+      Date.now = jest.fn(() => mockTime)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(global.setTimeout as any) = jest.fn((cb: () => void) => {
+        cb()
+        return 0 as unknown as NodeJS.Timeout
+      })
+
+      mockCfnClient
+        .on(CreateChangeSetCommand)
+        .resolves({ Id: 'test-cs-id' })
+        .on(DescribeChangeSetCommand)
+        .resolves({
+          Status: ChangeSetStatus.CREATE_COMPLETE,
+          Changes: []
+        })
+        .on(ExecuteChangeSetCommand)
+        .resolves({})
+        .on(DescribeStacksCommand)
+        .callsFake(() => {
+          mockTime += 2000
+          return {
+            Stacks: [
+              {
+                StackName: 'TestStack',
+                StackId: 'test-stack-id',
+                StackStatus: StackStatus.UPDATE_IN_PROGRESS,
+                CreationTime: new Date()
+              }
+            ]
+          }
+        })
+
+      const result = await updateStack(
+        cfn,
+        { StackId: 'test-stack-id', StackName: 'TestStack' } as Stack,
+        {
+          StackName: 'TestStack',
+          ChangeSetName: 'test-cs',
+          ChangeSetType: 'UPDATE'
+        },
+        false,
+        false, // Execute the change set
+        false,
+        1 // 1 second timeout
+      )
+
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Stack operation exceeded')
+      )
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('TestStack')
+      )
+      expect(result.stackId).toBe('test-stack-id')
+
+      Date.now = realDateNow
+      global.setTimeout = realSetTimeout
+    })
+
+    it('should accept custom maxWaitTime parameter', async () => {
+      mockCfnClient
+        .on(CreateChangeSetCommand)
+        .resolves({ Id: 'test-cs-id' })
+        .on(DescribeChangeSetCommand)
+        .resolves({
+          Status: ChangeSetStatus.CREATE_COMPLETE,
+          Changes: []
+        })
+        .on(DescribeStacksCommand)
+        .resolves({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.CREATE_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+
+      const result = await updateStack(
+        cfn,
+        { StackId: 'test-stack-id', StackName: 'TestStack' } as Stack,
+        {
+          StackName: 'TestStack',
+          ChangeSetName: 'test-cs',
+          ChangeSetType: 'UPDATE'
+        },
+        false,
+        true, // noExecuteChangeSet - skip execution
+        false,
+        300 // Custom maxWaitTime
+      )
+
+      expect(result.stackId).toBe('test-stack-id')
     })
   })
 })

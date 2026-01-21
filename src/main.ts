@@ -109,10 +109,19 @@ export async function run(): Promise<void> {
 
     // Execute existing change set mode
     if (inputs.mode === 'execute-only') {
+      // Calculate maxWaitTime for execute-only mode
+      const defaultMaxWaitTime = 21000 // 5 hours 50 minutes in seconds
+      const timeoutMinutes = inputs['timeout-in-minutes']
+      const maxWaitTime =
+        typeof timeoutMinutes === 'number'
+          ? timeoutMinutes * 60
+          : defaultMaxWaitTime
+
       const stackId = await executeExistingChangeSet(
         cfn,
         inputs.name,
-        inputs['execute-change-set-id']!
+        inputs['execute-change-set-id']!,
+        maxWaitTime
       )
       core.setOutput('stack-id', stackId || 'UNKNOWN')
 
@@ -157,13 +166,22 @@ export async function run(): Promise<void> {
       Parameters: inputs['parameter-overrides']
     }
 
+    // Calculate maxWaitTime: use timeout-in-minutes if provided, otherwise default to 5h50m (safe for GitHub Actions 6h limit)
+    const defaultMaxWaitTime = 21000 // 5 hours 50 minutes in seconds
+    const timeoutMinutes = inputs['timeout-in-minutes']
+    const maxWaitTime =
+      typeof timeoutMinutes === 'number'
+        ? timeoutMinutes * 60
+        : defaultMaxWaitTime
+
     const result = await deployStack(
       cfn,
       params,
       inputs['change-set-name'] || `${params.StackName}-CS`,
       inputs['fail-on-empty-changeset'],
       inputs['no-execute-changeset'] || inputs.mode === 'create-only',
-      inputs['no-delete-failed-changeset']
+      inputs['no-delete-failed-changeset'],
+      maxWaitTime
     )
 
     core.setOutput('stack-id', result.stackId || 'UNKNOWN')
