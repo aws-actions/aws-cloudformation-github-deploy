@@ -9,6 +9,7 @@ import * as core from '@actions/core'
 /**
  * CloudFormation Stack Event interface
  * Represents a single event from CloudFormation stack operations
+ * Includes both StackEvent and OperationEvent fields
  */
 export interface StackEvent {
   Timestamp?: Date
@@ -17,6 +18,19 @@ export interface StackEvent {
   ResourceStatus?: string
   ResourceStatusReason?: string
   PhysicalResourceId?: string
+  // OperationEvent specific fields
+  EventType?: string
+  DetailedStatus?: string
+  OperationId?: string
+  OperationType?: string
+  OperationStatus?: string
+  HookType?: string
+  HookStatus?: string
+  HookStatusReason?: string
+  HookFailureMode?: string
+  HookInvocationPoint?: string
+  ValidationName?: string
+  ValidationFailureMode?: string
 }
 
 /**
@@ -80,6 +94,11 @@ export interface FormattedEvent {
   status: string
   message?: string
   isError: boolean
+  eventType?: string
+  detailedStatus?: string
+  hookInfo?: string
+  validationInfo?: string
+  operationInfo?: string
 }
 
 /**
@@ -1214,12 +1233,55 @@ export class EventFormatterImpl implements EventFormatter {
       message = event.ResourceStatusReason
     }
 
+    // Format OperationEvent specific fields
+    const eventType = event.EventType
+    const detailedStatus = event.DetailedStatus
+
+    // Format hook information if present
+    let hookInfo: string | undefined
+    if (event.HookType || event.HookStatus) {
+      const parts: string[] = []
+      if (event.HookType) parts.push(`Hook: ${event.HookType}`)
+      if (event.HookStatus) parts.push(`Status: ${event.HookStatus}`)
+      if (event.HookFailureMode)
+        parts.push(`FailureMode: ${event.HookFailureMode}`)
+      if (event.HookInvocationPoint)
+        parts.push(`Point: ${event.HookInvocationPoint}`)
+      hookInfo = parts.join(', ')
+      if (event.HookStatusReason) {
+        hookInfo += ` - ${event.HookStatusReason}`
+      }
+    }
+
+    // Format validation information if present
+    let validationInfo: string | undefined
+    if (event.ValidationName) {
+      validationInfo = `Validation: ${event.ValidationName}`
+      if (event.ValidationFailureMode) {
+        validationInfo += ` (${event.ValidationFailureMode})`
+      }
+    }
+
+    // Format operation information if present
+    let operationInfo: string | undefined
+    if (event.OperationType || event.OperationStatus) {
+      const parts: string[] = []
+      if (event.OperationType) parts.push(event.OperationType)
+      if (event.OperationStatus) parts.push(event.OperationStatus)
+      operationInfo = parts.join(': ')
+    }
+
     return {
       timestamp,
       resourceInfo,
       status,
       message,
-      isError
+      isError,
+      eventType,
+      detailedStatus,
+      hookInfo,
+      validationInfo,
+      operationInfo
     }
   }
 
@@ -1341,11 +1403,39 @@ export class EventFormatterImpl implements EventFormatter {
       parts.push(formattedEvent.timestamp)
     }
 
+    // Add event type if present (for non-standard events)
+    if (
+      formattedEvent.eventType &&
+      formattedEvent.eventType !== 'STACK_EVENT'
+    ) {
+      parts.push(`[${formattedEvent.eventType}]`)
+    }
+
     // Add resource information
     parts.push(formattedEvent.resourceInfo)
 
     // Add status
     parts.push(formattedEvent.status)
+
+    // Add detailed status if present
+    if (formattedEvent.detailedStatus) {
+      parts.push(`(${formattedEvent.detailedStatus})`)
+    }
+
+    // Add operation info if present
+    if (formattedEvent.operationInfo) {
+      parts.push(`[${formattedEvent.operationInfo}]`)
+    }
+
+    // Add hook information if present
+    if (formattedEvent.hookInfo) {
+      parts.push(`[${formattedEvent.hookInfo}]`)
+    }
+
+    // Add validation information if present
+    if (formattedEvent.validationInfo) {
+      parts.push(`[${formattedEvent.validationInfo}]`)
+    }
 
     // Add message if available
     if (formattedEvent.message) {
