@@ -15,7 +15,8 @@ import {
   TerminalStackState,
   EventPollerImpl,
   ErrorExtractorImpl,
-  ColorFormatterImpl
+  ColorFormatterImpl,
+  EventFormatterImpl
 } from '../src/event-streaming'
 import { CloudFormationClient } from '@aws-sdk/client-cloudformation'
 
@@ -418,6 +419,128 @@ describe('EventPoller Implementation', () => {
 
       expect(eventPoller.getCurrentInterval()).toBe(initialInterval * 1.5)
     })
+  })
+})
+
+describe('OperationEvent Fields', () => {
+  let colorFormatter: ColorFormatterImpl
+  let errorExtractor: ErrorExtractorImpl
+  let formatter: EventFormatterImpl
+
+  beforeEach(() => {
+    colorFormatter = new ColorFormatterImpl(false) // Disable colors for easier testing
+    errorExtractor = new ErrorExtractorImpl(colorFormatter)
+    formatter = new EventFormatterImpl(colorFormatter, errorExtractor)
+  })
+
+  it('should format validation error events', () => {
+    const event: StackEvent = {
+      Timestamp: new Date('2026-01-22T15:00:00Z'),
+      LogicalResourceId: 'MyFunction',
+      ResourceType: 'AWS::Lambda::Function',
+      ResourceStatus: 'CREATE_FAILED',
+      ResourceStatusReason: 'Validation failed',
+      EventType: 'VALIDATION_ERROR',
+      DetailedStatus: 'VALIDATION_FAILED',
+      ValidationName: 'PermissionCheck',
+      ValidationFailureMode: 'FAIL'
+    }
+
+    const formatted = formatter.formatEvent(event)
+    expect(formatted.eventType).toBe('VALIDATION_ERROR')
+    expect(formatted.detailedStatus).toBe('VALIDATION_FAILED')
+    expect(formatted.validationInfo).toBe('Validation: PermissionCheck (FAIL)')
+  })
+
+  it('should format hook invocation error events', () => {
+    const event: StackEvent = {
+      Timestamp: new Date('2026-01-22T15:00:00Z'),
+      LogicalResourceId: 'MyBucket',
+      ResourceType: 'AWS::S3::Bucket',
+      ResourceStatus: 'CREATE_FAILED',
+      ResourceStatusReason: 'Hook failed',
+      EventType: 'HOOK_INVOCATION_ERROR',
+      HookType: 'MySecurityHook',
+      HookStatus: 'HOOK_COMPLETE_FAILED',
+      HookStatusReason: 'Security policy violation',
+      HookFailureMode: 'FAIL',
+      HookInvocationPoint: 'PRE_PROVISION'
+    }
+
+    const formatted = formatter.formatEvent(event)
+    expect(formatted.eventType).toBe('HOOK_INVOCATION_ERROR')
+    expect(formatted.hookInfo).toContain('Hook: MySecurityHook')
+    expect(formatted.hookInfo).toContain('Status: HOOK_COMPLETE_FAILED')
+    expect(formatted.hookInfo).toContain('FailureMode: FAIL')
+    expect(formatted.hookInfo).toContain('Point: PRE_PROVISION')
+    expect(formatted.hookInfo).toContain('Security policy violation')
+  })
+
+  it('should format operation information', () => {
+    const event: StackEvent = {
+      Timestamp: new Date('2026-01-22T15:00:00Z'),
+      LogicalResourceId: 'MyStack',
+      ResourceType: 'AWS::CloudFormation::Stack',
+      ResourceStatus: 'UPDATE_IN_PROGRESS',
+      OperationType: 'UPDATE_STACK',
+      OperationStatus: 'IN_PROGRESS',
+      OperationId: 'abc-123'
+    }
+
+    const formatted = formatter.formatEvent(event)
+    expect(formatted.operationInfo).toBe('UPDATE_STACK: IN_PROGRESS')
+  })
+
+  it('should handle events with only hook type', () => {
+    const event: StackEvent = {
+      Timestamp: new Date('2026-01-22T15:00:00Z'),
+      LogicalResourceId: 'MyResource',
+      ResourceType: 'AWS::S3::Bucket',
+      ResourceStatus: 'CREATE_IN_PROGRESS',
+      HookType: 'MyHook'
+    }
+
+    const formatted = formatter.formatEvent(event)
+    expect(formatted.hookInfo).toBe('Hook: MyHook')
+  })
+
+  it('should handle events with only validation name', () => {
+    const event: StackEvent = {
+      Timestamp: new Date('2026-01-22T15:00:00Z'),
+      LogicalResourceId: 'MyResource',
+      ResourceType: 'AWS::S3::Bucket',
+      ResourceStatus: 'CREATE_IN_PROGRESS',
+      ValidationName: 'BasicValidation'
+    }
+
+    const formatted = formatter.formatEvent(event)
+    expect(formatted.validationInfo).toBe('Validation: BasicValidation')
+  })
+
+  it('should not show STACK_EVENT type in output', () => {
+    const event: StackEvent = {
+      Timestamp: new Date('2026-01-22T15:00:00Z'),
+      LogicalResourceId: 'MyResource',
+      ResourceType: 'AWS::S3::Bucket',
+      ResourceStatus: 'CREATE_COMPLETE',
+      EventType: 'STACK_EVENT'
+    }
+
+    const line = formatter.formatEvents([event])
+    expect(line).not.toContain('[STACK_EVENT]')
+  })
+
+  it('should show non-STACK_EVENT types in output', () => {
+    const event: StackEvent = {
+      Timestamp: new Date('2026-01-22T15:00:00Z'),
+      LogicalResourceId: 'MyResource',
+      ResourceType: 'AWS::S3::Bucket',
+      ResourceStatus: 'CREATE_FAILED',
+      EventType: 'PROVISIONING_ERROR'
+    }
+
+    const line = formatter.formatEvents([event])
+    expect(line).toContain('[PROVISIONING_ERROR]')
   })
 })
 
