@@ -33,7 +33,7 @@ describe('Event Streaming Coverage Tests', () => {
   describe('EventMonitorImpl error handling coverage', () => {
     test('should handle already active monitoring', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -102,7 +102,7 @@ describe('Event Streaming Coverage Tests', () => {
         send: jest
           .fn()
           .mockRejectedValueOnce(throttlingError)
-          .mockResolvedValue({ StackEvents: [] })
+          .mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -213,7 +213,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle error in displayFinalSummary', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -253,7 +253,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle error in main startMonitoring try-catch', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -710,9 +710,9 @@ describe('Event Streaming Coverage Tests', () => {
       const mockClient = {
         send: jest
           .fn()
-          .mockResolvedValueOnce({ StackEvents: [] })
+          .mockResolvedValueOnce({ OperationEvents: [] })
           .mockResolvedValueOnce({
-            StackEvents: [
+            OperationEvents: [
               {
                 Timestamp: new Date(),
                 LogicalResourceId: 'TestStack',
@@ -766,7 +766,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle no events detected scenario (empty changeset)', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -793,7 +793,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle no events final status logging', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {

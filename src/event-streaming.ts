@@ -1,6 +1,6 @@
 import {
   CloudFormationClient,
-  DescribeStackEventsCommand
+  DescribeEventsCommand
 } from '@aws-sdk/client-cloudformation'
 import * as core from '@actions/core'
 
@@ -24,6 +24,7 @@ export interface StackEvent {
  */
 export interface EventMonitorConfig {
   stackName: string
+  changeSetName?: string
   client: CloudFormationClient
   enableColors: boolean
   pollIntervalMs: number
@@ -453,6 +454,7 @@ export class ErrorExtractorImpl implements ErrorExtractor {
 export class EventPollerImpl implements EventPoller {
   private client: CloudFormationClient
   private stackName: string
+  private changeSetName?: string
   private currentIntervalMs: number
   private readonly initialIntervalMs: number
   private readonly maxIntervalMs: number
@@ -464,10 +466,12 @@ export class EventPollerImpl implements EventPoller {
     client: CloudFormationClient,
     stackName: string,
     initialIntervalMs = 2000,
-    maxIntervalMs = 30000
+    maxIntervalMs = 30000,
+    changeSetName?: string
   ) {
     this.client = client
     this.stackName = stackName
+    this.changeSetName = changeSetName
     this.initialIntervalMs = initialIntervalMs
     this.maxIntervalMs = maxIntervalMs
     this.currentIntervalMs = initialIntervalMs
@@ -477,17 +481,19 @@ export class EventPollerImpl implements EventPoller {
 
   /**
    * Poll for new events since last check
+   * Uses DescribeEvents API with ChangeSetName for precise event tracking
    * Implements exponential backoff and handles API throttling
    * Includes comprehensive error handling for network issues and API failures
    */
   async pollEvents(): Promise<StackEvent[]> {
     try {
-      const command = new DescribeStackEventsCommand({
+      const command = new DescribeEventsCommand({
+        ChangeSetName: this.changeSetName,
         StackName: this.stackName
       })
 
       const response = await this.client.send(command)
-      const allEvents = response.StackEvents || []
+      const allEvents = response.OperationEvents || []
 
       // Filter for new events only
       const newEvents = this.filterNewEvents(allEvents)
@@ -820,7 +826,8 @@ export class EventMonitorImpl implements EventMonitor {
       config.client,
       config.stackName,
       config.pollIntervalMs,
-      config.maxPollIntervalMs
+      config.maxPollIntervalMs,
+      config.changeSetName
     )
 
     this.formatter = new EventFormatterImpl(colorFormatter, errorExtractor)

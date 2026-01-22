@@ -333,7 +333,7 @@ describe('EventPoller Implementation', () => {
       eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
 
       const mockResponse = {
-        StackEvents: [
+        OperationEvents: [
           {
             Timestamp: new Date('2023-01-01T10:00:00Z'),
             LogicalResourceId: 'TestResource',
@@ -348,7 +348,7 @@ describe('EventPoller Implementation', () => {
 
       expect(mockClient.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          input: { StackName: 'test-stack' }
+          input: { StackName: 'test-stack', ChangeSetName: undefined }
         })
       )
       expect(events).toHaveLength(1)
@@ -356,7 +356,7 @@ describe('EventPoller Implementation', () => {
     })
 
     it('should handle empty response', async () => {
-      mockClient.send.mockResolvedValue({ StackEvents: [] })
+      mockClient.send.mockResolvedValue({ OperationEvents: [] })
 
       const events = await eventPoller.pollEvents()
       expect(events).toHaveLength(0)
@@ -390,7 +390,7 @@ describe('EventPoller Implementation', () => {
       eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
 
       const mockResponse = {
-        StackEvents: [
+        OperationEvents: [
           {
             Timestamp: new Date('2023-01-01T10:00:00Z'),
             LogicalResourceId: 'TestResource',
@@ -411,7 +411,7 @@ describe('EventPoller Implementation', () => {
     })
 
     it('should increase interval when no new events are found', async () => {
-      mockClient.send.mockResolvedValue({ StackEvents: [] })
+      mockClient.send.mockResolvedValue({ OperationEvents: [] })
 
       const initialInterval = eventPoller.getCurrentInterval()
       await eventPoller.pollEvents()
