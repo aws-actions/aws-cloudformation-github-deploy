@@ -4,5 +4,6 @@ jest.mock('@actions/core', () => ({
   setOutput: jest.fn(),
   setFailed: jest.fn(),
   debug: jest.fn(),
-  info: jest.fn()
+  info: jest.fn(),
+  warning: jest.fn()
 }));
