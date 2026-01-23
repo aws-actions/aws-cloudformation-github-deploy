@@ -500,21 +500,20 @@ export class EventPollerImpl implements EventPoller {
 
   /**
    * Poll for new events since last check
-   * Uses DescribeEvents API with ChangeSetName for precise event tracking
+   * Uses DescribeEvents API with time-based client-side filtering
    * Implements exponential backoff and handles API throttling
    * Includes comprehensive error handling for network issues and API failures
    */
   async pollEvents(): Promise<StackEvent[]> {
     try {
       const command = new DescribeEventsCommand({
-        ChangeSetName: this.changeSetName,
         StackName: this.stackName
       })
 
       const response = await this.client.send(command)
       const allEvents = response.OperationEvents || []
 
-      // Filter for new events only
+      // Filter for new events only (client-side filtering by time)
       const newEvents = this.filterNewEvents(allEvents)
 
       if (newEvents.length > 0) {

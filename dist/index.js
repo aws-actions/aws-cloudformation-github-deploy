@@ -55142,7 +55142,7 @@ class EventPollerImpl {
     }
     /**
      * Poll for new events since last check
-     * Uses DescribeEvents API with ChangeSetName for precise event tracking
+     * Uses DescribeEvents API with time-based client-side filtering
      * Implements exponential backoff and handles API throttling
      * Includes comprehensive error handling for network issues and API failures
      */
@@ -55150,12 +55150,11 @@ class EventPollerImpl {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const command = new client_cloudformation_1.DescribeEventsCommand({
-                    ChangeSetName: this.changeSetName,
                     StackName: this.stackName
                 });
                 const response = yield this.client.send(command);
                 const allEvents = response.OperationEvents || [];
-                // Filter for new events only
+                // Filter for new events only (client-side filtering by time)
                 const newEvents = this.filterNewEvents(allEvents);
                 if (newEvents.length > 0) {
                     // Reset interval when new events are found
