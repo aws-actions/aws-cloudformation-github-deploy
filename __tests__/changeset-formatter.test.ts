@@ -450,8 +450,14 @@ describe('Change Set Formatter', () => {
     expect(markdown).toContain(
       '**Summary:** 1 to add, 1 to modify, 0 to remove'
     )
-    expect(markdown).toContain('🟢 `AWS::S3::Bucket` **MyBucket**')
-    expect(markdown).toContain('🔵 `AWS::DynamoDB::Table` **MyTable**')
+    expect(markdown).toContain('<details>')
+    expect(markdown).toContain('</details>')
+    expect(markdown).toContain(
+      '<summary>🟢 `AWS::S3::Bucket` **MyBucket**</summary>'
+    )
+    expect(markdown).toContain(
+      '<summary>🔵 `AWS::DynamoDB::Table` **MyTable**</summary>'
+    )
     expect(markdown).toContain('**Physical ID:** `my-table-123`')
     expect(markdown).toContain('⚠️ **Resource will be replaced**')
     expect(markdown).toContain('**BillingMode**')

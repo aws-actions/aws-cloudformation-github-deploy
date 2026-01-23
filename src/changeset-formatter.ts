@@ -357,23 +357,25 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
       }
       const symbol = symbols[rc.Action || ''] || '⚪'
 
-      markdown += `### ${symbol} \`${rc.ResourceType}\` **${rc.LogicalResourceId}**\n\n`
+      // Create expandable section for each resource
+      const summary = `${symbol} \`${rc.ResourceType}\` **${rc.LogicalResourceId}**`
+      markdown += `<details>\n<summary>${summary}</summary>\n\n`
 
       // Physical resource ID
       if (rc.PhysicalResourceId) {
-        markdown += `- **Physical ID:** \`${rc.PhysicalResourceId}\`\n`
+        markdown += `**Physical ID:** \`${rc.PhysicalResourceId}\`\n\n`
       }
 
       // Replacement warning
       if (rc.Action === 'Modify' && rc.Replacement === 'True') {
-        markdown += `- ⚠️ **Resource will be replaced** (may cause downtime)\n`
+        markdown += `⚠️ **Resource will be replaced** (may cause downtime)\n\n`
       } else if (rc.Action === 'Modify' && rc.Replacement === 'Conditional') {
-        markdown += `- ⚠️ **May require replacement**\n`
+        markdown += `⚠️ **May require replacement**\n\n`
       }
 
       // Property changes
       if (rc.Details && rc.Details.length > 0) {
-        markdown += '\n**Property Changes:**\n\n'
+        markdown += '**Property Changes:**\n\n'
         for (const detail of rc.Details) {
           const target = detail.Target
           if (!target) continue
@@ -423,7 +425,7 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
         }
       }
 
-      markdown += '\n'
+      markdown += '\n</details>\n\n'
     }
 
     return markdown
