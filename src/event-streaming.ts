@@ -1220,7 +1220,10 @@ export class EventFormatterImpl implements EventFormatter {
     const resourceInfo = this.formatResourceInfo(event)
 
     // Format status with appropriate coloring
-    const status = this.formatStatus(event.ResourceStatus || 'UNKNOWN')
+    // For operation-level events, use OperationStatus instead of ResourceStatus
+    const statusValue =
+      event.ResourceStatus || event.OperationStatus || 'UNKNOWN'
+    const status = this.formatStatus(statusValue)
 
     // Check if this is an error event and extract error message
     const isError = this.errorExtractor.isErrorEvent(event)

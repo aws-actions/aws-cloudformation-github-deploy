@@ -254,7 +254,7 @@ export async function run(): Promise<void> {
         }
       )
 
-      core.setOutput('stack-id', result.stackId || 'UNKNOWN')
+      core.setOutput('stack-id', result.stackId || params.StackName)
 
       // Set change set outputs when not executing
       if (result.changeSetInfo) {

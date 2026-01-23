@@ -370,7 +370,9 @@ export async function updateStack(
         } minutes but may still be in progress. ` +
           `Check AWS CloudFormation console for stack '${params.StackName}' status.`
       )
-      return { stackId: stack.StackId }
+      // Try to get current stack ID
+      const currentStack = await getStack(cfn, params.StackName!)
+      return { stackId: currentStack?.StackId || stack.StackId }
     }
 
     // Get execution failure details using OperationId
@@ -403,7 +405,9 @@ export async function updateStack(
     throw error
   }
 
-  return { stackId: stack.StackId }
+  // Get final stack to retrieve ID (important for CREATE operations where stack.StackId was initially undefined)
+  const finalStack = await getStack(cfn, params.StackName!)
+  return { stackId: finalStack?.StackId || stack.StackId }
 }
 
 async function getStack(
