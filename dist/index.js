@@ -54516,12 +54516,12 @@ function waitUntilStackOperationComplete(params, input) {
                     throw new Error(`Stack ${input.StackName} not found`);
                 }
                 const status = stack.StackStatus;
-                core.info(`Stack status: ${status}`);
+                core.debug(`Stack status: ${status}`);
                 // Success states - operation completed successfully
                 if (status === 'CREATE_COMPLETE' ||
                     status === 'UPDATE_COMPLETE' ||
                     status === 'IMPORT_COMPLETE') {
-                    core.info(`Stack operation completed with status: ${status}`);
+                    core.debug(`Stack operation completed with status: ${status}`);
                     return;
                 }
                 // Failure states - operation failed
@@ -54539,7 +54539,7 @@ function waitUntilStackOperationComplete(params, input) {
                     throw new Error(failureReason);
                 }
                 // In-progress states - keep waiting
-                core.info(`Stack still in progress, waiting ${minDelay} seconds...`);
+                core.debug(`Stack still in progress, waiting ${minDelay} seconds...`);
                 yield new Promise(resolve => setTimeout(resolve, minDelay * 1000));
             }
             catch (error) {
@@ -55781,8 +55781,16 @@ class EventFormatterImpl {
     /**
      * Format resource information with truncation and type display
      * Handles long resource names by truncating them appropriately
+     * For operation-level events without resource info, returns empty string
      */
     formatResourceInfo(event) {
+        // For operation-level events without resource details, return empty
+        // (operation info will be shown separately)
+        if (!event.ResourceType &&
+            !event.LogicalResourceId &&
+            event.OperationType) {
+            return '';
+        }
         const resourceType = event.ResourceType || 'Unknown';
         const logicalId = event.LogicalResourceId || 'Unknown';
         const physicalId = event.PhysicalResourceId;
@@ -55838,8 +55846,10 @@ class EventFormatterImpl {
             formattedEvent.eventType !== 'STACK_EVENT') {
             parts.push(`[${formattedEvent.eventType}]`);
         }
-        // Add resource information
-        parts.push(formattedEvent.resourceInfo);
+        // Add resource information (skip if empty for operation-level events)
+        if (formattedEvent.resourceInfo) {
+            parts.push(formattedEvent.resourceInfo);
+        }
         // Add status
         parts.push(formattedEvent.status);
         // Add detailed status if present

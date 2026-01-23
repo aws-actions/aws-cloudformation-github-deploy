@@ -1330,8 +1330,19 @@ export class EventFormatterImpl implements EventFormatter {
   /**
    * Format resource information with truncation and type display
    * Handles long resource names by truncating them appropriately
+   * For operation-level events without resource info, returns empty string
    */
   private formatResourceInfo(event: StackEvent): string {
+    // For operation-level events without resource details, return empty
+    // (operation info will be shown separately)
+    if (
+      !event.ResourceType &&
+      !event.LogicalResourceId &&
+      event.OperationType
+    ) {
+      return ''
+    }
+
     const resourceType = event.ResourceType || 'Unknown'
     const logicalId = event.LogicalResourceId || 'Unknown'
     const physicalId = event.PhysicalResourceId
@@ -1414,8 +1425,10 @@ export class EventFormatterImpl implements EventFormatter {
       parts.push(`[${formattedEvent.eventType}]`)
     }
 
-    // Add resource information
-    parts.push(formattedEvent.resourceInfo)
+    // Add resource information (skip if empty for operation-level events)
+    if (formattedEvent.resourceInfo) {
+      parts.push(formattedEvent.resourceInfo)
+    }
 
     // Add status
     parts.push(formattedEvent.status)
