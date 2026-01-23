@@ -197,10 +197,12 @@ export async function withRetry<T>(
     try {
       return await operation()
     } catch (error: unknown) {
-      // Check for throttling by error name or message
+      // Check for CloudFormation throttling errors
+      // CloudFormation uses error.name === 'Throttling' with message 'Rate exceeded'
       const isThrottling =
         error instanceof Error &&
-        (error.name === 'ThrottlingException' ||
+        (error.name === 'Throttling' ||
+          error.name === 'ThrottlingException' ||
           error.name === 'TooManyRequestsException' ||
           error.message.includes('Rate exceeded'))
 

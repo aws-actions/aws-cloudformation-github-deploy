@@ -481,6 +481,27 @@ describe('withRetry', () => {
     expect(operation).toHaveBeenCalledTimes(1)
   })
 
+  test('retries on CloudFormation Throttling error', async () => {
+    jest.useFakeTimers()
+    const error = new Error('Rate exceeded')
+    error.name = 'Throttling' // CloudFormation uses 'Throttling' not 'ThrottlingException'
+    const operation = jest
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce('success')
+
+    const retryPromise = withRetry(operation, 5, 100)
+
+    // Advance timer for the first retry (since it succeeds on second try)
+    await jest.advanceTimersByTimeAsync(100)
+
+    const result = await retryPromise
+    expect(result).toBe('success')
+    expect(operation).toHaveBeenCalledTimes(2)
+
+    jest.useRealTimers()
+  }, 10000)
+
   test('retries on rate exceeded error', async () => {
     jest.useFakeTimers()
     const error = new Error('Rate exceeded')

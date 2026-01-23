@@ -536,9 +536,11 @@ export class EventPollerImpl implements EventPoller {
       return newEvents
     } catch (error) {
       // Handle specific AWS API errors
+      // CloudFormation throttling uses error.name === 'Throttling'
       if (
         error instanceof Error &&
-        (error.name === 'ThrottlingException' ||
+        (error.name === 'Throttling' ||
+          error.name === 'ThrottlingException' ||
           error.name === 'TooManyRequestsException')
       ) {
         core.warning(`CloudFormation API throttling detected, backing off...`)
@@ -990,9 +992,11 @@ export class EventMonitorImpl implements EventMonitor {
         consecutiveErrors++
 
         // Handle polling errors gracefully with progressive backoff
+        // CloudFormation throttling uses error.name === 'Throttling'
         if (
           error instanceof Error &&
-          (error.name === 'ThrottlingException' ||
+          (error.name === 'Throttling' ||
+            error.name === 'ThrottlingException' ||
             error.name === 'TooManyRequestsException')
         ) {
           core.warning(
