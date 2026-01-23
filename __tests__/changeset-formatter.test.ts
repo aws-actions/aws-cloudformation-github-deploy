@@ -1,4 +1,7 @@
-import { displayChangeSet } from '../src/changeset-formatter'
+import {
+  displayChangeSet,
+  generateChangeSetMarkdown
+} from '../src/changeset-formatter'
 
 // Mock @actions/core
 jest.mock('@actions/core', () => ({
@@ -399,5 +402,61 @@ describe('Change Set Formatter', () => {
     expect(core.info).toHaveBeenCalledWith(
       expect.stringContaining('Modified: Tags, Properties')
     )
+  })
+
+  test('generates markdown for PR comments', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Add',
+            LogicalResourceId: 'MyBucket',
+            ResourceType: 'AWS::S3::Bucket',
+            Scope: [],
+            Details: []
+          }
+        },
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyTable',
+            PhysicalResourceId: 'my-table-123',
+            ResourceType: 'AWS::DynamoDB::Table',
+            Replacement: 'True',
+            Scope: ['Properties'],
+            Details: [
+              {
+                Target: {
+                  Attribute: 'Properties',
+                  Name: 'BillingMode',
+                  RequiresRecreation: 'Always',
+                  BeforeValue: 'PROVISIONED',
+                  AfterValue: 'PAY_PER_REQUEST'
+                }
+              }
+            ]
+          }
+        }
+      ],
+      totalChanges: 2,
+      truncated: false
+    })
+
+    const markdown = generateChangeSetMarkdown(changesSummary)
+
+    expect(markdown).toContain('## 📋 CloudFormation Change Set')
+    expect(markdown).toContain(
+      '**Summary:** 1 to add, 1 to modify, 0 to remove'
+    )
+    expect(markdown).toContain('🟢 `AWS::S3::Bucket` **MyBucket**')
+    expect(markdown).toContain('🔵 `AWS::DynamoDB::Table` **MyTable**')
+    expect(markdown).toContain('**Physical ID:** `my-table-123`')
+    expect(markdown).toContain('⚠️ **Resource will be replaced**')
+    expect(markdown).toContain('**BillingMode**')
+    expect(markdown).toContain('Before: `PROVISIONED`')
+    expect(markdown).toContain('After: `PAY_PER_REQUEST`')
+    expect(markdown).toContain('⚠️ Requires recreation: Always')
   })
 })

@@ -8,7 +8,10 @@ import {
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import * as fs from 'fs'
-import { displayChangeSet } from './changeset-formatter'
+import {
+  displayChangeSet,
+  generateChangeSetMarkdown
+} from './changeset-formatter'
 import {
   deployStack,
   getStackOutputs,
@@ -280,6 +283,12 @@ export async function run(): Promise<void> {
           result.changeSetInfo.changesCount,
           true // Enable colors for GitHub Actions
         )
+
+        // Generate markdown output for PR comments
+        const markdown = generateChangeSetMarkdown(
+          result.changeSetInfo.changesSummary
+        )
+        core.setOutput('changes-markdown', markdown)
       }
 
       if (result.stackId) {

@@ -1116,7 +1116,7 @@ describe('Deploy CloudFormation Stack', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(core.setOutput).toHaveBeenCalledTimes(6)
+    expect(core.setOutput).toHaveBeenCalledTimes(7)
     expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 2)
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
       1,
@@ -1299,7 +1299,7 @@ describe('Deploy CloudFormation Stack', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(core.setOutput).toHaveBeenCalledTimes(6)
+    expect(core.setOutput).toHaveBeenCalledTimes(7)
     expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 2)
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
       1,

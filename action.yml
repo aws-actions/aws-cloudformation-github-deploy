@@ -82,6 +82,8 @@ outputs:
     description: "Number of changes in the change set (only when no-execute-changeset is true)"
   changes-summary:
     description: "JSON summary of changes in the change set (only when no-execute-changeset is true)"
+  changes-markdown:
+    description: "Markdown-formatted change set summary for PR comments (only when no-execute-changeset is true)"
 runs:
   using: "node20"
   main: "dist/index.js"

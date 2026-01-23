@@ -305,3 +305,129 @@ export function displayChangeSet(
     core.info(changesSummary)
   }
 }
+
+/**
+ * Generate markdown-formatted change set for PR comments
+ */
+export function generateChangeSetMarkdown(changesSummary: string): string {
+  try {
+    const summary: ChangeSetSummary = JSON.parse(changesSummary)
+
+    // Group changes by action
+    const grouped = {
+      Add: [] as Change[],
+      Modify: [] as Change[],
+      Remove: [] as Change[]
+    }
+
+    for (const change of summary.changes) {
+      const action = change.ResourceChange?.Action
+      if (action && action in grouped) {
+        grouped[action as keyof typeof grouped].push(change as Change)
+      }
+    }
+
+    const addCount = grouped.Add.length
+    const modifyCount = grouped.Modify.length
+    const removeCount = grouped.Remove.length
+
+    let markdown = '## 📋 CloudFormation Change Set\n\n'
+    markdown += `**Summary:** ${addCount} to add, ${modifyCount} to modify, ${removeCount} to remove\n\n`
+
+    if (summary.truncated) {
+      markdown += `> ⚠️ **Warning:** Change set truncated. Showing ${summary.changes.length} of ${summary.totalChanges} total changes.\n\n`
+    }
+
+    // Display changes by type
+    const allChanges = [...grouped.Add, ...grouped.Modify, ...grouped.Remove]
+
+    if (allChanges.length === 0) {
+      markdown += '_No changes detected_\n'
+      return markdown
+    }
+
+    for (const change of allChanges) {
+      const rc = change.ResourceChange
+      if (!rc) continue
+
+      const symbols: Record<string, string> = {
+        Add: '🟢',
+        Modify: '🔵',
+        Remove: '🔴'
+      }
+      const symbol = symbols[rc.Action || ''] || '⚪'
+
+      markdown += `### ${symbol} \`${rc.ResourceType}\` **${rc.LogicalResourceId}**\n\n`
+
+      // Physical resource ID
+      if (rc.PhysicalResourceId) {
+        markdown += `- **Physical ID:** \`${rc.PhysicalResourceId}\`\n`
+      }
+
+      // Replacement warning
+      if (rc.Action === 'Modify' && rc.Replacement === 'True') {
+        markdown += `- ⚠️ **Resource will be replaced** (may cause downtime)\n`
+      } else if (rc.Action === 'Modify' && rc.Replacement === 'Conditional') {
+        markdown += `- ⚠️ **May require replacement**\n`
+      }
+
+      // Property changes
+      if (rc.Details && rc.Details.length > 0) {
+        markdown += '\n**Property Changes:**\n\n'
+        for (const detail of rc.Details) {
+          const target = detail.Target
+          if (!target) continue
+
+          const propName = target.Name || target.Attribute || 'Unknown'
+          markdown += `- **${propName}**\n`
+
+          if (target.BeforeValue && target.AfterValue) {
+            markdown += `  - Before: \`${target.BeforeValue}\`\n`
+            markdown += `  - After: \`${target.AfterValue}\`\n`
+          } else if (target.AfterValue) {
+            markdown += `  - Value: \`${target.AfterValue}\`\n`
+          } else if (target.BeforeValue) {
+            markdown += `  - Removed: \`${target.BeforeValue}\`\n`
+          }
+
+          if (
+            target.RequiresRecreation &&
+            target.RequiresRecreation !== 'Never'
+          ) {
+            markdown += `  - ⚠️ Requires recreation: ${target.RequiresRecreation}\n`
+          }
+        }
+      }
+
+      // AfterContext for Add actions
+      if (rc.Action === 'Add' && rc.AfterContext) {
+        try {
+          const afterProps = JSON.parse(rc.AfterContext)
+          markdown += '\n**Properties:**\n```json\n'
+          markdown += JSON.stringify(afterProps, null, 2)
+          markdown += '\n```\n'
+        } catch {
+          // Skip if can't parse
+        }
+      }
+
+      // BeforeContext for Remove actions
+      if (rc.Action === 'Remove' && rc.BeforeContext) {
+        try {
+          const beforeProps = JSON.parse(rc.BeforeContext)
+          markdown += '\n**Properties:**\n```json\n'
+          markdown += JSON.stringify(beforeProps, null, 2)
+          markdown += '\n```\n'
+        } catch {
+          // Skip if can't parse
+        }
+      }
+
+      markdown += '\n'
+    }
+
+    return markdown
+  } catch (error) {
+    return `## ⚠️ Failed to format change set\n\n\`\`\`\n${error instanceof Error ? error.message : String(error)}\n\`\`\`\n`
+  }
+}
