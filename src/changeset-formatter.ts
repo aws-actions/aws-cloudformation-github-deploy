@@ -192,6 +192,39 @@ function formatResourceChange(
     details.push(`${gray}Modified: ${rc.Scope.join(', ')}${reset}`)
   }
 
+  // Show AfterContext for Add actions (contains the properties being added)
+  if (rc.Action === 'Add' && rc.AfterContext) {
+    const gray = enableColors ? COLORS.gray : ''
+    const green = enableColors ? COLORS.green : ''
+    try {
+      const afterProps = JSON.parse(rc.AfterContext)
+      details.push(`${gray}Properties:${reset}`)
+      const propsJson = JSON.stringify(afterProps, null, 2)
+      propsJson.split('\n').forEach(line => {
+        details.push(`  ${green}${line}${reset}`)
+      })
+    } catch {
+      // If parsing fails, show raw
+      details.push(`${gray}Properties: ${rc.AfterContext}${reset}`)
+    }
+  }
+
+  // Show BeforeContext for Remove actions
+  if (rc.Action === 'Remove' && rc.BeforeContext) {
+    const gray = enableColors ? COLORS.gray : ''
+    const red = enableColors ? COLORS.red : ''
+    try {
+      const beforeProps = JSON.parse(rc.BeforeContext)
+      details.push(`${gray}Properties:${reset}`)
+      const propsJson = JSON.stringify(beforeProps, null, 2)
+      propsJson.split('\n').forEach(line => {
+        details.push(`  ${red}${line}${reset}`)
+      })
+    } catch {
+      details.push(`${gray}Properties: ${rc.BeforeContext}${reset}`)
+    }
+  }
+
   return { title, details }
 }
 
