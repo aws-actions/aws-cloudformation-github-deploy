@@ -54734,7 +54734,9 @@ function updateStack(cfn_1, stack_1, params_1, failOnEmptyChangeSet_1, noExecute
             if (error instanceof Error && error.message.includes('Timeout after')) {
                 core.warning(`Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
                     `Check AWS CloudFormation console for stack '${params.StackName}' status.`);
-                return { stackId: stack.StackId };
+                // Try to get current stack ID
+                const currentStack = yield getStack(cfn, params.StackName);
+                return { stackId: (currentStack === null || currentStack === void 0 ? void 0 : currentStack.StackId) || stack.StackId };
             }
             // Get execution failure details using OperationId
             const stackResponse = yield cfn.send(new client_cloudformation_1.DescribeStacksCommand({ StackName: params.StackName }));
@@ -54752,7 +54754,9 @@ function updateStack(cfn_1, stack_1, params_1, failOnEmptyChangeSet_1, noExecute
             }
             throw error;
         }
-        return { stackId: stack.StackId };
+        // Get final stack to retrieve ID (important for CREATE operations where stack.StackId was initially undefined)
+        const finalStack = yield getStack(cfn, params.StackName);
+        return { stackId: (finalStack === null || finalStack === void 0 ? void 0 : finalStack.StackId) || stack.StackId };
     });
 }
 function getStack(cfn, stackNameOrId) {
@@ -55679,7 +55683,9 @@ class EventFormatterImpl {
         // Format resource information with truncation
         const resourceInfo = this.formatResourceInfo(event);
         // Format status with appropriate coloring
-        const status = this.formatStatus(event.ResourceStatus || 'UNKNOWN');
+        // For operation-level events, use OperationStatus instead of ResourceStatus
+        const statusValue = event.ResourceStatus || event.OperationStatus || 'UNKNOWN';
+        const status = this.formatStatus(statusValue);
         // Check if this is an error event and extract error message
         const isError = this.errorExtractor.isErrorEvent(event);
         let message;
@@ -56179,7 +56185,7 @@ function run() {
                         core.warning(`Failed to start event streaming: ${error instanceof Error ? error.message : String(error)}`);
                     }
                 });
-                core.setOutput('stack-id', result.stackId || 'UNKNOWN');
+                core.setOutput('stack-id', result.stackId || params.StackName);
                 // Set change set outputs when not executing
                 if (result.changeSetInfo) {
                     core.setOutput('change-set-id', result.changeSetInfo.changeSetId || '');
