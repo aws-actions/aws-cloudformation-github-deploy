@@ -200,7 +200,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
     expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('deploys the stack with template from absolute path', async () => {
@@ -217,7 +221,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(core.setFailed).toHaveBeenCalledTimes(0)
     expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 4)
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   // This seems inappropriate, but we are adding a test for the expected behavior
@@ -340,7 +348,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 4)
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('sets the stack outputs as action outputs', async () => {
@@ -425,7 +437,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 4)
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('deploys the stack with termination protection', async () => {
@@ -447,7 +463,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
     expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('deploys the stack with disabling rollback', async () => {
@@ -469,7 +489,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
     expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('deploys the stack with Notification ARNs', async () => {
@@ -492,7 +516,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
     expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('deploys the stack with Role ARN', async () => {
@@ -514,7 +542,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
     expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('deploys the stack with tags', async () => {
@@ -536,7 +568,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
     expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('deploys the stack with timeout', async () => {
@@ -558,7 +594,11 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 1)
     expect(core.setOutput).toHaveBeenCalledTimes(1)
-    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'stack-id', 'MockStack')
+    expect(core.setOutput).toHaveBeenNthCalledWith(
+      1,
+      'stack-id',
+      'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
+    )
   })
 
   test('successfully update the stack', async () => {
@@ -659,7 +699,7 @@ describe('Deploy CloudFormation Stack', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 4)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 2)
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
       1,
       DescribeStacksCommand,
@@ -831,7 +871,7 @@ describe('Deploy CloudFormation Stack', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
-    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 4)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 2)
     expect(mockCfnClient).toHaveReceivedCommandTimes(CreateChangeSetCommand, 1)
     expect(mockCfnClient).toHaveReceivedCommandTimes(ExecuteChangeSetCommand, 0)
   })
@@ -1077,7 +1117,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
     expect(core.setOutput).toHaveBeenCalledTimes(6)
-    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 4)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 2)
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
       1,
       DescribeStacksCommand,
@@ -1260,7 +1300,7 @@ describe('Deploy CloudFormation Stack', () => {
 
     expect(core.setFailed).toHaveBeenCalledTimes(0)
     expect(core.setOutput).toHaveBeenCalledTimes(6)
-    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 4)
+    expect(mockCfnClient).toHaveReceivedCommandTimes(DescribeStacksCommand, 2)
     expect(mockCfnClient).toHaveReceivedNthCommandWith(
       1,
       DescribeStacksCommand,
