@@ -89,7 +89,7 @@ export async function executeExistingChangeSet(
   cfn: CloudFormationClient,
   stackName: string,
   changeSetId: string,
-  maxWaitTime: number = 21000
+  maxWaitTime = 21000
 ): Promise<string | undefined> {
   core.debug(`Executing existing change set: ${changeSetId}`)
 
@@ -109,7 +109,9 @@ export async function executeExistingChangeSet(
   } catch (error) {
     if (error instanceof Error && error.message.includes('Timeout after')) {
       core.warning(
-        `Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
+        `Stack operation exceeded ${
+          maxWaitTime / 60
+        } minutes but may still be in progress. ` +
           `Check AWS CloudFormation console for stack '${stackName}' status.`
       )
       const stack = await getStack(cfn, stackName)
@@ -232,7 +234,9 @@ export async function cleanupChangeSet(
             })
           )
           core.info(
-            `Retrieved ${events.OperationEvents?.length || 0} events for change set`
+            `Retrieved ${
+              events.OperationEvents?.length || 0
+            } events for change set`
           )
           const validationEvents = events.OperationEvents?.filter(
             event => event.EventType === 'VALIDATION_ERROR'
@@ -281,7 +285,7 @@ export async function updateStack(
   failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean,
-  maxWaitTime: number = 21000
+  maxWaitTime = 21000
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   core.debug('Creating CloudFormation Change Set')
   const createResponse = await cfn.send(new CreateChangeSetCommand(params))
@@ -355,7 +359,9 @@ export async function updateStack(
     // Handle timeout gracefully
     if (error instanceof Error && error.message.includes('Timeout after')) {
       core.warning(
-        `Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
+        `Stack operation exceeded ${
+          maxWaitTime / 60
+        } minutes but may still be in progress. ` +
           `Check AWS CloudFormation console for stack '${params.StackName}' status.`
       )
       return { stackId: stack.StackId }
@@ -382,7 +388,9 @@ export async function updateStack(
       if (eventsResponse.OperationEvents?.length) {
         const failureEvent = eventsResponse.OperationEvents[0]
         throw new Error(
-          `Stack execution failed: ${failureEvent.ResourceStatusReason || failureEvent.ResourceStatus}`
+          `Stack execution failed: ${
+            failureEvent.ResourceStatusReason || failureEvent.ResourceStatus
+          }`
         )
       }
     }
@@ -473,7 +481,7 @@ export async function deployStack(
   failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean,
-  maxWaitTime: number = 21000
+  maxWaitTime = 21000
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   const stack = await getStack(cfn, params.StackName)
 

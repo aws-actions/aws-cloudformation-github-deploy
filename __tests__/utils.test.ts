@@ -3,14 +3,9 @@ import {
   parseTags,
   isUrl,
   parseParameters,
-  parseARNs,
-  parseString,
-  parseNumber,
-  parseBoolean
+  withRetry
 } from '../src/utils'
 import * as path from 'path'
-
-jest.mock('@actions/core')
 
 const oldEnv = process.env
 
@@ -46,6 +41,41 @@ describe('Parse Tags', () => {
     const json = parseTags(JSON.stringify([{ Key: 'Test', Value: 'Value' }]))
     expect(json).toEqual([{ Key: 'Test', Value: 'Value' }])
   })
+
+  test('returns valid Array from YAML key-value object format', async () => {
+    const yaml = `
+Key1: Value1
+Key2: Value2
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      { Key: 'Key1', Value: 'Value1' },
+      { Key: 'Key2', Value: 'Value2' }
+    ])
+  })
+
+  test('returns valid Array from YAML array format', async () => {
+    const yaml = `
+- Key: keyname1
+  Value: value1
+- Key: keyname2
+  Value: value2
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      { Key: 'keyname1', Value: 'value1' },
+      { Key: 'keyname2', Value: 'value2' }
+    ])
+  })
+
+  test('returns undefined for invalid YAML', async () => {
+    const invalidYaml = `
+    Key1: 'Value1
+    Key2: Value2
+    `
+    const result = parseTags(invalidYaml)
+    expect(result).toBeUndefined()
+  })
 })
 
 describe('Parse Parameters', () => {
@@ -56,6 +86,50 @@ describe('Parse Parameters', () => {
 
   afterAll(() => {
     process.env = oldEnv
+  })
+
+  test('returns parameters empty string', async () => {
+    const json = parseParameters('')
+    expect(json).toBeUndefined()
+  })
+
+  test('returns parameters empty YAML', async () => {
+    const json = parseParameters('0')
+    expect(json).toBeUndefined()
+  })
+
+  type CFParameterValue = string | string[] | boolean
+  type CFParameterObject = Record<string, CFParameterValue>
+
+  test('handles empty parameter overrides object', () => {
+    const parameterOverrides: CFParameterObject = {}
+    const result = parseParameters(parameterOverrides)
+    expect(result).toEqual([])
+  })
+
+  test('handles undefined values in parameter overrides object', () => {
+    const parameterOverrides: CFParameterObject = {
+      ValidParam: 'value',
+      EmptyParam: '',
+      ListParam: ['value1', 'value2']
+    }
+
+    const result = parseParameters(parameterOverrides)
+
+    expect(result).toEqual([
+      {
+        ParameterKey: 'ValidParam',
+        ParameterValue: 'value'
+      },
+      {
+        ParameterKey: 'EmptyParam',
+        ParameterValue: ''
+      },
+      {
+        ParameterKey: 'ListParam',
+        ParameterValue: 'value1,value2'
+      }
+    ])
   })
 
   test('returns parameters list from string', async () => {
@@ -90,7 +164,7 @@ describe('Parse Parameters', () => {
 
   test('returns parameters list with an extra equal', async () => {
     const json = parseParameters(
-      'MyParam1=myValue1,MyParam2=myValue2=myValue3,MyParam2=myValue4'
+      'MyParam1=myValue1,MyParam2=myValue2=myValue3,MyParam2=myValue4 '
     )
     expect(json).toEqual([
       {
@@ -151,6 +225,85 @@ describe('Parse Parameters', () => {
     ])
   })
 
+  test('returns parameters list from YAML array format', async () => {
+    const yaml = `
+- ParameterKey: MyParam1
+  ParameterValue: myValue1
+- ParameterKey: MyParam2
+  ParameterValue: myValue2
+`
+    const json = parseParameters(yaml)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'myValue2'
+      }
+    ])
+  })
+
+  test('handles YAML with nested values', async () => {
+    const yaml = `
+MyParam1: myValue1
+MyParam2:
+  - item1
+  - item2
+MyParam3:
+  key: value
+MyParam4: {"key":"value"}
+`
+    const json = parseParameters(yaml)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'MyParam1',
+        ParameterValue: 'myValue1'
+      },
+      {
+        ParameterKey: 'MyParam2',
+        ParameterValue: 'item1,item2'
+      },
+      {
+        ParameterKey: 'MyParam3',
+        ParameterValue: '{"key":"value"}'
+      },
+      {
+        ParameterKey: 'MyParam4',
+        ParameterValue: '{"key":"value"}'
+      }
+    ])
+  })
+
+  test('handles YAML with boolean and number values', async () => {
+    const yaml = `
+BoolParam: true
+NumberParam: 123
+StringParam: 'hello'
+NullParam: null
+`
+    const json = parseParameters(yaml)
+    expect(json).toEqual([
+      {
+        ParameterKey: 'BoolParam',
+        ParameterValue: 'true'
+      },
+      {
+        ParameterKey: 'NumberParam',
+        ParameterValue: '123'
+      },
+      {
+        ParameterKey: 'StringParam',
+        ParameterValue: 'hello'
+      },
+      {
+        ParameterKey: 'NullParam',
+        ParameterValue: ''
+      }
+    ])
+  })
+
   test('throws error if file is not found', async () => {
     const filename = 'file://' + path.join(__dirname, 'params.tezt.json')
     expect(() => parseParameters(filename)).toThrow()
@@ -160,6 +313,246 @@ describe('Parse Parameters', () => {
     const filename =
       'file://' + path.join(__dirname, 'params-invalid.test.json')
     expect(() => parseParameters(filename)).toThrow()
+  })
+})
+
+describe('Parse Tags', () => {
+  test('parses tags from YAML array format', () => {
+    const yaml = `
+- Key: Environment
+  Value: Production
+- Key: Project
+  Value: MyApp
+- Key: CostCenter
+  Value: '12345'
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: 'Production'
+      },
+      {
+        Key: 'Project',
+        Value: 'MyApp'
+      },
+      {
+        Key: 'CostCenter',
+        Value: '12345'
+      }
+    ])
+  })
+
+  test('parses tags from YAML object format', () => {
+    const yaml = `
+Environment: Production
+Project: MyApp
+CostCenter: '12345'
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: 'Production'
+      },
+      {
+        Key: 'Project',
+        Value: 'MyApp'
+      },
+      {
+        Key: 'CostCenter',
+        Value: '12345'
+      }
+    ])
+  })
+
+  test('handles empty YAML input', () => {
+    expect(parseTags('')).toEqual(undefined)
+    expect(parseTags('0')).toEqual(undefined)
+  })
+
+  test('handles YAML with different value types', () => {
+    const yaml = `
+Environment: Production
+IsProduction: true
+InstanceCount: 5
+FloatValue: 3.14
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: 'Production'
+      },
+      {
+        Key: 'IsProduction',
+        Value: 'true'
+      },
+      {
+        Key: 'InstanceCount',
+        Value: '5'
+      },
+      {
+        Key: 'FloatValue',
+        Value: '3.14'
+      }
+    ])
+  })
+
+  test('handles malformed YAML', () => {
+    const malformedYaml = `
+    This is not valid YAML
+    - Key: Missing Value
+    `
+    expect(parseTags(malformedYaml)).toEqual(undefined)
+  })
+
+  test('handles array format with missing required fields', () => {
+    const yaml = `
+- Key: ValidTag
+  Value: ValidValue
+- Value: MissingKey
+- Key: MissingValue
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'ValidTag',
+        Value: 'ValidValue'
+      }
+    ])
+  })
+
+  test('handles object format with empty values', () => {
+    const yaml = `
+Environment:
+Project: MyApp
+EmptyString: ''
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Environment',
+        Value: ''
+      },
+      {
+        Key: 'Project',
+        Value: 'MyApp'
+      },
+      {
+        Key: 'EmptyString',
+        Value: ''
+      }
+    ])
+  })
+
+  test('preserves whitespace in tag values', () => {
+    const yaml = `
+Description: This is a long description with spaces
+Path: /path/to/something
+`
+    const result = parseTags(yaml)
+    expect(result).toEqual([
+      {
+        Key: 'Description',
+        Value: 'This is a long description with spaces'
+      },
+      {
+        Key: 'Path',
+        Value: '/path/to/something'
+      }
+    ])
+  })
+})
+
+describe('withRetry', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  test('returns result on successful operation', async () => {
+    const operation = jest.fn().mockResolvedValue('success')
+    const result = await withRetry(operation)
+    expect(result).toBe('success')
+    expect(operation).toHaveBeenCalledTimes(1)
+  })
+
+  test('retries on CloudFormation Throttling error', async () => {
+    jest.useFakeTimers()
+    const error = new Error('Rate exceeded')
+    error.name = 'Throttling' // CloudFormation uses 'Throttling' not 'ThrottlingException'
+    const operation = jest
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce('success')
+
+    const retryPromise = withRetry(operation, 5, 100)
+
+    // Advance timer for the first retry (since it succeeds on second try)
+    await jest.advanceTimersByTimeAsync(100)
+
+    const result = await retryPromise
+    expect(result).toBe('success')
+    expect(operation).toHaveBeenCalledTimes(2)
+
+    jest.useRealTimers()
+  }, 10000)
+
+  test('retries on rate exceeded error', async () => {
+    jest.useFakeTimers()
+    const error = new Error('Rate exceeded')
+    error.name = 'ThrottlingException'
+    const operation = jest
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce('success')
+
+    const retryPromise = withRetry(operation, 5, 100)
+
+    // Advance timer for the first retry (since it succeeds on second try)
+    await jest.advanceTimersByTimeAsync(100)
+
+    const result = await retryPromise
+    expect(result).toBe('success')
+    expect(operation).toHaveBeenCalledTimes(2)
+
+    jest.useRealTimers()
+  }, 10000)
+
+  test('fails after max retries', async () => {
+    jest.useFakeTimers()
+    const error = new Error('Rate exceeded')
+    error.name = 'ThrottlingException'
+    const operation = jest.fn().mockRejectedValue(error)
+
+    // Attach the catch handler immediately
+    const retryPromise = withRetry(operation, 5, 100).catch(err => {
+      expect(err.message).toBe(
+        'Maximum retry attempts (5) reached. Last error: Rate exceeded'
+      )
+    })
+
+    // Advance timers for each retry (initial + 5 retries)
+    for (let i = 0; i < 5; i++) {
+      await jest.advanceTimersByTimeAsync(100 * Math.pow(2, i))
+    }
+
+    await retryPromise
+    expect(operation).toHaveBeenCalledTimes(6)
+
+    jest.useRealTimers()
+  }, 10000)
+
+  test('does not retry on non-rate-limit errors', async () => {
+    const error = new Error('Other error')
+    const operation = jest.fn().mockRejectedValue(error)
+
+    await expect(withRetry(operation)).rejects.toThrow('Other error')
+    expect(operation).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -183,67 +576,5 @@ describe('Configure Proxy', () => {
     process.env.HTTP_PROXY = 'http://localhost:8080'
     const agent = configureProxy('')
     expect(agent).toBeDefined()
-  })
-})
-
-describe('Parse utility functions', () => {
-  test('parseARNs returns undefined on empty string', () => {
-    expect(parseARNs('')).toBeUndefined()
-  })
-
-  test('parseARNs returns undefined on undefined', () => {
-    expect(parseARNs(undefined)).toBeUndefined()
-  })
-
-  test('parseARNs splits comma-separated values', () => {
-    expect(parseARNs('arn1,arn2,arn3')).toEqual(['arn1', 'arn2', 'arn3'])
-  })
-
-  test('parseString returns undefined on empty string', () => {
-    expect(parseString('')).toBeUndefined()
-  })
-
-  test('parseString returns undefined on undefined', () => {
-    expect(parseString(undefined)).toBeUndefined()
-  })
-
-  test('parseString returns value on non-empty string', () => {
-    expect(parseString('test')).toBe('test')
-  })
-
-  test('parseNumber returns undefined on empty string', () => {
-    expect(parseNumber('')).toBeUndefined()
-  })
-
-  test('parseNumber returns undefined on undefined', () => {
-    expect(parseNumber(undefined)).toBeUndefined()
-  })
-
-  test('parseNumber parses valid number', () => {
-    expect(parseNumber('42')).toBe(42)
-  })
-
-  test('parseNumber handles zero correctly', () => {
-    expect(parseNumber('0')).toBe(0)
-  })
-
-  test('parseNumber returns undefined for invalid input', () => {
-    expect(parseNumber('abc')).toBeUndefined()
-  })
-
-  test('parseBoolean returns false on empty string', () => {
-    expect(parseBoolean('')).toBe(false)
-  })
-
-  test('parseBoolean returns false on undefined', () => {
-    expect(parseBoolean(undefined)).toBe(false)
-  })
-
-  test('parseBoolean returns true on "1"', () => {
-    expect(parseBoolean('1')).toBe(true)
-  })
-
-  test('parseBoolean returns false on "0"', () => {
-    expect(parseBoolean('0')).toBe(false)
   })
 })
