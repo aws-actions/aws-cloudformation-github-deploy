@@ -20,12 +20,12 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Add',
-            logicalResourceId: 'MyBucket',
-            resourceType: 'AWS::S3::Bucket',
-            replacement: 'False',
-            scope: ['Properties']
+          ResourceChange: {
+            Action: 'Add',
+            LogicalResourceId: 'MyBucket',
+            ResourceType: 'AWS::S3::Bucket',
+            Replacement: 'False',
+            Scope: ['Properties']
           }
         }
       ],
@@ -50,12 +50,12 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'MyFunction',
-            resourceType: 'AWS::Lambda::Function',
-            replacement: 'True',
-            scope: ['Properties']
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyFunction',
+            ResourceType: 'AWS::Lambda::Function',
+            Replacement: 'True',
+            Scope: ['Properties']
           }
         }
       ],
@@ -78,11 +78,11 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Remove',
-            logicalResourceId: 'OldTable',
-            resourceType: 'AWS::DynamoDB::Table',
-            scope: []
+          ResourceChange: {
+            Action: 'Remove',
+            LogicalResourceId: 'OldTable',
+            ResourceType: 'AWS::DynamoDB::Table',
+            Scope: []
           }
         }
       ],
@@ -103,23 +103,23 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'MyFunction',
-            resourceType: 'AWS::Lambda::Function',
-            replacement: 'False',
-            scope: ['Properties'],
-            details: [
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyFunction',
+            ResourceType: 'AWS::Lambda::Function',
+            Replacement: 'False',
+            Scope: ['Properties'],
+            Details: [
               {
-                target: {
-                  attribute: 'Properties',
-                  name: 'Runtime',
-                  requiresRecreation: 'Never',
-                  beforeValue: 'nodejs18.x',
-                  afterValue: 'nodejs20.x'
+                Target: {
+                  Attribute: 'Properties',
+                  Name: 'Runtime',
+                  RequiresRecreation: 'Never',
+                  BeforeValue: 'nodejs18.x',
+                  AfterValue: 'nodejs20.x'
                 },
-                evaluation: 'Static',
-                changeSource: 'DirectModification'
+                Evaluation: 'Static',
+                ChangeSource: 'DirectModification'
               }
             ]
           }
@@ -145,25 +145,25 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'MyFunction',
-            resourceType: 'AWS::Lambda::Function',
-            replacement: 'False',
-            scope: ['Properties'],
-            details: [
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyFunction',
+            ResourceType: 'AWS::Lambda::Function',
+            Replacement: 'False',
+            Scope: ['Properties'],
+            Details: [
               {
-                target: {
-                  attribute: 'Properties',
-                  name: 'Code.ZipFile',
-                  requiresRecreation: 'Never',
-                  beforeValue:
+                Target: {
+                  Attribute: 'Properties',
+                  Name: 'Code.ZipFile',
+                  RequiresRecreation: 'Never',
+                  BeforeValue:
                     'exports.handler = async function(event) {\n  return { statusCode: 200 };\n};',
-                  afterValue:
+                  AfterValue:
                     'exports.handler = async function(event) {\n  return { statusCode: 201 };\n};'
                 },
-                evaluation: 'Static',
-                changeSource: 'DirectModification'
+                Evaluation: 'Static',
+                ChangeSource: 'DirectModification'
               }
             ]
           }
@@ -191,21 +191,21 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'MyInstance',
-            resourceType: 'AWS::EC2::Instance',
-            replacement: 'True',
-            scope: ['Properties'],
-            details: [
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyInstance',
+            ResourceType: 'AWS::EC2::Instance',
+            Replacement: 'True',
+            Scope: ['Properties'],
+            Details: [
               {
-                target: {
-                  attribute: 'Properties',
-                  name: 'InstanceType',
-                  requiresRecreation: 'Always'
+                Target: {
+                  Attribute: 'Properties',
+                  Name: 'InstanceType',
+                  RequiresRecreation: 'Always'
                 },
-                evaluation: 'Static',
-                changeSource: 'DirectModification'
+                Evaluation: 'Static',
+                ChangeSource: 'DirectModification'
               }
             ]
           }
@@ -227,21 +227,21 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'MyFunction',
-            resourceType: 'AWS::Lambda::Function',
-            replacement: 'False',
-            scope: ['Properties'],
-            details: [
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyFunction',
+            ResourceType: 'AWS::Lambda::Function',
+            Replacement: 'False',
+            Scope: ['Properties'],
+            Details: [
               {
-                target: {
-                  attribute: 'Properties',
-                  name: 'Environment.Variables.TABLE_NAME'
+                Target: {
+                  Attribute: 'Properties',
+                  Name: 'Environment.Variables.TABLE_NAME'
                 },
-                evaluation: 'Dynamic',
-                changeSource: 'ResourceReference',
-                causingEntity: 'MyTable'
+                Evaluation: 'Dynamic',
+                ChangeSource: 'ResourceReference',
+                CausingEntity: 'MyTable'
               }
             ]
           }
@@ -264,10 +264,10 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Add',
-            logicalResourceId: 'Resource1',
-            resourceType: 'AWS::S3::Bucket'
+          ResourceChange: {
+            Action: 'Add',
+            LogicalResourceId: 'Resource1',
+            ResourceType: 'AWS::S3::Bucket'
           }
         }
       ],
@@ -290,26 +290,26 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Add',
-            logicalResourceId: 'NewBucket',
-            resourceType: 'AWS::S3::Bucket'
+          ResourceChange: {
+            Action: 'Add',
+            LogicalResourceId: 'NewBucket',
+            ResourceType: 'AWS::S3::Bucket'
           }
         },
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'ExistingFunction',
-            resourceType: 'AWS::Lambda::Function'
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'ExistingFunction',
+            ResourceType: 'AWS::Lambda::Function'
           }
         },
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Remove',
-            logicalResourceId: 'OldTable',
-            resourceType: 'AWS::DynamoDB::Table'
+          ResourceChange: {
+            Action: 'Remove',
+            LogicalResourceId: 'OldTable',
+            ResourceType: 'AWS::DynamoDB::Table'
           }
         }
       ],
@@ -356,12 +356,12 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'MyResource',
-            resourceType: 'AWS::EC2::Instance',
-            replacement: 'Conditional',
-            scope: ['Properties']
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyResource',
+            ResourceType: 'AWS::EC2::Instance',
+            Replacement: 'Conditional',
+            Scope: ['Properties']
           }
         }
       ],
@@ -381,12 +381,12 @@ describe('Change Set Formatter', () => {
       changes: [
         {
           type: 'Resource',
-          resourceChange: {
-            action: 'Modify',
-            logicalResourceId: 'MyResource',
-            resourceType: 'AWS::S3::Bucket',
-            replacement: 'False',
-            scope: ['Tags', 'Properties']
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyResource',
+            ResourceType: 'AWS::S3::Bucket',
+            Replacement: 'False',
+            Scope: ['Tags', 'Properties']
           }
         }
       ],

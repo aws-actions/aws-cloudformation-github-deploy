@@ -156,20 +156,7 @@ export async function getChangeSetInfo(
       const truncated = allChanges.length > MAX_CHANGES_IN_SUMMARY
 
       const changesSummary = {
-        changes: limitedChanges.map(change => ({
-          type: change.Type,
-          resourceChange: change.ResourceChange
-            ? {
-                action: change.ResourceChange.Action,
-                logicalResourceId: change.ResourceChange.LogicalResourceId,
-                physicalResourceId: change.ResourceChange.PhysicalResourceId,
-                resourceType: change.ResourceChange.ResourceType,
-                replacement: change.ResourceChange.Replacement,
-                scope: change.ResourceChange.Scope,
-                details: change.ResourceChange.Details
-              }
-            : undefined
-        })),
+        changes: limitedChanges,
         totalChanges: allChanges.length,
         truncated,
         executionStatus: changeSetStatus.ExecutionStatus,

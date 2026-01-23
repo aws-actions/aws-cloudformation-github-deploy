@@ -11,18 +11,7 @@ import {
 } from '@aws-sdk/client-cloudformation'
 
 interface ChangeSetSummary {
-  changes: Array<{
-    type?: string
-    resourceChange?: {
-      action?: string
-      logicalResourceId?: string
-      physicalResourceId?: string
-      resourceType?: string
-      replacement?: string
-      scope?: string[]
-      details?: ResourceChangeDetail[]
-    }
-  }>
+  changes: Change[]
   totalChanges: number
   truncated: boolean
 }
@@ -167,40 +156,40 @@ function formatResourceChange(
   change: Change,
   enableColors: boolean
 ): { title: string; details: string[] } {
-  const rc = change.resourceChange
+  const rc = change.ResourceChange
   if (!rc) {
     return { title: 'Unknown Change', details: [] }
   }
 
-  const style = getActionStyle(rc.action, enableColors)
+  const style = getActionStyle(rc.Action, enableColors)
   const reset = enableColors ? COLORS.reset : ''
   const bold = enableColors ? COLORS.bold : ''
   const yellow = enableColors ? COLORS.yellow : ''
 
   // Title line for the group
-  const title = `${style.color}[${style.symbol}] ${bold}${rc.resourceType || 'Unknown'}${reset}${style.color} ${rc.logicalResourceId || 'Unknown'}${reset}`
+  const title = `${style.color}[${style.symbol}] ${bold}${rc.ResourceType || 'Unknown'}${reset}${style.color} ${rc.LogicalResourceId || 'Unknown'}${reset}`
 
   const details: string[] = []
 
   // Show replacement warning
-  if (rc.action === 'Modify' && rc.replacement === 'True') {
+  if (rc.Action === 'Modify' && rc.Replacement === 'True') {
     details.push(
       `${yellow}⚠️  Resource will be replaced (may cause downtime)${reset}`
     )
-  } else if (rc.action === 'Modify' && rc.replacement === 'Conditional') {
+  } else if (rc.Action === 'Modify' && rc.Replacement === 'Conditional') {
     details.push(`${yellow}⚠️  May require replacement${reset}`)
   }
 
   // Show property-level changes
-  if (rc.details && rc.details.length > 0) {
-    for (const detail of rc.details) {
+  if (rc.Details && rc.Details.length > 0) {
+    for (const detail of rc.Details) {
       const detailLines = formatDetail(detail, enableColors)
       details.push(...detailLines)
     }
-  } else if (rc.scope && rc.scope.length > 0) {
+  } else if (rc.Scope && rc.Scope.length > 0) {
     // Fallback to scope if no details
     const gray = enableColors ? COLORS.gray : ''
-    details.push(`${gray}Modified: ${rc.scope.join(', ')}${reset}`)
+    details.push(`${gray}Modified: ${rc.Scope.join(', ')}${reset}`)
   }
 
   return { title, details }
@@ -225,7 +214,7 @@ export function displayChangeSet(
     }
 
     for (const change of summary.changes) {
-      const action = change.resourceChange?.action
+      const action = change.ResourceChange?.Action
       if (action && action in grouped) {
         grouped[action as keyof typeof grouped].push(change as Change)
       }

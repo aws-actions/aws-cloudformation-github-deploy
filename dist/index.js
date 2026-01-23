@@ -54446,6 +54446,250 @@ module.exports = {
 
 /***/ }),
 
+/***/ 9256:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Formats CloudFormation change set with colors and expandable groups
+ * Shows before/after values for property changes
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.displayChangeSet = displayChangeSet;
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * ANSI color codes
+ */
+const COLORS = {
+    green: '\x1b[32m',
+    blue: '\x1b[34m',
+    red: '\x1b[31m',
+    yellow: '\x1b[33m',
+    gray: '\x1b[90m',
+    reset: '\x1b[0m',
+    bold: '\x1b[1m'
+};
+/**
+ * Get action symbol and color
+ */
+function getActionStyle(action, enableColors = true) {
+    const styles = {
+        Add: { symbol: '+', color: COLORS.green },
+        Modify: { symbol: '~', color: COLORS.blue },
+        Remove: { symbol: '-', color: COLORS.red }
+    };
+    const style = styles[action] || {
+        symbol: '•',
+        color: ''
+    };
+    return {
+        symbol: style.symbol,
+        color: enableColors ? style.color : ''
+    };
+}
+/**
+ * Format before/after values with proper indentation
+ */
+function formatBeforeAfter(target, enableColors) {
+    const lines = [];
+    const gray = enableColors ? COLORS.gray : '';
+    const red = enableColors ? COLORS.red : '';
+    const green = enableColors ? COLORS.green : '';
+    const reset = enableColors ? COLORS.reset : '';
+    const hasBeforeValue = target.BeforeValue !== undefined;
+    const hasAfterValue = target.AfterValue !== undefined;
+    if (hasBeforeValue || hasAfterValue) {
+        if (hasBeforeValue) {
+            const beforeLines = (target.BeforeValue || '').split('\n');
+            if (beforeLines.length === 1) {
+                lines.push(`     ├─ ${red}[-]${reset} ${gray}${beforeLines[0]}${reset}`);
+            }
+            else {
+                lines.push(`     ├─ ${red}[-]${reset}`);
+                beforeLines.forEach((line, idx) => {
+                    const prefix = idx === beforeLines.length - 1 ? '     │  ' : '     │  ';
+                    lines.push(`${prefix}${gray}${line}${reset}`);
+                });
+            }
+        }
+        if (hasAfterValue) {
+            const afterLines = (target.AfterValue || '').split('\n');
+            if (afterLines.length === 1) {
+                lines.push(`     └─ ${green}[+]${reset} ${gray}${afterLines[0]}${reset}`);
+            }
+            else {
+                lines.push(`     └─ ${green}[+]${reset}`);
+                afterLines.forEach((line, idx) => {
+                    const prefix = idx === afterLines.length - 1 ? '        ' : '        ';
+                    lines.push(`${prefix}${gray}${line}${reset}`);
+                });
+            }
+        }
+    }
+    return lines;
+}
+/**
+ * Format a property change detail
+ */
+function formatDetail(detail, enableColors) {
+    const lines = [];
+    const target = detail.Target;
+    if (!target)
+        return lines;
+    const style = getActionStyle('Modify', enableColors);
+    const gray = enableColors ? COLORS.gray : '';
+    const reset = enableColors ? COLORS.reset : '';
+    // Property name/path
+    const propertyName = target.Name || target.Attribute || 'Unknown';
+    lines.push(` └─ ${style.color}[${style.symbol}] ${propertyName}${reset}`);
+    // Show recreation requirement if present
+    if (target.RequiresRecreation && target.RequiresRecreation !== 'Never') {
+        const yellow = enableColors ? COLORS.yellow : '';
+        const recreationText = target.RequiresRecreation === 'Always'
+            ? '⚠️  Requires replacement'
+            : '⚠️  May require replacement';
+        lines.push(`     ${yellow}${recreationText}${reset}`);
+    }
+    // Show change source if not direct modification
+    if (detail.ChangeSource && detail.ChangeSource !== 'DirectModification') {
+        const causingEntity = detail.CausingEntity
+            ? ` (${detail.CausingEntity})`
+            : '';
+        lines.push(`     ${gray}Source: ${detail.ChangeSource}${causingEntity}${reset}`);
+    }
+    // Show before/after values
+    const beforeAfterLines = formatBeforeAfter(target, enableColors);
+    lines.push(...beforeAfterLines);
+    return lines;
+}
+/**
+ * Format a single resource change
+ */
+function formatResourceChange(change, enableColors) {
+    const rc = change.ResourceChange;
+    if (!rc) {
+        return { title: 'Unknown Change', details: [] };
+    }
+    const style = getActionStyle(rc.Action, enableColors);
+    const reset = enableColors ? COLORS.reset : '';
+    const bold = enableColors ? COLORS.bold : '';
+    const yellow = enableColors ? COLORS.yellow : '';
+    // Title line for the group
+    const title = `${style.color}[${style.symbol}] ${bold}${rc.ResourceType || 'Unknown'}${reset}${style.color} ${rc.LogicalResourceId || 'Unknown'}${reset}`;
+    const details = [];
+    // Show replacement warning
+    if (rc.Action === 'Modify' && rc.Replacement === 'True') {
+        details.push(`${yellow}⚠️  Resource will be replaced (may cause downtime)${reset}`);
+    }
+    else if (rc.Action === 'Modify' && rc.Replacement === 'Conditional') {
+        details.push(`${yellow}⚠️  May require replacement${reset}`);
+    }
+    // Show property-level changes
+    if (rc.Details && rc.Details.length > 0) {
+        for (const detail of rc.Details) {
+            const detailLines = formatDetail(detail, enableColors);
+            details.push(...detailLines);
+        }
+    }
+    else if (rc.Scope && rc.Scope.length > 0) {
+        // Fallback to scope if no details
+        const gray = enableColors ? COLORS.gray : '';
+        details.push(`${gray}Modified: ${rc.Scope.join(', ')}${reset}`);
+    }
+    return { title, details };
+}
+/**
+ * Display formatted change set with colors and expandable groups
+ */
+function displayChangeSet(changesSummary, changesCount, enableColors = true) {
+    var _a;
+    try {
+        const summary = JSON.parse(changesSummary);
+        // Group changes by action
+        const grouped = {
+            Add: [],
+            Modify: [],
+            Remove: []
+        };
+        for (const change of summary.changes) {
+            const action = (_a = change.ResourceChange) === null || _a === void 0 ? void 0 : _a.Action;
+            if (action && action in grouped) {
+                grouped[action].push(change);
+            }
+        }
+        const addCount = grouped.Add.length;
+        const modifyCount = grouped.Modify.length;
+        const removeCount = grouped.Remove.length;
+        const reset = enableColors ? COLORS.reset : '';
+        const green = enableColors ? COLORS.green : '';
+        const blue = enableColors ? COLORS.blue : '';
+        const red = enableColors ? COLORS.red : '';
+        // Main summary
+        core.info(`\n📋 Change Set: ${green}${addCount} to add${reset}, ${blue}${modifyCount} to change${reset}, ${red}${removeCount} to remove${reset}\n`);
+        // Display each resource in its own expandable group
+        const allChanges = [...grouped.Add, ...grouped.Modify, ...grouped.Remove];
+        for (const change of allChanges) {
+            const { title, details } = formatResourceChange(change, enableColors);
+            // Each resource is a collapsible group
+            core.startGroup(title);
+            for (const line of details) {
+                core.info(line);
+            }
+            core.endGroup();
+        }
+        // Truncation warning
+        if (summary.truncated) {
+            core.warning(`\n⚠️  Change set truncated. Showing ${summary.changes.length} of ${summary.totalChanges} total changes.`);
+        }
+        // Raw JSON in separate group for debugging
+        core.startGroup('📄 Raw Change Set JSON');
+        core.info(changesSummary);
+        core.endGroup();
+    }
+    catch (error) {
+        core.warning(`Failed to format change set: ${error instanceof Error ? error.message : String(error)}`);
+        core.info('\nChange Set Details:');
+        core.info(changesSummary);
+    }
+}
+
+
+/***/ }),
+
 /***/ 9880:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -54599,19 +54843,7 @@ function getChangeSetInfo(cfn, changeSetName, stackName) {
                 const limitedChanges = allChanges.slice(0, MAX_CHANGES_IN_SUMMARY);
                 const truncated = allChanges.length > MAX_CHANGES_IN_SUMMARY;
                 const changesSummary = {
-                    changes: limitedChanges.map(change => ({
-                        type: change.Type,
-                        resourceChange: change.ResourceChange
-                            ? {
-                                action: change.ResourceChange.Action,
-                                logicalResourceId: change.ResourceChange.LogicalResourceId,
-                                physicalResourceId: change.ResourceChange.PhysicalResourceId,
-                                resourceType: change.ResourceChange.ResourceType,
-                                replacement: change.ResourceChange.Replacement,
-                                scope: change.ResourceChange.Scope
-                            }
-                            : undefined
-                    })),
+                    changes: limitedChanges,
                     totalChanges: allChanges.length,
                     truncated,
                     executionStatus: changeSetStatus.ExecutionStatus,
@@ -56012,6 +56244,7 @@ const path = __importStar(__nccwpck_require__(6928));
 const core = __importStar(__nccwpck_require__(7484));
 const client_cloudformation_1 = __nccwpck_require__(3805);
 const fs = __importStar(__nccwpck_require__(9896));
+const changeset_formatter_1 = __nccwpck_require__(9256);
 const deploy_1 = __nccwpck_require__(9880);
 const utils_1 = __nccwpck_require__(1798);
 const validation_1 = __nccwpck_require__(4344);
@@ -56193,6 +56426,9 @@ function run() {
                     core.setOutput('has-changes', result.changeSetInfo.hasChanges.toString());
                     core.setOutput('changes-count', result.changeSetInfo.changesCount.toString());
                     core.setOutput('changes-summary', result.changeSetInfo.changesSummary);
+                    // Display formatted change set with colors and expandable groups
+                    (0, changeset_formatter_1.displayChangeSet)(result.changeSetInfo.changesSummary, result.changeSetInfo.changesCount, true // Enable colors for GitHub Actions
+                    );
                 }
                 if (result.stackId) {
                     const outputs = yield (0, deploy_1.getStackOutputs)(cfn, result.stackId);
