@@ -107,7 +107,8 @@ function formatBeforeAfter(
  */
 function formatDetail(
   detail: ResourceChangeDetail,
-  enableColors: boolean
+  enableColors: boolean,
+  isLast = true
 ): string[] {
   const lines: string[] = []
   const target = detail.Target
@@ -118,9 +119,12 @@ function formatDetail(
   const gray = enableColors ? COLORS.gray : ''
   const reset = enableColors ? COLORS.reset : ''
 
-  // Property name/path
+  // Property name/path - use ├─ for non-last items, └─ for last
+  const branch = isLast ? '└─' : '├─'
   const propertyName = target.Name || target.Attribute || 'Unknown'
-  lines.push(` └─ ${style.color}[${style.symbol}] ${propertyName}${reset}`)
+  lines.push(
+    ` ${branch} ${style.color}[${style.symbol}] ${propertyName}${reset}`
+  )
 
   // Show recreation requirement if present
   if (target.RequiresRecreation && target.RequiresRecreation !== 'Never') {
@@ -182,8 +186,9 @@ function formatResourceChange(
 
   // Show property-level changes
   if (rc.Details && rc.Details.length > 0) {
-    for (const detail of rc.Details) {
-      const detailLines = formatDetail(detail, enableColors)
+    for (let i = 0; i < rc.Details.length; i++) {
+      const isLast = i === rc.Details.length - 1
+      const detailLines = formatDetail(rc.Details[i], enableColors, isLast)
       details.push(...detailLines)
     }
   } else if (rc.Scope && rc.Scope.length > 0) {

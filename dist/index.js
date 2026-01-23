@@ -54565,7 +54565,7 @@ function formatBeforeAfter(target, enableColors) {
 /**
  * Format a property change detail
  */
-function formatDetail(detail, enableColors) {
+function formatDetail(detail, enableColors, isLast = true) {
     const lines = [];
     const target = detail.Target;
     if (!target)
@@ -54573,9 +54573,10 @@ function formatDetail(detail, enableColors) {
     const style = getActionStyle('Modify', enableColors);
     const gray = enableColors ? COLORS.gray : '';
     const reset = enableColors ? COLORS.reset : '';
-    // Property name/path
+    // Property name/path - use ├─ for non-last items, └─ for last
+    const branch = isLast ? '└─' : '├─';
     const propertyName = target.Name || target.Attribute || 'Unknown';
-    lines.push(` └─ ${style.color}[${style.symbol}] ${propertyName}${reset}`);
+    lines.push(` ${branch} ${style.color}[${style.symbol}] ${propertyName}${reset}`);
     // Show recreation requirement if present
     if (target.RequiresRecreation && target.RequiresRecreation !== 'Never') {
         const yellow = enableColors ? COLORS.yellow : '';
@@ -54620,8 +54621,9 @@ function formatResourceChange(change, enableColors) {
     }
     // Show property-level changes
     if (rc.Details && rc.Details.length > 0) {
-        for (const detail of rc.Details) {
-            const detailLines = formatDetail(detail, enableColors);
+        for (let i = 0; i < rc.Details.length; i++) {
+            const isLast = i === rc.Details.length - 1;
+            const detailLines = formatDetail(rc.Details[i], enableColors, isLast);
             details.push(...detailLines);
         }
     }
@@ -54629,6 +54631,39 @@ function formatResourceChange(change, enableColors) {
         // Fallback to scope if no details
         const gray = enableColors ? COLORS.gray : '';
         details.push(`${gray}Modified: ${rc.Scope.join(', ')}${reset}`);
+    }
+    // Show AfterContext for Add actions (contains the properties being added)
+    if (rc.Action === 'Add' && rc.AfterContext) {
+        const gray = enableColors ? COLORS.gray : '';
+        const green = enableColors ? COLORS.green : '';
+        try {
+            const afterProps = JSON.parse(rc.AfterContext);
+            details.push(`${gray}Properties:${reset}`);
+            const propsJson = JSON.stringify(afterProps, null, 2);
+            propsJson.split('\n').forEach(line => {
+                details.push(`  ${green}${line}${reset}`);
+            });
+        }
+        catch (_a) {
+            // If parsing fails, show raw
+            details.push(`${gray}Properties: ${rc.AfterContext}${reset}`);
+        }
+    }
+    // Show BeforeContext for Remove actions
+    if (rc.Action === 'Remove' && rc.BeforeContext) {
+        const gray = enableColors ? COLORS.gray : '';
+        const red = enableColors ? COLORS.red : '';
+        try {
+            const beforeProps = JSON.parse(rc.BeforeContext);
+            details.push(`${gray}Properties:${reset}`);
+            const propsJson = JSON.stringify(beforeProps, null, 2);
+            propsJson.split('\n').forEach(line => {
+                details.push(`  ${red}${line}${reset}`);
+            });
+        }
+        catch (_b) {
+            details.push(`${gray}Properties: ${rc.BeforeContext}${reset}`);
+        }
     }
     return { title, details };
 }
