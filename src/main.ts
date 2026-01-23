@@ -16,6 +16,7 @@ import {
 import { isUrl, configureProxy } from './utils'
 import { validateAndParseInputs } from './validation'
 import { NodeHttpHandler } from '@smithy/node-http-handler'
+import { EventMonitorImpl, EventMonitorConfig } from './event-streaming'
 
 // Validated by core.getInput() which throws if not set
 export type CreateStackInputWithName = CreateStackCommandInput & {
@@ -174,37 +175,79 @@ export async function run(): Promise<void> {
         ? timeoutMinutes * 60
         : defaultMaxWaitTime
 
-    const result = await deployStack(
-      cfn,
-      params,
-      inputs['change-set-name'] || `${params.StackName}-CS`,
-      inputs['fail-on-empty-changeset'],
-      inputs['no-execute-changeset'] || inputs.mode === 'create-only',
-      inputs['no-delete-failed-changeset'],
-      maxWaitTime
-    )
+    const changeSetName = inputs['change-set-name'] || `${params.StackName}-CS`
 
-    core.setOutput('stack-id', result.stackId || 'UNKNOWN')
-
-    // Set change set outputs when not executing
-    if (result.changeSetInfo) {
-      core.setOutput('change-set-id', result.changeSetInfo.changeSetId || '')
-      core.setOutput(
-        'change-set-name',
-        result.changeSetInfo.changeSetName || ''
+    // Initialize event streaming for real-time deployment feedback
+    let eventMonitor: EventMonitorImpl | undefined
+    try {
+      const eventConfig: EventMonitorConfig = {
+        stackName: params.StackName,
+        changeSetName,
+        client: cfn,
+        enableColors: true, // GitHub Actions supports ANSI colors
+        pollIntervalMs: 2000, // Poll every 2 seconds
+        maxPollIntervalMs: 30000 // Max 30 seconds between polls
+      }
+      eventMonitor = new EventMonitorImpl(eventConfig)
+      eventMonitor.startMonitoring().catch(err => {
+        core.warning(
+          `Event streaming failed but deployment continues: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        )
+      })
+      core.debug('Event streaming started for stack deployment')
+    } catch (error) {
+      core.warning(
+        `Failed to initialize event streaming, deployment continues: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       )
-      core.setOutput('has-changes', result.changeSetInfo.hasChanges.toString())
-      core.setOutput(
-        'changes-count',
-        result.changeSetInfo.changesCount.toString()
-      )
-      core.setOutput('changes-summary', result.changeSetInfo.changesSummary)
+      eventMonitor = undefined
     }
 
-    if (result.stackId) {
-      const outputs = await getStackOutputs(cfn, result.stackId)
-      for (const [key, value] of outputs) {
-        core.setOutput(key, value)
+    try {
+      const result = await deployStack(
+        cfn,
+        params,
+        changeSetName,
+        inputs['fail-on-empty-changeset'],
+        inputs['no-execute-changeset'] || inputs.mode === 'create-only',
+        inputs['no-delete-failed-changeset'],
+        maxWaitTime
+      )
+
+      core.setOutput('stack-id', result.stackId || 'UNKNOWN')
+
+      // Set change set outputs when not executing
+      if (result.changeSetInfo) {
+        core.setOutput('change-set-id', result.changeSetInfo.changeSetId || '')
+        core.setOutput(
+          'change-set-name',
+          result.changeSetInfo.changeSetName || ''
+        )
+        core.setOutput(
+          'has-changes',
+          result.changeSetInfo.hasChanges.toString()
+        )
+        core.setOutput(
+          'changes-count',
+          result.changeSetInfo.changesCount.toString()
+        )
+        core.setOutput('changes-summary', result.changeSetInfo.changesSummary)
+      }
+
+      if (result.stackId) {
+        const outputs = await getStackOutputs(cfn, result.stackId)
+        for (const [key, value] of outputs) {
+          core.setOutput(key, value)
+        }
+      }
+    } finally {
+      // Always stop event monitoring when deployment completes or fails
+      if (eventMonitor) {
+        eventMonitor.stopMonitoring()
+        core.debug('Event streaming stopped')
       }
     }
   } catch (err) {

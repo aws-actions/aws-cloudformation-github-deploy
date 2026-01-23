@@ -29,15 +29,30 @@ const createSchema = baseSchema.extend({
       val ? val.split(',').map(cap => cap.trim()) : ['CAPABILITY_IAM']
     ),
   'parameter-overrides': z.string().optional().transform(parseParameters),
-  'fail-on-empty-changeset': z.string().optional().transform(parseBoolean),
-  'no-execute-changeset': z.string().optional().transform(parseBoolean),
-  'no-delete-failed-changeset': z.string().optional().transform(parseBoolean),
-  'disable-rollback': z.string().optional().transform(parseBoolean),
+  'fail-on-empty-changeset': z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform(parseBoolean),
+  'no-execute-changeset': z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform(parseBoolean),
+  'no-delete-failed-changeset': z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform(parseBoolean),
+  'disable-rollback': z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform(parseBoolean),
   'timeout-in-minutes': z.string().optional().transform(parseNumber),
   'notification-arns': z.string().optional().transform(parseARNs),
   'role-arn': z.string().optional().transform(emptyToUndefined),
   tags: z.string().optional().transform(parseTags),
-  'termination-protection': z.string().optional().transform(parseBoolean),
+  'termination-protection': z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform(parseBoolean),
   'change-set-name': z.string().optional().transform(emptyToUndefined),
   'include-nested-stacks-change-set': z
     .string()

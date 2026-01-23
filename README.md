@@ -16,7 +16,7 @@ Deploys AWS CloudFormation Stacks.
     parameter-overrides: "MyParam1=myValue,MyParam2=${{ secrets.MY_SECRET_VALUE }}"
 ```
 
-The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
+The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `fail-on-empty-changeset: false` will override this behavior and not throw an error.
 
 ## Enhanced Change Set Support
 
@@ -226,7 +226,7 @@ jobs:
       with:
         name: ${{ steps.env-name.outputs.environment }}-cluster
         template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
-        no-fail-on-empty-changeset: "1"
+        fail-on-empty-changeset: false
         parameter-overrides: >-
           AvailabilityZones=${{ github.event.inputs.region }}a,
           AvailabilityZones=${{ github.event.inputs.region }}c,
@@ -252,7 +252,7 @@ uses: aws-actions/aws-cloudformation-github-deploy@v1
 with:
   name: eks-primary
   template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
-  no-fail-on-empty-changeset: "1"
+  fail-on-empty-changeset: false
   http-proxy: "http://companydomain.com:3128"
 ```
 

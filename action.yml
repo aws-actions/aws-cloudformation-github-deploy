@@ -22,21 +22,21 @@ inputs:
     description: 'The parameters to override in the stack inputs. You can pass a comma-delimited list or a file URL. Comma-delimited list has each entry formatted as <ParameterName>=<ParameterValue> or <ParameterName>="<ParameterValue>,<ParameterValue>". A JSON file can be a local file with a "file://" prefix or remote URL. The file should look like: [ { "ParameterKey": "KeyPairName", "ParameterValue": "MyKey" }]'
     required: false
   no-execute-changeset:
-    description: "Indicates whether to execute to the change set or have it reviewed. Default to '0' (will execute the change set)"
+    description: "Indicates whether to execute to the change set or have it reviewed (default: false)"
     required: false
-    default: "0"
+    default: false
   no-delete-failed-changeset:
-    description: "Indicates whether to delete to a failed change set. Default to '0' (will delete the failed changeset)"
+    description: "Indicates whether to delete to a failed change set (default: false)"
     required: false
-    default: "0"
+    default: false
   fail-on-empty-changeset:
-    description: "If the CloudFormation change set is empty, fail the action. Defaults to '0' (will not fail on empty change set)"
+    description: "If the CloudFormation change set is empty, fail the action (default: false)"
     required: false
-    default: "0"
+    default: false
   disable-rollback:
-    description: "Disable rollback of the stack if stack creation fails. Defaults to '0' (will rollback if stack creation fails). This input is only used for stack creation, not for stack update"
+    description: "Disable rollback of the stack if stack creation fails (default: false). This input is only used for stack creation, not for stack update"
     required: false
-    default: "0"
+    default: false
   timeout-in-minutes:
     description: "The amount of time that can pass before the stack status becomes CREATE_FAILED. This input is only used for stack creation, not for stack update"
     required: false
@@ -50,9 +50,9 @@ inputs:
     description: 'Key-value pairs to associate with this stack. This input should be JSON-formatted, for example [ { "Key": "string", "Value": "string" } ]'
     required: false
   termination-protection:
-    description: "Whether to enable termination protection on the specified stack. Defaults to '0' (terminated protection will be disabled) This input is only used for stack creation, not for stack update"
+    description: "Whether to enable termination protection on the specified stack (default: false). This input is only used for stack creation, not for stack update"
     required: false
-    default: "0"
+    default: false
   http-proxy:
     description: 'Proxy to use for the AWS SDK agent'
     required: false
