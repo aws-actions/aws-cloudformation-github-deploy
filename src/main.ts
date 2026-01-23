@@ -8,6 +8,7 @@ import {
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
 import * as fs from 'fs'
+import { displayChangeSet } from './changeset-formatter'
 import {
   deployStack,
   getStackOutputs,
@@ -272,6 +273,13 @@ export async function run(): Promise<void> {
           result.changeSetInfo.changesCount.toString()
         )
         core.setOutput('changes-summary', result.changeSetInfo.changesSummary)
+
+        // Display formatted change set with colors and expandable groups
+        displayChangeSet(
+          result.changeSetInfo.changesSummary,
+          result.changeSetInfo.changesCount,
+          true // Enable colors for GitHub Actions
+        )
       }
 
       if (result.stackId) {

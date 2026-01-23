@@ -165,7 +165,8 @@ export async function getChangeSetInfo(
                 physicalResourceId: change.ResourceChange.PhysicalResourceId,
                 resourceType: change.ResourceChange.ResourceType,
                 replacement: change.ResourceChange.Replacement,
-                scope: change.ResourceChange.Scope
+                scope: change.ResourceChange.Scope,
+                details: change.ResourceChange.Details
               }
             : undefined
         })),
