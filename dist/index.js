@@ -54840,6 +54840,1106 @@ function getStackOutputs(cfn, stackId) {
 
 /***/ }),
 
+/***/ 3286:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EventFormatterImpl = exports.EventMonitorImpl = exports.EventPollerImpl = exports.ErrorExtractorImpl = exports.ColorFormatterImpl = exports.SUCCESS_STATUS_PATTERNS = exports.ERROR_STATUS_PATTERNS = exports.TERMINAL_STACK_STATES = exports.STATUS_COLORS = exports.EventColor = void 0;
+const client_cloudformation_1 = __nccwpck_require__(3805);
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * ANSI color codes for event formatting
+ */
+var EventColor;
+(function (EventColor) {
+    EventColor["SUCCESS"] = "\u001B[32m";
+    EventColor["WARNING"] = "\u001B[33m";
+    EventColor["ERROR"] = "\u001B[31m";
+    EventColor["INFO"] = "\u001B[34m";
+    EventColor["RESET"] = "\u001B[0m"; // Reset
+})(EventColor || (exports.EventColor = EventColor = {}));
+/**
+ * Mapping of CloudFormation resource statuses to colors
+ */
+exports.STATUS_COLORS = {
+    // Success states (Green)
+    CREATE_COMPLETE: EventColor.SUCCESS,
+    UPDATE_COMPLETE: EventColor.SUCCESS,
+    DELETE_COMPLETE: EventColor.SUCCESS,
+    CREATE_IN_PROGRESS: EventColor.SUCCESS,
+    UPDATE_IN_PROGRESS: EventColor.SUCCESS,
+    // Warning states (Yellow)
+    UPDATE_ROLLBACK_IN_PROGRESS: EventColor.WARNING,
+    UPDATE_ROLLBACK_COMPLETE: EventColor.WARNING,
+    CREATE_ROLLBACK_IN_PROGRESS: EventColor.WARNING,
+    // Error states (Red)
+    CREATE_FAILED: EventColor.ERROR,
+    UPDATE_FAILED: EventColor.ERROR,
+    DELETE_FAILED: EventColor.ERROR,
+    UPDATE_ROLLBACK_FAILED: EventColor.ERROR,
+    CREATE_ROLLBACK_FAILED: EventColor.ERROR
+};
+/**
+ * Terminal stack states that indicate deployment completion
+ */
+exports.TERMINAL_STACK_STATES = [
+    'CREATE_COMPLETE',
+    'UPDATE_COMPLETE',
+    'DELETE_COMPLETE',
+    'CREATE_FAILED',
+    'UPDATE_FAILED',
+    'DELETE_FAILED',
+    'UPDATE_ROLLBACK_COMPLETE',
+    'UPDATE_ROLLBACK_FAILED',
+    'CREATE_ROLLBACK_COMPLETE',
+    'CREATE_ROLLBACK_FAILED'
+];
+/**
+ * Error status patterns for identifying error events
+ */
+exports.ERROR_STATUS_PATTERNS = ['FAILED', 'ROLLBACK'];
+/**
+ * Success status patterns for identifying successful events
+ */
+exports.SUCCESS_STATUS_PATTERNS = ['COMPLETE', 'IN_PROGRESS'];
+/**
+ * ColorFormatter implementation with ANSI color code support
+ */
+class ColorFormatterImpl {
+    constructor(enableColors = true) {
+        this.enableColors = enableColors;
+    }
+    /**
+     * Apply color based on resource status
+     * Maps CloudFormation resource statuses to appropriate colors
+     */
+    colorizeStatus(status, text) {
+        if (!this.enableColors) {
+            return text;
+        }
+        // Get color for the status, default to INFO if not found
+        const color = exports.STATUS_COLORS[status] || EventColor.INFO;
+        return `${color}${text}${EventColor.RESET}`;
+    }
+    /**
+     * Apply blue color for timestamps
+     */
+    colorizeTimestamp(timestamp) {
+        if (!this.enableColors) {
+            return timestamp;
+        }
+        return `${EventColor.INFO}${timestamp}${EventColor.RESET}`;
+    }
+    /**
+     * Apply blue color for resource information (type and ID)
+     */
+    colorizeResource(resourceType, resourceId) {
+        if (!this.enableColors) {
+            return `${resourceType}/${resourceId}`;
+        }
+        return `${EventColor.INFO}${resourceType}/${resourceId}${EventColor.RESET}`;
+    }
+    /**
+     * Apply bold red formatting for errors
+     * Uses ANSI bold (1m) combined with red color
+     */
+    colorizeError(message) {
+        if (!this.enableColors) {
+            return message;
+        }
+        // Bold red: \x1b[1m for bold, \x1b[31m for red
+        return `\x1b[1m${EventColor.ERROR}${message}${EventColor.RESET}`;
+    }
+    /**
+     * Check if colors are enabled
+     */
+    isColorsEnabled() {
+        return this.enableColors;
+    }
+    /**
+     * Enable or disable colors
+     */
+    setColorsEnabled(enabled) {
+        this.enableColors = enabled;
+    }
+}
+exports.ColorFormatterImpl = ColorFormatterImpl;
+/**
+ * ErrorExtractor implementation for extracting error information from stack events
+ */
+class ErrorExtractorImpl {
+    constructor(colorFormatter) {
+        this.colorFormatter = colorFormatter;
+    }
+    /**
+     * Extract error information from a stack event
+     * Returns null if the event is not an error event
+     */
+    extractError(event) {
+        if (!this.isErrorEvent(event)) {
+            return null;
+        }
+        // Extract required fields, providing defaults for missing data
+        const message = event.ResourceStatusReason || 'Unknown error occurred';
+        const resourceId = event.LogicalResourceId || 'Unknown resource';
+        const resourceType = event.ResourceType || 'Unknown type';
+        const timestamp = event.Timestamp || new Date();
+        return {
+            message,
+            resourceId,
+            resourceType,
+            timestamp
+        };
+    }
+    /**
+     * Check if an event represents an error condition
+     * Identifies events with FAILED or ROLLBACK status patterns
+     */
+    isErrorEvent(event) {
+        if (!event.ResourceStatus) {
+            return false;
+        }
+        const status = event.ResourceStatus.toUpperCase();
+        // Check for error patterns in the status
+        return exports.ERROR_STATUS_PATTERNS.some(pattern => status.includes(pattern));
+    }
+    /**
+     * Format error message for display with bold red formatting
+     * Handles message truncation and provides complete error details
+     */
+    formatErrorMessage(error) {
+        // Format timestamp in ISO 8601 format, handle invalid dates
+        let timestamp;
+        try {
+            timestamp = error.timestamp.toISOString();
+        }
+        catch (e) {
+            // Handle invalid dates by using current time
+            timestamp = new Date().toISOString();
+            core.debug(`Invalid timestamp in error, using current time: ${e}`);
+        }
+        // Get the complete error message
+        const fullMessage = this.getCompleteErrorMessage(error.message);
+        // Apply bold red formatting to the error message
+        const formattedMessage = this.colorFormatter.colorizeError(fullMessage);
+        // Combine all parts with proper spacing and structure
+        const colorizedTimestamp = this.colorFormatter.colorizeTimestamp(timestamp);
+        const colorizedResource = this.colorFormatter.colorizeResource(error.resourceType, error.resourceId);
+        return `${colorizedTimestamp} ${colorizedResource} ERROR: ${formattedMessage}`;
+    }
+    /**
+     * Get complete error message, handling truncation
+     * If message appears truncated, attempts to provide full details
+     */
+    getCompleteErrorMessage(message) {
+        // Check if message appears truncated (common indicators)
+        const truncationIndicators = ['...', '(truncated)', '[truncated]'];
+        const isTruncated = truncationIndicators.some(indicator => message.includes(indicator));
+        if (isTruncated) {
+            // For now, return the message as-is since we don't have access to
+            // additional event details in this context. In a real implementation,
+            // this could fetch additional details from CloudFormation API
+            core.debug(`Detected truncated error message: ${message}`);
+        }
+        return message;
+    }
+    /**
+     * Format multiple error messages with clear separation
+     * Ensures each error is displayed distinctly
+     */
+    formatMultipleErrors(errors) {
+        if (errors.length === 0) {
+            return '';
+        }
+        if (errors.length === 1) {
+            return this.formatErrorMessage(errors[0]);
+        }
+        // Format multiple errors with clear separation
+        const formattedErrors = errors.map((error, index) => {
+            const errorMessage = this.formatErrorMessage(error);
+            return `[${index + 1}] ${errorMessage}`;
+        });
+        return formattedErrors.join('\n');
+    }
+    /**
+     * Extract all errors from a batch of events
+     * Returns array of ExtractedError objects for all error events
+     */
+    extractAllErrors(events) {
+        const errors = [];
+        for (const event of events) {
+            const error = this.extractError(event);
+            if (error) {
+                errors.push(error);
+            }
+        }
+        return errors;
+    }
+}
+exports.ErrorExtractorImpl = ErrorExtractorImpl;
+/**
+ * EventPoller implementation with exponential backoff and rate limiting
+ */
+class EventPollerImpl {
+    constructor(client, stackName, initialIntervalMs = 2000, maxIntervalMs = 30000, changeSetName) {
+        this.seenEventIds = new Set();
+        this.client = client;
+        this.stackName = stackName;
+        this.changeSetName = changeSetName;
+        this.initialIntervalMs = initialIntervalMs;
+        this.maxIntervalMs = maxIntervalMs;
+        this.currentIntervalMs = initialIntervalMs;
+        // Track when this deployment session started to filter out old events
+        this.deploymentStartTime = new Date();
+    }
+    /**
+     * Poll for new events since last check
+     * Uses DescribeEvents API with ChangeSetName for precise event tracking
+     * Implements exponential backoff and handles API throttling
+     * Includes comprehensive error handling for network issues and API failures
+     */
+    pollEvents() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const command = new client_cloudformation_1.DescribeEventsCommand({
+                    ChangeSetName: this.changeSetName,
+                    StackName: this.stackName
+                });
+                const response = yield this.client.send(command);
+                const allEvents = response.OperationEvents || [];
+                // Filter for new events only
+                const newEvents = this.filterNewEvents(allEvents);
+                if (newEvents.length > 0) {
+                    // Reset interval when new events are found
+                    this.resetInterval();
+                    // Update tracking
+                    this.updateEventTracking(newEvents);
+                    core.debug(`Found ${newEvents.length} new stack events`);
+                }
+                else {
+                    // Increase interval when no new events (exponential backoff)
+                    this.increaseInterval();
+                    core.debug(`No new events found, current interval: ${this.currentIntervalMs}ms`);
+                }
+                return newEvents;
+            }
+            catch (error) {
+                // Handle specific AWS API errors
+                // CloudFormation throttling uses error.name === 'Throttling'
+                if (error instanceof Error &&
+                    (error.name === 'Throttling' ||
+                        error.name === 'ThrottlingException' ||
+                        error.name === 'TooManyRequestsException')) {
+                    core.warning(`CloudFormation API throttling detected, backing off...`);
+                    // Double the interval on throttling
+                    this.currentIntervalMs = Math.min(this.currentIntervalMs * 2, this.maxIntervalMs);
+                    throw error;
+                }
+                // Handle credential/permission errors first (most specific)
+                if (this.isCredentialError(error)) {
+                    core.warning(`Credential or permission error during event polling: ${error instanceof Error ? error.message : String(error)}`);
+                    throw error;
+                }
+                // Handle timeout errors (before network errors since ETIMEDOUT can be both)
+                if (this.isTimeoutError(error)) {
+                    core.warning(`Timeout error during event polling: ${error instanceof Error ? error.message : String(error)}`);
+                    // Increase interval on timeout to reduce load
+                    this.increaseInterval();
+                    throw error;
+                }
+                // Handle network connectivity issues
+                if (this.isNetworkError(error)) {
+                    core.warning(`Network connectivity issue during event polling: ${error instanceof Error ? error.message : String(error)}`);
+                    // Increase interval for network issues to avoid overwhelming failing connections
+                    this.increaseInterval();
+                    throw error;
+                }
+                // Handle AWS service errors (non-throttling)
+                if (this.isAWSServiceError(error)) {
+                    // Special handling for "Stack does not exist" during initial polling
+                    if (error instanceof Error &&
+                        error.message.includes('does not exist')) {
+                        core.debug(`Stack not yet created during event polling: ${error.message}`);
+                        // Don't throw for stack not existing - this is expected during initial deployment
+                        return [];
+                    }
+                    core.warning(`AWS service error during event polling: ${error instanceof Error ? error.message : String(error)}`);
+                    throw error;
+                }
+                // Log unknown errors as warnings and re-throw
+                core.warning(`Unknown error during event polling: ${error instanceof Error ? error.message : String(error)}`);
+                throw error;
+            }
+        });
+    }
+    /**
+     * Check if error is a network connectivity issue
+     */
+    isNetworkError(error) {
+        if (!(error instanceof Error))
+            return false;
+        const networkErrorPatterns = [
+            'ECONNREFUSED',
+            'ENOTFOUND',
+            'ECONNRESET',
+            'EHOSTUNREACH',
+            'ENETUNREACH',
+            'EAI_AGAIN',
+            'socket hang up',
+            'network timeout',
+            'connection timeout'
+        ];
+        const errorMessage = error.message.toLowerCase();
+        return networkErrorPatterns.some(pattern => errorMessage.includes(pattern.toLowerCase()));
+    }
+    /**
+     * Check if error is an AWS service error (non-throttling)
+     */
+    isAWSServiceError(error) {
+        if (!(error instanceof Error))
+            return false;
+        // Check for AWS SDK error properties
+        const awsError = error;
+        if (awsError.$metadata && awsError.$fault) {
+            return true;
+        }
+        // Check for common AWS error patterns
+        const awsErrorPatterns = [
+            'ValidationError',
+            'AccessDenied',
+            'InvalidParameterValue',
+            'ResourceNotFound',
+            'ServiceUnavailable',
+            'InternalFailure'
+        ];
+        return awsErrorPatterns.some(pattern => error.message.includes(pattern) || error.name === pattern);
+    }
+    /**
+     * Check if error is a timeout error
+     */
+    isTimeoutError(error) {
+        if (!(error instanceof Error))
+            return false;
+        const timeoutPatterns = [
+            'timeout',
+            'ETIMEDOUT',
+            'TimeoutError',
+            'RequestTimeout'
+        ];
+        const errorMessage = error.message.toLowerCase();
+        const errorName = error.name.toLowerCase();
+        return timeoutPatterns.some(pattern => errorMessage.includes(pattern.toLowerCase()) ||
+            errorName.includes(pattern.toLowerCase()));
+    }
+    /**
+     * Check if error is a credential or permission error
+     */
+    isCredentialError(error) {
+        if (!(error instanceof Error))
+            return false;
+        const credentialPatterns = [
+            'AccessDenied',
+            'Forbidden',
+            'UnauthorizedOperation',
+            'InvalidUserID.NotFound',
+            'TokenRefreshRequired',
+            'CredentialsError',
+            'SignatureDoesNotMatch'
+        ];
+        return credentialPatterns.some(pattern => error.message.includes(pattern) || error.name.includes(pattern));
+    }
+    /**
+     * Get current polling interval in milliseconds
+     */
+    getCurrentInterval() {
+        return this.currentIntervalMs;
+    }
+    /**
+     * Reset polling interval to initial value (called when new events found)
+     */
+    resetInterval() {
+        this.currentIntervalMs = this.initialIntervalMs;
+    }
+    /**
+     * Filter events to only return new ones since last poll
+     * Only includes events from the current deployment session
+     */
+    filterNewEvents(allEvents) {
+        const newEvents = [];
+        for (const event of allEvents) {
+            // Skip events that occurred before this deployment started
+            // Add a small buffer (30 seconds) to account for clock skew
+            const deploymentStartWithBuffer = new Date(this.deploymentStartTime.getTime() - 30000);
+            if (event.Timestamp && event.Timestamp < deploymentStartWithBuffer) {
+                continue;
+            }
+            // Create unique event ID from timestamp + resource + status
+            const eventId = this.createEventId(event);
+            if (!this.seenEventIds.has(eventId)) {
+                // Check if event is newer than our last seen timestamp
+                if (!this.lastEventTimestamp ||
+                    (event.Timestamp && event.Timestamp > this.lastEventTimestamp)) {
+                    newEvents.push(event);
+                }
+            }
+        }
+        // Sort by timestamp (oldest first) for proper display order
+        return newEvents.sort((a, b) => {
+            if (!a.Timestamp || !b.Timestamp)
+                return 0;
+            return a.Timestamp.getTime() - b.Timestamp.getTime();
+        });
+    }
+    /**
+     * Update internal tracking after processing new events
+     */
+    updateEventTracking(newEvents) {
+        for (const event of newEvents) {
+            const eventId = this.createEventId(event);
+            this.seenEventIds.add(eventId);
+            // Update last seen timestamp
+            if (event.Timestamp &&
+                (!this.lastEventTimestamp || event.Timestamp > this.lastEventTimestamp)) {
+                this.lastEventTimestamp = event.Timestamp;
+            }
+        }
+    }
+    /**
+     * Create unique identifier for an event
+     */
+    createEventId(event) {
+        var _a;
+        return `${(_a = event.Timestamp) === null || _a === void 0 ? void 0 : _a.getTime()}-${event.LogicalResourceId}-${event.ResourceStatus}`;
+    }
+    /**
+     * Increase polling interval using exponential backoff
+     */
+    increaseInterval() {
+        this.currentIntervalMs = Math.min(this.currentIntervalMs * 1.5, this.maxIntervalMs);
+    }
+    /**
+     * Set deployment start time (for testing purposes)
+     */
+    setDeploymentStartTime(startTime) {
+        this.deploymentStartTime = startTime;
+    }
+    /**
+     * Get deployment start time (for testing purposes)
+     */
+    getDeploymentStartTime() {
+        return this.deploymentStartTime;
+    }
+}
+exports.EventPollerImpl = EventPollerImpl;
+/**
+ * EventMonitor implementation - main orchestrator for event streaming functionality
+ * Manages the lifecycle of event monitoring with concurrent polling and display
+ */
+class EventMonitorImpl {
+    constructor(config) {
+        this.isActive = false;
+        this.stopRequested = false;
+        this.eventCount = 0;
+        this.errorCount = 0;
+        this.summaryDisplayed = false;
+        this.config = config;
+        // Initialize components
+        const colorFormatter = new ColorFormatterImpl(config.enableColors);
+        const errorExtractor = new ErrorExtractorImpl(colorFormatter);
+        this.poller = new EventPollerImpl(config.client, config.stackName, config.pollIntervalMs, config.maxPollIntervalMs, config.changeSetName);
+        this.formatter = new EventFormatterImpl(colorFormatter, errorExtractor);
+    }
+    /**
+     * Start monitoring stack events
+     * Begins concurrent polling and event display with comprehensive error handling
+     */
+    startMonitoring() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.isActive) {
+                core.debug('Event monitoring already active');
+                return;
+            }
+            this.isActive = true;
+            this.stopRequested = false;
+            this.startTime = new Date();
+            this.eventCount = 0;
+            this.errorCount = 0;
+            this.summaryDisplayed = false;
+            core.info(`Starting event monitoring for stack: ${this.config.stackName}`);
+            // Start the polling loop with comprehensive error handling
+            this.pollingPromise = this.pollLoop();
+            try {
+                yield this.pollingPromise;
+            }
+            catch (error) {
+                // Log polling errors but don't throw - event streaming should not break deployment
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(`Event monitoring encountered an error but deployment will continue: ${errorMessage}`);
+                // Log additional context for debugging
+                core.debug(`Event monitoring error details: ${JSON.stringify({
+                    error: errorMessage,
+                    stackName: this.config.stackName,
+                    eventCount: this.eventCount,
+                    errorCount: this.errorCount,
+                    duration: this.startTime
+                        ? Date.now() - this.startTime.getTime()
+                        : undefined
+                })}`);
+            }
+            finally {
+                this.isActive = false;
+                core.debug('Event monitoring has been stopped');
+            }
+        });
+    }
+    /**
+     * Stop monitoring (called when stack reaches terminal state)
+     */
+    stopMonitoring() {
+        if (!this.isActive) {
+            return;
+        }
+        core.debug('Stopping event monitoring');
+        this.stopRequested = true;
+        this.isActive = false;
+        // Only display final summary if we haven't already displayed it
+        // This prevents duplicate summaries when called multiple times
+        if (!this.summaryDisplayed) {
+            this.displayFinalSummary();
+            this.summaryDisplayed = true;
+        }
+    }
+    /**
+     * Check if monitoring is active
+     */
+    isMonitoring() {
+        return this.isActive;
+    }
+    /**
+     * Main polling loop that runs concurrently with deployment
+     * Implements the 5-second timeliness requirement with comprehensive error handling
+     */
+    pollLoop() {
+        return __awaiter(this, void 0, void 0, function* () {
+            let consecutiveErrors = 0;
+            const maxConsecutiveErrors = 5;
+            const errorBackoffMs = 5000;
+            let noEventsCount = 0;
+            const maxNoEventsBeforeStop = 10; // Stop after 10 polls with no events (20 seconds)
+            while (this.isActive && !this.stopRequested) {
+                try {
+                    // Poll for new events
+                    const newEvents = yield this.poller.pollEvents();
+                    if (newEvents.length > 0) {
+                        // Display events immediately to meet 5-second requirement
+                        yield this.displayEvents(newEvents);
+                        // Update counters
+                        this.eventCount += newEvents.length;
+                        this.errorCount += this.countErrors(newEvents);
+                        noEventsCount = 0; // Reset no-events counter
+                        // Check if stack has reached terminal state
+                        if (this.hasTerminalEvent(newEvents)) {
+                            core.debug('Terminal stack state detected, stopping monitoring');
+                            this.stopRequested = true;
+                            // Display final summary when terminal state is reached
+                            if (!this.summaryDisplayed) {
+                                this.displayFinalSummary();
+                                this.summaryDisplayed = true;
+                            }
+                            break;
+                        }
+                    }
+                    else {
+                        noEventsCount++;
+                        // If we haven't seen any events for a while, check if this might be an empty changeset
+                        if (noEventsCount >= maxNoEventsBeforeStop && this.eventCount === 0) {
+                            core.debug('No events detected after extended polling - likely empty changeset');
+                            this.stopRequested = true;
+                            break;
+                        }
+                    }
+                    // Reset consecutive error count on successful poll
+                    consecutiveErrors = 0;
+                    // Wait for next polling interval if still active
+                    if (this.isActive && !this.stopRequested) {
+                        const interval = this.poller.getCurrentInterval();
+                        yield this.sleep(interval);
+                    }
+                }
+                catch (error) {
+                    consecutiveErrors++;
+                    // Handle polling errors gracefully with progressive backoff
+                    // CloudFormation throttling uses error.name === 'Throttling'
+                    if (error instanceof Error &&
+                        (error.name === 'Throttling' ||
+                            error.name === 'ThrottlingException' ||
+                            error.name === 'TooManyRequestsException')) {
+                        core.warning(`CloudFormation API throttling (attempt ${consecutiveErrors}/${maxConsecutiveErrors}), backing off...`);
+                        // Wait longer on throttling with exponential backoff
+                        const backoffTime = Math.min(this.poller.getCurrentInterval() * Math.pow(2, consecutiveErrors), 30000);
+                        yield this.sleep(backoffTime);
+                    }
+                    else {
+                        // Log other errors as warnings with context
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        core.warning(`Event polling error (attempt ${consecutiveErrors}/${maxConsecutiveErrors}): ${errorMessage}`);
+                        // Implement graceful degradation
+                        if (consecutiveErrors >= maxConsecutiveErrors) {
+                            core.warning(`Maximum consecutive polling errors (${maxConsecutiveErrors}) reached. ` +
+                                'Event streaming will be disabled to prevent deployment interference. ' +
+                                'Deployment will continue normally.');
+                            this.stopRequested = true;
+                            break;
+                        }
+                        // Progressive backoff for consecutive errors
+                        const backoffTime = Math.min(errorBackoffMs * consecutiveErrors, 30000);
+                        yield this.sleep(backoffTime);
+                    }
+                    // Check if we should continue after error handling
+                    if (this.isActive &&
+                        !this.stopRequested &&
+                        consecutiveErrors < maxConsecutiveErrors) {
+                        continue;
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+            // Log final status
+            if (consecutiveErrors >= maxConsecutiveErrors) {
+                core.warning('Event streaming stopped due to consecutive errors. Deployment continues normally.');
+            }
+            else if (this.eventCount === 0) {
+                core.info('✅ No deployment events - stack is already up to date');
+                core.info('No changes were applied to the CloudFormation stack');
+            }
+            else {
+                core.debug('Event monitoring polling loop completed normally');
+                // Display final summary when polling completes normally
+                if (!this.summaryDisplayed) {
+                    this.displayFinalSummary();
+                    this.summaryDisplayed = true;
+                }
+            }
+        });
+    }
+    /**
+     * Display events immediately to meet timeliness requirement
+     * Ensures events are shown within 5 seconds of availability
+     */
+    displayEvents(events) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const formattedOutput = this.formatter.formatEvents(events);
+                if (formattedOutput) {
+                    // Use core.info to ensure output appears in GitHub Actions logs
+                    core.info(formattedOutput);
+                }
+            }
+            catch (error) {
+                core.warning(`Event formatting error: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+    }
+    /**
+     * Count error events in a batch
+     */
+    countErrors(events) {
+        return events.filter(event => {
+            const status = event.ResourceStatus || '';
+            return exports.ERROR_STATUS_PATTERNS.some(pattern => status.includes(pattern));
+        }).length;
+    }
+    /**
+     * Check if any event indicates a terminal stack state
+     * Only considers the main stack events, not individual resources
+     */
+    hasTerminalEvent(events) {
+        return events.some(event => {
+            const status = event.ResourceStatus || '';
+            const resourceType = event.ResourceType || '';
+            // Only check terminal states for the main CloudFormation stack
+            if (resourceType === 'AWS::CloudFormation::Stack') {
+                return exports.TERMINAL_STACK_STATES.includes(status);
+            }
+            return false;
+        });
+    }
+    /**
+     * Display final deployment summary
+     */
+    displayFinalSummary() {
+        try {
+            const duration = this.startTime
+                ? Date.now() - this.startTime.getTime()
+                : undefined;
+            // Determine final status based on error count and event count
+            let finalStatus = 'DEPLOYMENT_COMPLETE';
+            if (this.errorCount > 0) {
+                finalStatus = 'DEPLOYMENT_FAILED';
+            }
+            else if (this.eventCount === 0) {
+                finalStatus = 'NO_CHANGES';
+            }
+            const summary = this.formatter.formatDeploymentSummary(this.config.stackName, finalStatus, this.eventCount, this.errorCount, duration);
+            core.info(summary);
+        }
+        catch (error) {
+            core.warning(`Error displaying final summary: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Sleep utility for polling intervals
+     */
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    /**
+     * Get monitoring statistics
+     */
+    getStats() {
+        const duration = this.startTime
+            ? Date.now() - this.startTime.getTime()
+            : undefined;
+        return {
+            eventCount: this.eventCount,
+            errorCount: this.errorCount,
+            isActive: this.isActive,
+            duration
+        };
+    }
+}
+exports.EventMonitorImpl = EventMonitorImpl;
+/**
+ * EventFormatter implementation for structured event display
+ * Handles ISO 8601 timestamp formatting, resource name truncation, and nested indentation
+ */
+class EventFormatterImpl {
+    constructor(colorFormatter, errorExtractor, config = {}) {
+        this.colorFormatter = colorFormatter;
+        this.errorExtractor = errorExtractor;
+        // Set default configuration with overrides
+        this.config = Object.assign({ showTimestamp: true, showResourceType: true, showPhysicalId: false, maxResourceNameLength: 50, indentLevel: 0 }, config);
+    }
+    /**
+     * Format a single event for display
+     * Returns structured FormattedEvent object
+     */
+    formatEvent(event) {
+        // Format timestamp in ISO 8601 format with timezone
+        const timestamp = this.formatTimestamp(event.Timestamp);
+        // Format resource information with truncation
+        const resourceInfo = this.formatResourceInfo(event);
+        // Format status with appropriate coloring
+        const status = this.formatStatus(event.ResourceStatus || 'UNKNOWN');
+        // Check if this is an error event and extract error message
+        const isError = this.errorExtractor.isErrorEvent(event);
+        let message;
+        if (isError) {
+            const extractedError = this.errorExtractor.extractError(event);
+            if (extractedError) {
+                message = extractedError.message;
+            }
+        }
+        else if (event.ResourceStatusReason) {
+            // Include status reason for non-error events if available
+            message = event.ResourceStatusReason;
+        }
+        // Format OperationEvent specific fields
+        const eventType = event.EventType;
+        const detailedStatus = event.DetailedStatus;
+        // Format hook information if present
+        let hookInfo;
+        if (event.HookType || event.HookStatus) {
+            const parts = [];
+            if (event.HookType)
+                parts.push(`Hook: ${event.HookType}`);
+            if (event.HookStatus)
+                parts.push(`Status: ${event.HookStatus}`);
+            if (event.HookFailureMode)
+                parts.push(`FailureMode: ${event.HookFailureMode}`);
+            if (event.HookInvocationPoint)
+                parts.push(`Point: ${event.HookInvocationPoint}`);
+            hookInfo = parts.join(', ');
+            if (event.HookStatusReason) {
+                hookInfo += ` - ${event.HookStatusReason}`;
+            }
+        }
+        // Format validation information if present
+        let validationInfo;
+        if (event.ValidationName) {
+            validationInfo = `Validation: ${event.ValidationName}`;
+            if (event.ValidationFailureMode) {
+                validationInfo += ` (${event.ValidationFailureMode})`;
+            }
+        }
+        // Format operation information if present
+        let operationInfo;
+        if (event.OperationType || event.OperationStatus) {
+            const parts = [];
+            if (event.OperationType)
+                parts.push(event.OperationType);
+            if (event.OperationStatus)
+                parts.push(event.OperationStatus);
+            operationInfo = parts.join(': ');
+        }
+        return {
+            timestamp,
+            resourceInfo,
+            status,
+            message,
+            isError,
+            eventType,
+            detailedStatus,
+            hookInfo,
+            validationInfo,
+            operationInfo
+        };
+    }
+    /**
+     * Format multiple events as a batch
+     * Returns formatted string ready for display
+     */
+    formatEvents(events) {
+        if (events.length === 0) {
+            return '';
+        }
+        const formattedLines = [];
+        for (const event of events) {
+            const formattedEvent = this.formatEvent(event);
+            const line = this.formatEventLine(formattedEvent);
+            formattedLines.push(line);
+        }
+        return formattedLines.join('\n');
+    }
+    /**
+     * Format timestamp in ISO 8601 format with timezone
+     * Handles invalid dates gracefully
+     */
+    formatTimestamp(timestamp) {
+        if (!timestamp) {
+            return this.colorFormatter.colorizeTimestamp('Unknown time');
+        }
+        try {
+            // Format as ISO 8601 with timezone (e.g., "2023-12-07T10:30:45.123Z")
+            const isoString = timestamp.toISOString();
+            return this.colorFormatter.colorizeTimestamp(isoString);
+        }
+        catch (error) {
+            core.debug(`Invalid timestamp format: ${error}`);
+            return this.colorFormatter.colorizeTimestamp('Invalid time');
+        }
+    }
+    /**
+     * Format resource information with truncation and type display
+     * Handles long resource names by truncating them appropriately
+     */
+    formatResourceInfo(event) {
+        const resourceType = event.ResourceType || 'Unknown';
+        const logicalId = event.LogicalResourceId || 'Unknown';
+        const physicalId = event.PhysicalResourceId;
+        // Truncate logical resource ID if it exceeds max length
+        const truncatedLogicalId = this.truncateResourceName(logicalId, this.config.maxResourceNameLength);
+        // Optionally include physical ID in the display
+        if (this.config.showPhysicalId && physicalId) {
+            const truncatedPhysicalId = this.truncateResourceName(physicalId, this.config.maxResourceNameLength);
+            // Return with physical ID included
+            return this.colorFormatter.colorizeResource(resourceType, `${truncatedLogicalId} (${truncatedPhysicalId})`);
+        }
+        return this.colorFormatter.colorizeResource(resourceType, truncatedLogicalId);
+    }
+    /**
+     * Truncate resource name while maintaining readability
+     * Uses ellipsis to indicate truncation
+     */
+    truncateResourceName(name, maxLength) {
+        if (name.length <= maxLength) {
+            return name;
+        }
+        // Truncate and add ellipsis, ensuring we don't exceed maxLength
+        const ellipsis = '...';
+        const truncateLength = maxLength - ellipsis.length;
+        if (truncateLength <= 0) {
+            return ellipsis;
+        }
+        return name.substring(0, truncateLength) + ellipsis;
+    }
+    /**
+     * Format status with appropriate coloring
+     */
+    formatStatus(status) {
+        return this.colorFormatter.colorizeStatus(status, status);
+    }
+    /**
+     * Format a complete event line for display
+     * Handles indentation for nested resources and error formatting
+     */
+    formatEventLine(formattedEvent) {
+        const parts = [];
+        // Add indentation for nested resources
+        const indent = this.getResourceIndentation();
+        if (indent) {
+            parts.push(indent);
+        }
+        // Add timestamp if configured
+        if (this.config.showTimestamp) {
+            parts.push(formattedEvent.timestamp);
+        }
+        // Add event type if present (for non-standard events)
+        if (formattedEvent.eventType &&
+            formattedEvent.eventType !== 'STACK_EVENT') {
+            parts.push(`[${formattedEvent.eventType}]`);
+        }
+        // Add resource information
+        parts.push(formattedEvent.resourceInfo);
+        // Add status
+        parts.push(formattedEvent.status);
+        // Add detailed status if present
+        if (formattedEvent.detailedStatus) {
+            parts.push(`(${formattedEvent.detailedStatus})`);
+        }
+        // Add operation info if present
+        if (formattedEvent.operationInfo) {
+            parts.push(`[${formattedEvent.operationInfo}]`);
+        }
+        // Add hook information if present
+        if (formattedEvent.hookInfo) {
+            parts.push(`[${formattedEvent.hookInfo}]`);
+        }
+        // Add validation information if present
+        if (formattedEvent.validationInfo) {
+            parts.push(`[${formattedEvent.validationInfo}]`);
+        }
+        // Add message if available
+        if (formattedEvent.message) {
+            if (formattedEvent.isError) {
+                // Format error messages with bold red
+                const errorMessage = this.colorFormatter.colorizeError(formattedEvent.message);
+                parts.push(`ERROR: ${errorMessage}`);
+            }
+            else {
+                // Regular message
+                parts.push(`- ${formattedEvent.message}`);
+            }
+        }
+        return parts.join(' ');
+    }
+    /**
+     * Get indentation string for nested resources
+     * Uses consistent indentation based on resource type hierarchy
+     */
+    getResourceIndentation() {
+        // Use consistent indentation - no complex heuristics that cause inconsistency
+        // All events get the same base indentation level from config
+        const indentLevel = this.config.indentLevel;
+        if (indentLevel === 0) {
+            return '';
+        }
+        // Use 2 spaces per indent level for consistent formatting
+        return '  '.repeat(indentLevel);
+    }
+    /**
+     * Calculate indentation level for nested resources
+     * Simplified to avoid inconsistent formatting
+     */
+    calculateIndentLevel() {
+        // Return the configured base indent level for all events
+        // This ensures consistent formatting across all event types
+        return Math.max(0, this.config.indentLevel);
+    }
+    /**
+     * Update display configuration
+     */
+    updateConfig(newConfig) {
+        this.config = Object.assign(Object.assign({}, this.config), newConfig);
+    }
+    /**
+     * Get current display configuration
+     */
+    getConfig() {
+        return Object.assign({}, this.config);
+    }
+    /**
+     * Format deployment summary when stack reaches terminal state
+     * Provides overview of deployment result
+     */
+    formatDeploymentSummary(stackName, finalStatus, totalEvents, errorCount, duration) {
+        const lines = [];
+        lines.push(''); // Empty line for separation
+        lines.push('='.repeat(60));
+        lines.push(`Deployment Summary for ${stackName}`);
+        lines.push('='.repeat(60));
+        // Format final status with appropriate color
+        const colorizedStatus = this.colorFormatter.colorizeStatus(finalStatus, finalStatus);
+        lines.push(`Final Status: ${colorizedStatus}`);
+        lines.push(`Total Events: ${totalEvents}`);
+        if (errorCount > 0) {
+            const errorText = this.colorFormatter.colorizeError(`${errorCount} error(s)`);
+            lines.push(`Errors: ${errorText}`);
+        }
+        else {
+            const successText = this.colorFormatter.colorizeStatus('CREATE_COMPLETE', 'No errors');
+            lines.push(`Errors: ${successText}`);
+        }
+        if (duration !== undefined) {
+            const durationText = `${Math.round(duration / 1000)}s`;
+            lines.push(`Duration: ${durationText}`);
+        }
+        lines.push('='.repeat(60));
+        lines.push(''); // Empty line for separation
+        return lines.join('\n');
+    }
+}
+exports.EventFormatterImpl = EventFormatterImpl;
+
+
+/***/ }),
+
 /***/ 1730:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -54897,6 +55997,7 @@ const deploy_1 = __nccwpck_require__(9880);
 const utils_1 = __nccwpck_require__(1798);
 const validation_1 = __nccwpck_require__(4344);
 const node_http_handler_1 = __nccwpck_require__(1279);
+const event_streaming_1 = __nccwpck_require__(3286);
 // The custom client configuration for the CloudFormation clients.
 let clientConfiguration = {
     customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
@@ -55011,20 +56112,51 @@ function run() {
             const maxWaitTime = typeof timeoutMinutes === 'number'
                 ? timeoutMinutes * 60
                 : defaultMaxWaitTime;
-            const result = yield (0, deploy_1.deployStack)(cfn, params, inputs['change-set-name'] || `${params.StackName}-CS`, inputs['fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset'], maxWaitTime);
-            core.setOutput('stack-id', result.stackId || 'UNKNOWN');
-            // Set change set outputs when not executing
-            if (result.changeSetInfo) {
-                core.setOutput('change-set-id', result.changeSetInfo.changeSetId || '');
-                core.setOutput('change-set-name', result.changeSetInfo.changeSetName || '');
-                core.setOutput('has-changes', result.changeSetInfo.hasChanges.toString());
-                core.setOutput('changes-count', result.changeSetInfo.changesCount.toString());
-                core.setOutput('changes-summary', result.changeSetInfo.changesSummary);
+            const changeSetName = inputs['change-set-name'] || `${params.StackName}-CS`;
+            // Initialize event streaming for real-time deployment feedback
+            let eventMonitor;
+            try {
+                const eventConfig = {
+                    stackName: params.StackName,
+                    changeSetName,
+                    client: cfn,
+                    enableColors: true, // GitHub Actions supports ANSI colors
+                    pollIntervalMs: 2000, // Poll every 2 seconds
+                    maxPollIntervalMs: 30000 // Max 30 seconds between polls
+                };
+                eventMonitor = new event_streaming_1.EventMonitorImpl(eventConfig);
+                eventMonitor.startMonitoring().catch(err => {
+                    core.warning(`Event streaming failed but deployment continues: ${err instanceof Error ? err.message : String(err)}`);
+                });
+                core.debug('Event streaming started for stack deployment');
             }
-            if (result.stackId) {
-                const outputs = yield (0, deploy_1.getStackOutputs)(cfn, result.stackId);
-                for (const [key, value] of outputs) {
-                    core.setOutput(key, value);
+            catch (error) {
+                core.warning(`Failed to initialize event streaming, deployment continues: ${error instanceof Error ? error.message : String(error)}`);
+                eventMonitor = undefined;
+            }
+            try {
+                const result = yield (0, deploy_1.deployStack)(cfn, params, changeSetName, inputs['fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset'], maxWaitTime);
+                core.setOutput('stack-id', result.stackId || 'UNKNOWN');
+                // Set change set outputs when not executing
+                if (result.changeSetInfo) {
+                    core.setOutput('change-set-id', result.changeSetInfo.changeSetId || '');
+                    core.setOutput('change-set-name', result.changeSetInfo.changeSetName || '');
+                    core.setOutput('has-changes', result.changeSetInfo.hasChanges.toString());
+                    core.setOutput('changes-count', result.changeSetInfo.changesCount.toString());
+                    core.setOutput('changes-summary', result.changeSetInfo.changesSummary);
+                }
+                if (result.stackId) {
+                    const outputs = yield (0, deploy_1.getStackOutputs)(cfn, result.stackId);
+                    for (const [key, value] of outputs) {
+                        core.setOutput(key, value);
+                    }
+                }
+            }
+            finally {
+                // Always stop event monitoring when deployment completes or fails
+                if (eventMonitor) {
+                    eventMonitor.stopMonitoring();
+                    core.debug('Event streaming stopped');
                 }
             }
         }
@@ -55164,61 +56296,23 @@ function parseNumber(s) {
     return isNaN(num) ? undefined : num;
 }
 function parseBoolean(s) {
-    return s ? !!+s : false;
-}
-function formatParameterValue(value) {
-    if (value === null || value === undefined) {
-        return '';
-    }
-    if (Array.isArray(value)) {
-        return value.join(',');
-    }
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
-    }
-    return String(value);
+    if (typeof s === 'boolean')
+        return s;
+    if (!s)
+        return false;
+    if (s === 'true')
+        return true;
+    if (s === 'false')
+        return false;
+    return !!+s; // Legacy: "1" -> true, "0" -> false
 }
 function parseParameters(parameterOverrides) {
     if (!parameterOverrides)
         return undefined;
-    // Case 1: Handle native YAML/JSON objects
-    if (typeof parameterOverrides !== 'string') {
-        return Object.keys(parameterOverrides).map(key => {
-            const value = parameterOverrides[key];
-            return {
-                ParameterKey: key,
-                ParameterValue: typeof value === 'string' ? value : formatParameterValue(value)
-            };
-        });
-    }
-    // Case 2: Empty string
+    // Case 1: Empty string
     if (parameterOverrides.trim().length === 0)
         return undefined;
-    // Case 3: Try parsing as YAML
-    try {
-        const parsed = yaml.load(parameterOverrides);
-        if (!parsed) {
-            return undefined;
-        }
-        if (Array.isArray(parsed)) {
-            // Handle array format
-            return parsed.map(param => ({
-                ParameterKey: param.ParameterKey,
-                ParameterValue: formatParameterValue(param.ParameterValue)
-            }));
-        }
-        else if (typeof parsed === 'object') {
-            // Handle object format
-            return Object.entries(parsed).map(([key, value]) => ({
-                ParameterKey: key,
-                ParameterValue: formatParameterValue(value)
-            }));
-        }
-    }
-    catch (_a) {
-        // YAML parsing failed, continue to other cases
-    }
-    // Case 4: Try URL to JSON file
+    // Case 2: Try URL to JSON file
     try {
         const path = new URL(parameterOverrides);
         const rawParameters = fs.readFileSync(path, 'utf-8');
@@ -55230,7 +56324,7 @@ function parseParameters(parameterOverrides) {
             throw err;
         }
     }
-    // Case 5: String format "key=value,key2=value2"
+    // Case 3: String format "key=value,key2=value2"
     const parameters = new Map();
     parameterOverrides
         .trim()
@@ -55273,9 +56367,11 @@ function withRetry(operation_1) {
                 return yield operation();
             }
             catch (error) {
-                // Check for throttling by error name or message
+                // Check for CloudFormation throttling errors
+                // CloudFormation uses error.name === 'Throttling' with message 'Rate exceeded'
                 const isThrottling = error instanceof Error &&
-                    (error.name === 'ThrottlingException' ||
+                    (error.name === 'Throttling' ||
+                        error.name === 'ThrottlingException' ||
                         error.name === 'TooManyRequestsException' ||
                         error.message.includes('Rate exceeded'));
                 if (isThrottling) {
@@ -55341,15 +56437,30 @@ const createSchema = baseSchema.extend({
         .optional()
         .transform(val => val ? val.split(',').map(cap => cap.trim()) : ['CAPABILITY_IAM']),
     'parameter-overrides': zod_1.z.string().optional().transform(utils_1.parseParameters),
-    'fail-on-empty-changeset': zod_1.z.string().optional().transform(utils_1.parseBoolean),
-    'no-execute-changeset': zod_1.z.string().optional().transform(utils_1.parseBoolean),
-    'no-delete-failed-changeset': zod_1.z.string().optional().transform(utils_1.parseBoolean),
-    'disable-rollback': zod_1.z.string().optional().transform(utils_1.parseBoolean),
+    'fail-on-empty-changeset': zod_1.z
+        .union([zod_1.z.string(), zod_1.z.boolean()])
+        .optional()
+        .transform(utils_1.parseBoolean),
+    'no-execute-changeset': zod_1.z
+        .union([zod_1.z.string(), zod_1.z.boolean()])
+        .optional()
+        .transform(utils_1.parseBoolean),
+    'no-delete-failed-changeset': zod_1.z
+        .union([zod_1.z.string(), zod_1.z.boolean()])
+        .optional()
+        .transform(utils_1.parseBoolean),
+    'disable-rollback': zod_1.z
+        .union([zod_1.z.string(), zod_1.z.boolean()])
+        .optional()
+        .transform(utils_1.parseBoolean),
     'timeout-in-minutes': zod_1.z.string().optional().transform(utils_1.parseNumber),
     'notification-arns': zod_1.z.string().optional().transform(utils_1.parseARNs),
     'role-arn': zod_1.z.string().optional().transform(emptyToUndefined),
     tags: zod_1.z.string().optional().transform(utils_1.parseTags),
-    'termination-protection': zod_1.z.string().optional().transform(utils_1.parseBoolean),
+    'termination-protection': zod_1.z
+        .union([zod_1.z.string(), zod_1.z.boolean()])
+        .optional()
+        .transform(utils_1.parseBoolean),
     'change-set-name': zod_1.z.string().optional().transform(emptyToUndefined),
     'include-nested-stacks-change-set': zod_1.z
         .string()

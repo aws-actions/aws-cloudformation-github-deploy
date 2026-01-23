@@ -61,74 +61,23 @@ export function parseNumber(s?: string): number | undefined {
   return isNaN(num) ? undefined : num
 }
 
-export function parseBoolean(s?: string): boolean {
-  return s ? !!+s : false
-}
-
-type CFParameterValue = string | string[] | boolean
-type CFParameterObject = Record<string, CFParameterValue>
-
-function formatParameterValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return ''
-  }
-
-  if (Array.isArray(value)) {
-    return value.join(',')
-  }
-
-  if (typeof value === 'object') {
-    return JSON.stringify(value)
-  }
-
-  return String(value)
+export function parseBoolean(s?: string | boolean): boolean {
+  if (typeof s === 'boolean') return s
+  if (!s) return false
+  if (s === 'true') return true
+  if (s === 'false') return false
+  return !!+s // Legacy: "1" -> true, "0" -> false
 }
 
 export function parseParameters(
-  parameterOverrides?: string | CFParameterObject
+  parameterOverrides?: string
 ): Parameter[] | undefined {
   if (!parameterOverrides) return undefined
 
-  // Case 1: Handle native YAML/JSON objects
-  if (typeof parameterOverrides !== 'string') {
-    return Object.keys(parameterOverrides).map(key => {
-      const value = parameterOverrides[key]
-      return {
-        ParameterKey: key,
-        ParameterValue:
-          typeof value === 'string' ? value : formatParameterValue(value)
-      }
-    })
-  }
-
-  // Case 2: Empty string
+  // Case 1: Empty string
   if (parameterOverrides.trim().length === 0) return undefined
 
-  // Case 3: Try parsing as YAML
-  try {
-    const parsed = yaml.load(parameterOverrides)
-    if (!parsed) {
-      return undefined
-    }
-
-    if (Array.isArray(parsed)) {
-      // Handle array format
-      return parsed.map(param => ({
-        ParameterKey: param.ParameterKey,
-        ParameterValue: formatParameterValue(param.ParameterValue)
-      }))
-    } else if (typeof parsed === 'object') {
-      // Handle object format
-      return Object.entries(parsed).map(([key, value]) => ({
-        ParameterKey: key,
-        ParameterValue: formatParameterValue(value)
-      }))
-    }
-  } catch {
-    // YAML parsing failed, continue to other cases
-  }
-
-  // Case 4: Try URL to JSON file
+  // Case 2: Try URL to JSON file
   try {
     const path = new URL(parameterOverrides)
     const rawParameters = fs.readFileSync(path, 'utf-8')
@@ -141,7 +90,7 @@ export function parseParameters(
     }
   }
 
-  // Case 5: String format "key=value,key2=value2"
+  // Case 3: String format "key=value,key2=value2"
   const parameters = new Map<string, string>()
   parameterOverrides
     .trim()

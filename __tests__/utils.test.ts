@@ -3,6 +3,7 @@ import {
   parseTags,
   isUrl,
   parseParameters,
+  parseBoolean,
   withRetry
 } from '../src/utils'
 import * as path from 'path'
@@ -91,45 +92,6 @@ describe('Parse Parameters', () => {
   test('returns parameters empty string', async () => {
     const json = parseParameters('')
     expect(json).toBeUndefined()
-  })
-
-  test('returns parameters empty YAML', async () => {
-    const json = parseParameters('0')
-    expect(json).toBeUndefined()
-  })
-
-  type CFParameterValue = string | string[] | boolean
-  type CFParameterObject = Record<string, CFParameterValue>
-
-  test('handles empty parameter overrides object', () => {
-    const parameterOverrides: CFParameterObject = {}
-    const result = parseParameters(parameterOverrides)
-    expect(result).toEqual([])
-  })
-
-  test('handles undefined values in parameter overrides object', () => {
-    const parameterOverrides: CFParameterObject = {
-      ValidParam: 'value',
-      EmptyParam: '',
-      ListParam: ['value1', 'value2']
-    }
-
-    const result = parseParameters(parameterOverrides)
-
-    expect(result).toEqual([
-      {
-        ParameterKey: 'ValidParam',
-        ParameterValue: 'value'
-      },
-      {
-        ParameterKey: 'EmptyParam',
-        ParameterValue: ''
-      },
-      {
-        ParameterKey: 'ListParam',
-        ParameterValue: 'value1,value2'
-      }
-    ])
   })
 
   test('returns parameters list from string', async () => {
@@ -221,85 +183,6 @@ describe('Parse Parameters', () => {
       {
         ParameterKey: 'MyParam2',
         ParameterValue: 'myValue2'
-      }
-    ])
-  })
-
-  test('returns parameters list from YAML array format', async () => {
-    const yaml = `
-- ParameterKey: MyParam1
-  ParameterValue: myValue1
-- ParameterKey: MyParam2
-  ParameterValue: myValue2
-`
-    const json = parseParameters(yaml)
-    expect(json).toEqual([
-      {
-        ParameterKey: 'MyParam1',
-        ParameterValue: 'myValue1'
-      },
-      {
-        ParameterKey: 'MyParam2',
-        ParameterValue: 'myValue2'
-      }
-    ])
-  })
-
-  test('handles YAML with nested values', async () => {
-    const yaml = `
-MyParam1: myValue1
-MyParam2:
-  - item1
-  - item2
-MyParam3:
-  key: value
-MyParam4: {"key":"value"}
-`
-    const json = parseParameters(yaml)
-    expect(json).toEqual([
-      {
-        ParameterKey: 'MyParam1',
-        ParameterValue: 'myValue1'
-      },
-      {
-        ParameterKey: 'MyParam2',
-        ParameterValue: 'item1,item2'
-      },
-      {
-        ParameterKey: 'MyParam3',
-        ParameterValue: '{"key":"value"}'
-      },
-      {
-        ParameterKey: 'MyParam4',
-        ParameterValue: '{"key":"value"}'
-      }
-    ])
-  })
-
-  test('handles YAML with boolean and number values', async () => {
-    const yaml = `
-BoolParam: true
-NumberParam: 123
-StringParam: 'hello'
-NullParam: null
-`
-    const json = parseParameters(yaml)
-    expect(json).toEqual([
-      {
-        ParameterKey: 'BoolParam',
-        ParameterValue: 'true'
-      },
-      {
-        ParameterKey: 'NumberParam',
-        ParameterValue: '123'
-      },
-      {
-        ParameterKey: 'StringParam',
-        ParameterValue: 'hello'
-      },
-      {
-        ParameterKey: 'NullParam',
-        ParameterValue: ''
       }
     ])
   })
@@ -462,6 +345,40 @@ Path: /path/to/something
         Value: '/path/to/something'
       }
     ])
+  })
+})
+
+describe('parseBoolean', () => {
+  test('handles native boolean true', () => {
+    expect(parseBoolean(true)).toBe(true)
+  })
+
+  test('handles native boolean false', () => {
+    expect(parseBoolean(false)).toBe(false)
+  })
+
+  test('handles string "true"', () => {
+    expect(parseBoolean('true')).toBe(true)
+  })
+
+  test('handles string "false"', () => {
+    expect(parseBoolean('false')).toBe(false)
+  })
+
+  test('handles legacy string "1"', () => {
+    expect(parseBoolean('1')).toBe(true)
+  })
+
+  test('handles legacy string "0"', () => {
+    expect(parseBoolean('0')).toBe(false)
+  })
+
+  test('handles undefined', () => {
+    expect(parseBoolean(undefined)).toBe(false)
+  })
+
+  test('handles empty string', () => {
+    expect(parseBoolean('')).toBe(false)
   })
 })
 

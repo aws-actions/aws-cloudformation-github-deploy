@@ -25,6 +25,13 @@ jest.mock('fs', () => ({
   },
   readFileSync: jest.fn()
 }))
+jest.mock('../src/event-streaming', () => ({
+  EventMonitorImpl: jest.fn().mockImplementation(() => ({
+    startMonitoring: jest.fn().mockResolvedValue(undefined),
+    stopMonitoring: jest.fn(),
+    isMonitoring: jest.fn().mockReturnValue(false)
+  }))
+}))
 
 const oldEnv = process.env
 
