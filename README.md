@@ -134,7 +134,8 @@ This action requires the following minimum set of permissions:
                 "cloudformation:DescribeChangeSet",
                 "cloudformation:DeleteChangeSet",
                 "cloudformation:ExecuteChangeSet",
-                "cloudformation:DescribeStackEvents"
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:DescribeEvents"
             ],
             "Resource": "*"
         }

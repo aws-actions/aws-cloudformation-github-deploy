@@ -118,18 +118,53 @@ export async function run(): Promise<void> {
           ? timeoutMinutes * 60
           : defaultMaxWaitTime
 
-      const stackId = await executeExistingChangeSet(
-        cfn,
-        inputs.name,
-        inputs['execute-change-set-id']!,
-        maxWaitTime
-      )
-      core.setOutput('stack-id', stackId || 'UNKNOWN')
+      // Start event monitoring for execute-only mode
+      let eventMonitor: EventMonitorImpl | undefined
+      try {
+        const eventConfig: EventMonitorConfig = {
+          stackName: inputs.name,
+          changeSetName: inputs['execute-change-set-id']!,
+          client: cfn,
+          enableColors: true,
+          pollIntervalMs: 2000,
+          maxPollIntervalMs: 30000
+        }
+        eventMonitor = new EventMonitorImpl(eventConfig)
+        eventMonitor.startMonitoring().catch(err => {
+          core.warning(
+            `Event streaming failed: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          )
+        })
+        core.debug('Event streaming started for execute-only mode')
+      } catch (error) {
+        core.warning(
+          `Failed to start event streaming: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+      }
 
-      if (stackId) {
-        const outputs = await getStackOutputs(cfn, stackId)
-        for (const [key, value] of outputs) {
-          core.setOutput(key, value)
+      try {
+        const stackId = await executeExistingChangeSet(
+          cfn,
+          inputs.name,
+          inputs['execute-change-set-id']!,
+          maxWaitTime
+        )
+        core.setOutput('stack-id', stackId || 'UNKNOWN')
+
+        if (stackId) {
+          const outputs = await getStackOutputs(cfn, stackId)
+          for (const [key, value] of outputs) {
+            core.setOutput(key, value)
+          }
+        }
+      } finally {
+        if (eventMonitor) {
+          eventMonitor.stopMonitoring()
+          core.debug('Event streaming stopped')
         }
       }
       return
@@ -177,33 +212,15 @@ export async function run(): Promise<void> {
 
     const changeSetName = inputs['change-set-name'] || `${params.StackName}-CS`
 
-    // Initialize event streaming for real-time deployment feedback
+    // Prepare event streaming configuration (but don't start yet)
     let eventMonitor: EventMonitorImpl | undefined
-    try {
-      const eventConfig: EventMonitorConfig = {
-        stackName: params.StackName,
-        changeSetName,
-        client: cfn,
-        enableColors: true, // GitHub Actions supports ANSI colors
-        pollIntervalMs: 2000, // Poll every 2 seconds
-        maxPollIntervalMs: 30000 // Max 30 seconds between polls
-      }
-      eventMonitor = new EventMonitorImpl(eventConfig)
-      eventMonitor.startMonitoring().catch(err => {
-        core.warning(
-          `Event streaming failed but deployment continues: ${
-            err instanceof Error ? err.message : String(err)
-          }`
-        )
-      })
-      core.debug('Event streaming started for stack deployment')
-    } catch (error) {
-      core.warning(
-        `Failed to initialize event streaming, deployment continues: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      )
-      eventMonitor = undefined
+    const eventConfig: EventMonitorConfig = {
+      stackName: params.StackName,
+      changeSetName,
+      client: cfn,
+      enableColors: true,
+      pollIntervalMs: 2000,
+      maxPollIntervalMs: 30000
     }
 
     try {
@@ -214,7 +231,27 @@ export async function run(): Promise<void> {
         inputs['fail-on-empty-changeset'],
         inputs['no-execute-changeset'] || inputs.mode === 'create-only',
         inputs['no-delete-failed-changeset'],
-        maxWaitTime
+        maxWaitTime,
+        // Start event monitoring right before changeset execution
+        () => {
+          try {
+            eventMonitor = new EventMonitorImpl(eventConfig)
+            eventMonitor.startMonitoring().catch(err => {
+              core.warning(
+                `Event streaming failed: ${
+                  err instanceof Error ? err.message : String(err)
+                }`
+              )
+            })
+            core.debug('Event streaming started')
+          } catch (error) {
+            core.warning(
+              `Failed to start event streaming: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            )
+          }
+        }
       )
 
       core.setOutput('stack-id', result.stackId || 'UNKNOWN')

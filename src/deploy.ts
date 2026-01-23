@@ -285,7 +285,8 @@ export async function updateStack(
   failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean,
-  maxWaitTime = 21000
+  maxWaitTime = 21000,
+  onChangeSetReady?: () => void
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   core.debug('Creating CloudFormation Change Set')
   const createResponse = await cfn.send(new CreateChangeSetCommand(params))
@@ -333,6 +334,11 @@ export async function updateStack(
   if (noExecuteChangeSet) {
     core.debug('Not executing the change set')
     return { stackId: stack.StackId, changeSetInfo }
+  }
+
+  // Notify that changeset is ready (for event monitoring to start)
+  if (onChangeSetReady) {
+    onChangeSetReady()
   }
 
   core.debug('Executing CloudFormation change set')
@@ -481,7 +487,8 @@ export async function deployStack(
   failOnEmptyChangeSet: boolean,
   noExecuteChangeSet: boolean,
   noDeleteFailedChangeSet: boolean,
-  maxWaitTime = 21000
+  maxWaitTime = 21000,
+  onChangeSetReady?: () => void
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
   const stack = await getStack(cfn, params.StackName)
 
@@ -496,7 +503,8 @@ export async function deployStack(
       failOnEmptyChangeSet,
       noExecuteChangeSet,
       noDeleteFailedChangeSet,
-      maxWaitTime
+      maxWaitTime,
+      onChangeSetReady
     )
   }
 
@@ -510,7 +518,8 @@ export async function deployStack(
     failOnEmptyChangeSet,
     noExecuteChangeSet,
     noDeleteFailedChangeSet,
-    maxWaitTime
+    maxWaitTime,
+    onChangeSetReady
   )
 }
 

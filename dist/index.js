@@ -54686,7 +54686,7 @@ function cleanupChangeSet(cfn, stack, params, failOnEmptyChangeSet, noDeleteFail
     });
 }
 function updateStack(cfn_1, stack_1, params_1, failOnEmptyChangeSet_1, noExecuteChangeSet_1, noDeleteFailedChangeSet_1) {
-    return __awaiter(this, arguments, void 0, function* (cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime = 21000) {
+    return __awaiter(this, arguments, void 0, function* (cfn, stack, params, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime = 21000, onChangeSetReady) {
         var _a, _b, _c, _d;
         core.debug('Creating CloudFormation Change Set');
         const createResponse = yield cfn.send(new client_cloudformation_1.CreateChangeSetCommand(params));
@@ -54709,6 +54709,10 @@ function updateStack(cfn_1, stack_1, params_1, failOnEmptyChangeSet_1, noExecute
         if (noExecuteChangeSet) {
             core.debug('Not executing the change set');
             return { stackId: stack.StackId, changeSetInfo };
+        }
+        // Notify that changeset is ready (for event monitoring to start)
+        if (onChangeSetReady) {
+            onChangeSetReady();
         }
         core.debug('Executing CloudFormation change set');
         yield cfn.send(new client_cloudformation_1.ExecuteChangeSetCommand({
@@ -54810,16 +54814,16 @@ function buildUpdateChangeSetParams(params, changeSetName) {
     };
 }
 function deployStack(cfn_1, params_1, changeSetName_1, failOnEmptyChangeSet_1, noExecuteChangeSet_1, noDeleteFailedChangeSet_1) {
-    return __awaiter(this, arguments, void 0, function* (cfn, params, changeSetName, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime = 21000) {
+    return __awaiter(this, arguments, void 0, function* (cfn, params, changeSetName, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime = 21000, onChangeSetReady) {
         const stack = yield getStack(cfn, params.StackName);
         if (!stack) {
             core.debug(`Creating CloudFormation Stack via Change Set`);
             const createParams = buildCreateChangeSetParams(params, changeSetName);
-            return yield updateStack(cfn, { StackId: undefined }, createParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime);
+            return yield updateStack(cfn, { StackId: undefined }, createParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime, onChangeSetReady);
         }
         core.debug(`Updating CloudFormation Stack via Change Set`);
         const updateParams = buildUpdateChangeSetParams(params, changeSetName);
-        return yield updateStack(cfn, stack, updateParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime);
+        return yield updateStack(cfn, stack, updateParams, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime, onChangeSetReady);
     });
 }
 function getStackOutputs(cfn, stackId) {
@@ -56066,12 +56070,40 @@ function run() {
                 const maxWaitTime = typeof timeoutMinutes === 'number'
                     ? timeoutMinutes * 60
                     : defaultMaxWaitTime;
-                const stackId = yield (0, deploy_1.executeExistingChangeSet)(cfn, inputs.name, inputs['execute-change-set-id'], maxWaitTime);
-                core.setOutput('stack-id', stackId || 'UNKNOWN');
-                if (stackId) {
-                    const outputs = yield (0, deploy_1.getStackOutputs)(cfn, stackId);
-                    for (const [key, value] of outputs) {
-                        core.setOutput(key, value);
+                // Start event monitoring for execute-only mode
+                let eventMonitor;
+                try {
+                    const eventConfig = {
+                        stackName: inputs.name,
+                        changeSetName: inputs['execute-change-set-id'],
+                        client: cfn,
+                        enableColors: true,
+                        pollIntervalMs: 2000,
+                        maxPollIntervalMs: 30000
+                    };
+                    eventMonitor = new event_streaming_1.EventMonitorImpl(eventConfig);
+                    eventMonitor.startMonitoring().catch(err => {
+                        core.warning(`Event streaming failed: ${err instanceof Error ? err.message : String(err)}`);
+                    });
+                    core.debug('Event streaming started for execute-only mode');
+                }
+                catch (error) {
+                    core.warning(`Failed to start event streaming: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                try {
+                    const stackId = yield (0, deploy_1.executeExistingChangeSet)(cfn, inputs.name, inputs['execute-change-set-id'], maxWaitTime);
+                    core.setOutput('stack-id', stackId || 'UNKNOWN');
+                    if (stackId) {
+                        const outputs = yield (0, deploy_1.getStackOutputs)(cfn, stackId);
+                        for (const [key, value] of outputs) {
+                            core.setOutput(key, value);
+                        }
+                    }
+                }
+                finally {
+                    if (eventMonitor) {
+                        eventMonitor.stopMonitoring();
+                        core.debug('Event streaming stopped');
                     }
                 }
                 return;
@@ -56113,29 +56145,31 @@ function run() {
                 ? timeoutMinutes * 60
                 : defaultMaxWaitTime;
             const changeSetName = inputs['change-set-name'] || `${params.StackName}-CS`;
-            // Initialize event streaming for real-time deployment feedback
+            // Prepare event streaming configuration (but don't start yet)
             let eventMonitor;
+            const eventConfig = {
+                stackName: params.StackName,
+                changeSetName,
+                client: cfn,
+                enableColors: true,
+                pollIntervalMs: 2000,
+                maxPollIntervalMs: 30000
+            };
             try {
-                const eventConfig = {
-                    stackName: params.StackName,
-                    changeSetName,
-                    client: cfn,
-                    enableColors: true, // GitHub Actions supports ANSI colors
-                    pollIntervalMs: 2000, // Poll every 2 seconds
-                    maxPollIntervalMs: 30000 // Max 30 seconds between polls
-                };
-                eventMonitor = new event_streaming_1.EventMonitorImpl(eventConfig);
-                eventMonitor.startMonitoring().catch(err => {
-                    core.warning(`Event streaming failed but deployment continues: ${err instanceof Error ? err.message : String(err)}`);
+                const result = yield (0, deploy_1.deployStack)(cfn, params, changeSetName, inputs['fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset'], maxWaitTime, 
+                // Start event monitoring right before changeset execution
+                () => {
+                    try {
+                        eventMonitor = new event_streaming_1.EventMonitorImpl(eventConfig);
+                        eventMonitor.startMonitoring().catch(err => {
+                            core.warning(`Event streaming failed: ${err instanceof Error ? err.message : String(err)}`);
+                        });
+                        core.debug('Event streaming started');
+                    }
+                    catch (error) {
+                        core.warning(`Failed to start event streaming: ${error instanceof Error ? error.message : String(error)}`);
+                    }
                 });
-                core.debug('Event streaming started for stack deployment');
-            }
-            catch (error) {
-                core.warning(`Failed to initialize event streaming, deployment continues: ${error instanceof Error ? error.message : String(error)}`);
-                eventMonitor = undefined;
-            }
-            try {
-                const result = yield (0, deploy_1.deployStack)(cfn, params, changeSetName, inputs['fail-on-empty-changeset'], inputs['no-execute-changeset'] || inputs.mode === 'create-only', inputs['no-delete-failed-changeset'], maxWaitTime);
                 core.setOutput('stack-id', result.stackId || 'UNKNOWN');
                 // Set change set outputs when not executing
                 if (result.changeSetInfo) {
