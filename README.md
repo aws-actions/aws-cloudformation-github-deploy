@@ -77,6 +77,117 @@ Create change sets that can revert resource drift:
     deployment-mode: "REVERT_DRIFT"
 ```
 
+### PR Review Workflow
+
+Automatically comment on pull requests with change set details:
+
+```yaml
+name: CloudFormation PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.yaml"
+      - "**.yml"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  review-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Create change set for PR review
+        id: create-cs
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          mode: "create-only"
+          name: pr-review-${{ github.event.pull_request.number }}
+          template: template.yaml
+          parameter-overrides: "Environment=preview"
+        continue-on-error: true
+
+      - name: Post change set review
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          CHANGES_MARKDOWN: ${{ steps.create-cs.outputs.changes-markdown }}
+        with:
+          script: |
+            const outcome = '${{ steps.create-cs.outcome }}';
+            const hasChanges = '${{ steps.create-cs.outputs.has-changes }}';
+            const changesMarkdown = process.env.CHANGES_MARKDOWN;
+
+            let comment = '';
+
+            if (outcome === 'failure') {
+              comment += '## 🔍 CloudFormation Change Set Review\n\n';
+              comment += '❌ **Failed to create change set**\n\n';
+              comment += `Check the [workflow logs](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.\n`;
+            } else if (hasChanges === 'false') {
+              comment += '## 🔍 CloudFormation Change Set Review\n\n';
+              comment += '✅ **No changes detected**\n\n';
+              comment += 'The change set is empty - no infrastructure changes will be made.\n';
+            } else {
+              comment += changesMarkdown + '\n\n';
+            }
+
+            comment += '\n---\n';
+            comment += `*Stack:* \`pr-review-${{ github.event.pull_request.number }}\` | `;
+            comment += `*Workflow:* [Run #${{ github.run_number }}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('CloudFormation Change Set')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+
+      - name: Cleanup PR review stack
+        if: always()
+        run: |
+          aws cloudformation delete-stack --stack-name pr-review-${{ github.event.pull_request.number }} || true
+```
+
+This workflow will:
+
+- Create a change set when PRs are opened or updated
+- Post a collapsible comment showing all resource changes
+- Update the same comment on subsequent pushes
+- Handle failures and empty change sets gracefully
+- Clean up the preview stack after review
+
 ### Inputs
 
 A few inputs are highlighted below. See [action.yml](action.yml) for the full documentation for this action's inputs and outputs.
