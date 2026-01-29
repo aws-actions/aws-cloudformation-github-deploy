@@ -463,4 +463,50 @@ describe('Change Set Formatter', () => {
     )
     expect(markdown).toContain('⚠️ Requires recreation: Always')
   })
+
+  test('diffs Tags arrays correctly', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyParameter',
+            ResourceType: 'AWS::SSM::Parameter',
+            Replacement: 'False',
+            Scope: ['Properties'],
+            Details: [
+              {
+                Target: {
+                  Attribute: 'Properties',
+                  Name: 'Tags',
+                  RequiresRecreation: 'Never',
+                  BeforeValue: JSON.stringify([
+                    { Key: 'Version', Value: 'v1' },
+                    { Key: 'Team', Value: 'DevOps' },
+                    { Key: 'Environment', Value: 'test' }
+                  ]),
+                  AfterValue: JSON.stringify([
+                    { Key: 'Version', Value: 'v2' },
+                    { Key: 'UpdateType', Value: 'InPlace' },
+                    { Key: 'Environment', Value: 'production' }
+                  ])
+                }
+              }
+            ]
+          }
+        }
+      ],
+      totalChanges: 1,
+      truncated: false
+    })
+
+    const markdown = generateChangeSetMarkdown(changesSummary)
+
+    expect(markdown).toContain('**Tags:**')
+    expect(markdown).toContain('**Tags.Environment:** `test` → `production`')
+    expect(markdown).toContain('**Tags.Team:** `DevOps` → (removed)')
+    expect(markdown).toContain('**Tags.UpdateType:** (added) → `InPlace`')
+    expect(markdown).toContain('**Tags.Version:** `v1` → `v2`')
+  })
 })
