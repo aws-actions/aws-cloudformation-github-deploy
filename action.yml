@@ -13,7 +13,7 @@ inputs:
     required: true
   template:
     description: "The path or URL to the CloudFormation template"
-    required: true
+    required: false
   capabilities:
     description: "The comma-delimited list of stack template capabilities to acknowledge. Defaults to 'CAPABILITY_IAM'"
     required: false
