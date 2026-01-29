@@ -61,15 +61,18 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 ## Development
 
 ### Prerequisites
+
 - Node.js 20+
 - npm
 
 ### Setup
+
 ```bash
 npm install
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 npm test
@@ -85,6 +88,7 @@ npm run lint:fix
 ```
 
 ### Building
+
 ```bash
 # Build the action
 npm run build
@@ -98,34 +102,36 @@ npm run package
 This action makes the following AWS CloudFormation API calls:
 
 **Core Operations:**
+
 - `DescribeStacks` - Check stack existence and status
 - `CreateChangeSet` - Create change sets for stack operations
 - `DescribeChangeSet` - Monitor change set status and retrieve changes
 - `ExecuteChangeSet` - Execute change sets (when not in create-only mode)
 - `DeleteChangeSet` - Clean up failed change sets
 
-**Error Reporting:**
-- `DescribeStackEvents` - Retrieve detailed error information for validation failures
+**Event Streaming and Error Reporting:**
+
+- `DescribeEvents` - Monitor real-time CloudFormation events and retrieve detailed error information
 
 **Required Permissions:**
+
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "cloudformation:CreateStack",
-                "cloudformation:DescribeStacks", 
-                "cloudformation:CreateChangeSet",
-                "cloudformation:DescribeChangeSet",
-                "cloudformation:DeleteChangeSet",
-                "cloudformation:ExecuteChangeSet",
-                "cloudformation:DescribeStackEvents"
-            ],
-            "Resource": "*"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DescribeEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
 }
 ```
 
@@ -134,8 +140,8 @@ This action makes the following AWS CloudFormation API calls:
 The action uses a change set-based deployment approach:
 
 1. **Stack Detection**: Check if stack exists using `DescribeStacks`
-2. **Change Set Creation**: Create change set using `CreateChangeSet` 
+2. **Change Set Creation**: Create change set using `CreateChangeSet`
 3. **Change Set Validation**: Monitor status with `DescribeChangeSet`
 4. **Execution**: Execute change set with `ExecuteChangeSet` (unless create-only mode)
 5. **Output Processing**: Retrieve final stack state and outputs
-6. **Error Handling**: Use `DescribeStackEvents` for detailed error reporting
+6. **Error Handling**: Use `DescribeEvents` for detailed error reporting and event streaming

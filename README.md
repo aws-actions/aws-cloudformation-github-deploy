@@ -13,7 +13,7 @@ Deploys AWS CloudFormation Stacks.
   with:
     name: MyStack
     template: myStack.yaml
-    parameter-overrides: "MyParam1=myValue,MyParam2=${{ secrets.MY_SECRET_VALUE }}"
+    parameter-overrides: 'MyParam1=myValue,MyParam2=${{ secrets.MY_SECRET_VALUE }}'
 ```
 
 The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `fail-on-empty-changeset: false` will override this behavior and not throw an error.
@@ -39,7 +39,7 @@ This action supports three modes of operation for better change set management:
   id: create-changeset
   uses: aws-actions/aws-cloudformation-github-deploy@v1
   with:
-    mode: "create-only"
+    mode: 'create-only'
     name: MyStack
     template: myStack.yaml
 
@@ -58,7 +58,7 @@ This action supports three modes of operation for better change set management:
 - name: Execute Change Set
   uses: aws-actions/aws-cloudformation-github-deploy@v1
   with:
-    mode: "execute-only"
+    mode: 'execute-only'
     name: MyStack
     execute-change-set-id: ${{ steps.create-changeset.outputs.change-set-id }}
 ```
@@ -71,10 +71,10 @@ Create change sets that can revert resource drift:
 - name: Create Drift-Reverting Change Set
   uses: aws-actions/aws-cloudformation-github-deploy@v1
   with:
-    mode: "create-only"
+    mode: 'create-only'
     name: MyStack
     template: myStack.yaml
-    deployment-mode: "REVERT_DRIFT"
+    deployment-mode: 'REVERT_DRIFT'
 ```
 
 ### PR Review Workflow
@@ -88,8 +88,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "**.yaml"
-      - "**.yml"
+      - '**.yaml'
+      - '**.yml'
 
 permissions:
   id-token: write
@@ -112,10 +112,10 @@ jobs:
         id: create-cs
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
-          mode: "create-only"
+          mode: 'create-only'
           name: pr-review-${{ github.event.pull_request.number }}
           template: template.yaml
-          parameter-overrides: "Environment=preview"
+          parameter-overrides: 'Environment=preview'
         continue-on-error: true
 
       - name: Post change set review
@@ -234,23 +234,21 @@ This action requires the following minimum set of permissions:
 
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "cloudformation:CreateStack",
-                "cloudformation:DescribeStacks",
-                "cloudformation:CreateChangeSet",
-                "cloudformation:DescribeChangeSet",
-                "cloudformation:DeleteChangeSet",
-                "cloudformation:ExecuteChangeSet",
-                "cloudformation:DescribeStackEvents",
-                "cloudformation:DescribeEvents"
-            ],
-            "Resource": "*"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DescribeEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
 }
 ```
 
@@ -280,8 +278,12 @@ The action makes the following AWS CloudFormation API calls depending on the ope
 
 **Error Reporting (when change set creation fails):**
 
-- `DescribeStackEvents` - Retrieve detailed error information for validation failures
+- `DescribeEvents` - Retrieve detailed error information for validation failures
 - `DeleteChangeSet` - Clean up failed change sets (unless `no-delete-failed-changeset` is set)
+
+**Event Streaming (during stack operations):**
+
+- `DescribeEvents` - Monitor real-time CloudFormation events during deployment
 
 > The policy above prevents the stack from being deleted - add `cloudformation:DeleteStack` if deletion is required for your use case
 
@@ -312,43 +314,42 @@ jobs:
     outputs:
       env-name: ${{ steps.env-name.outputs.environment }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Configure AWS credentials
-      id: creds
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ github.event.inputs.region}}
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.region}}
 
-    - name: Configure environment name
-      id: env-name
-      env:
-        REPO: ${{ github.repository }}
-      run: |
-        ENVIRONMENT=`echo $REPO | tr "/" "-"`
-        echo "Environment name: $ENVIRONMENT"
-        echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+      - name: Configure environment name
+        id: env-name
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          ENVIRONMENT=`echo $REPO | tr "/" "-"`
+          echo "Environment name: $ENVIRONMENT"
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
 
-    - name: Deploy Amazon EKS Cluster
-      id: eks-cluster
-      uses: aws-actions/aws-cloudformation-github-deploy@master
-      with:
-        name: ${{ steps.env-name.outputs.environment }}-cluster
-        template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
-        fail-on-empty-changeset: false
-        parameter-overrides: >-
-          AvailabilityZones=${{ github.event.inputs.region }}a,
-          AvailabilityZones=${{ github.event.inputs.region }}c,
-          KeyPairName=${{ github.event.inputs.keypair }},
-          NumberOfAZs=2,
-          ProvisionBastionHost=Disabled,
-          EKSPublicAccessEndpoint=Enabled,
-          EKSPrivateAccessEndpoint=Enabled,
-          RemoteAccessCIDR=0.0.0.0/0
-
+      - name: Deploy Amazon EKS Cluster
+        id: eks-cluster
+        uses: aws-actions/aws-cloudformation-github-deploy@master
+        with:
+          name: ${{ steps.env-name.outputs.environment }}-cluster
+          template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
+          fail-on-empty-changeset: false
+          parameter-overrides: >-
+            AvailabilityZones=${{ github.event.inputs.region }}a,
+            AvailabilityZones=${{ github.event.inputs.region }}c,
+            KeyPairName=${{ github.event.inputs.keypair }},
+            NumberOfAZs=2,
+            ProvisionBastionHost=Disabled,
+            EKSPublicAccessEndpoint=Enabled,
+            EKSPrivateAccessEndpoint=Enabled,
+            RemoteAccessCIDR=0.0.0.0/0
 ```
 
 ### Proxy Configuration
@@ -365,7 +366,7 @@ with:
   name: eks-primary
   template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
   fail-on-empty-changeset: false
-  http-proxy: "http://companydomain.com:3128"
+  http-proxy: 'http://companydomain.com:3128'
 ```
 
 Proxy configured in the environment variable:
