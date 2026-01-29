@@ -17,6 +17,88 @@ interface ChangeSetSummary {
 }
 
 /**
+ * Recursively diff JSON values and return formatted changes
+ */
+function diffJson(before: unknown, after: unknown, path = ''): string[] {
+  const lines: string[] = []
+
+  // Handle arrays
+  if (Array.isArray(before) || Array.isArray(after)) {
+    const beforeArr = Array.isArray(before) ? before : []
+    const afterArr = Array.isArray(after) ? after : []
+
+    // Special case: array of {Key, Value} objects (Tags)
+    if (beforeArr[0]?.Key || afterArr[0]?.Key) {
+      const beforeMap = new Map(
+        beforeArr.map((t: { Key: string; Value: string }) => [t.Key, t.Value])
+      )
+      const afterMap = new Map(
+        afterArr.map((t: { Key: string; Value: string }) => [t.Key, t.Value])
+      )
+      const allKeys = new Set([...beforeMap.keys(), ...afterMap.keys()])
+
+      for (const key of Array.from(allKeys).sort()) {
+        const b = beforeMap.get(key)
+        const a = afterMap.get(key)
+        const prefix = path ? `${path}.${key}` : key
+        if (b && a && b !== a)
+          lines.push(`  - **${prefix}:** \`${b}\` → \`${a}\``)
+        else if (a && !b) lines.push(`  - **${prefix}:** (added) → \`${a}\``)
+        else if (b && !a) lines.push(`  - **${prefix}:** \`${b}\` → (removed)`)
+      }
+      return lines
+    }
+
+    // Generic array - show as JSON if different
+    if (JSON.stringify(beforeArr) !== JSON.stringify(afterArr)) {
+      if (beforeArr.length && afterArr.length) {
+        lines.push(
+          `  - **${path || 'value'}:** \`${JSON.stringify(beforeArr)}\` → \`${JSON.stringify(afterArr)}\``
+        )
+      } else if (afterArr.length) {
+        lines.push(
+          `  - **${path || 'value'}:** (added) → \`${JSON.stringify(afterArr)}\``
+        )
+      } else if (beforeArr.length) {
+        lines.push(
+          `  - **${path || 'value'}:** \`${JSON.stringify(beforeArr)}\` → (removed)`
+        )
+      }
+    }
+    return lines
+  }
+
+  // Handle objects
+  if (
+    (before && typeof before === 'object') ||
+    (after && typeof after === 'object')
+  ) {
+    const beforeObj = before as Record<string, unknown>
+    const afterObj = after as Record<string, unknown>
+    const allKeys = new Set([
+      ...Object.keys(beforeObj || {}),
+      ...Object.keys(afterObj || {})
+    ])
+    for (const key of allKeys) {
+      const newPath = path ? `${path}.${key}` : key
+      lines.push(...diffJson(beforeObj?.[key], afterObj?.[key], newPath))
+    }
+    return lines
+  }
+
+  // Primitives
+  if (before !== after) {
+    const prefix = path || 'value'
+    if (before && after)
+      lines.push(`  - **${prefix}:** \`${before}\` → \`${after}\``)
+    else if (after) lines.push(`  - **${prefix}:** (added) → \`${after}\``)
+    else if (before) lines.push(`  - **${prefix}:** \`${before}\` → (removed)`)
+  }
+
+  return lines
+}
+
+/**
  * ANSI color codes
  */
 const COLORS = {
@@ -400,12 +482,48 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
 
           const propName = target.Name || target.Attribute || 'Unknown'
 
-          if (target.BeforeValue && target.AfterValue) {
-            markdown += `- **${propName}:** \`${target.BeforeValue}\` → \`${target.AfterValue}\`\n`
-          } else if (target.AfterValue) {
-            markdown += `- **${propName}:** (added) → \`${target.AfterValue}\`\n`
-          } else if (target.BeforeValue) {
-            markdown += `- **${propName}:** \`${target.BeforeValue}\` → (removed)\n`
+          // Try to parse as JSON and diff
+          let diffLines: string[] = []
+          try {
+            const before = target.BeforeValue
+              ? JSON.parse(target.BeforeValue)
+              : undefined
+            const after = target.AfterValue
+              ? JSON.parse(target.AfterValue)
+              : undefined
+            diffLines = diffJson(before, after, propName)
+          } catch {
+            // Not JSON, use simple string diff
+            if (target.BeforeValue && target.AfterValue) {
+              diffLines = [
+                `- **${propName}:** \`${target.BeforeValue}\` → \`${target.AfterValue}\``
+              ]
+            } else if (target.AfterValue) {
+              diffLines = [
+                `- **${propName}:** (added) → \`${target.AfterValue}\``
+              ]
+            } else if (target.BeforeValue) {
+              diffLines = [
+                `- **${propName}:** \`${target.BeforeValue}\` → (removed)`
+              ]
+            }
+          }
+
+          // Output the diff lines
+          if (diffLines.length > 0) {
+            if (diffLines.length === 1 && diffLines[0].startsWith('  - ')) {
+              // Single nested line from diffJson - promote to top level
+              markdown += `- ${diffLines[0].substring(4)}\n`
+            } else if (diffLines.length === 1) {
+              // Single line already formatted
+              markdown += `${diffLines[0]}\n`
+            } else {
+              // Multiple lines - show property name and indent children
+              markdown += `- **${propName}:**\n`
+              diffLines.forEach(line => {
+                markdown += `${line}\n`
+              })
+            }
           }
 
           if (
