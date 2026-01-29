@@ -358,7 +358,7 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
       const symbol = symbols[rc.Action || ''] || '⚪'
 
       // Create expandable section for each resource
-      const summary = `${symbol} \`${rc.ResourceType}\` **${rc.LogicalResourceId}**`
+      const summary = `${symbol} <code>${rc.ResourceType}</code> <strong>${rc.LogicalResourceId}</strong>`
       markdown += `<details>\n<summary>${summary}</summary>\n\n`
 
       // Physical resource ID
