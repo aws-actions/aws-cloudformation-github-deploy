@@ -59967,7 +59967,7 @@ function displayChangeSet(changesSummary, changesCount, enableColors = true) {
  * Generate markdown-formatted change set for PR comments
  */
 function generateChangeSetMarkdown(changesSummary) {
-    var _a;
+    var _a, _b;
     try {
         const summary = JSON.parse(changesSummary);
         // Group changes by action
@@ -59983,10 +59983,29 @@ function generateChangeSetMarkdown(changesSummary) {
             }
         }
         const addCount = grouped.Add.length;
-        const modifyCount = grouped.Modify.length;
         const removeCount = grouped.Remove.length;
+        // Count in-place modifications vs replacements
+        let modifyCount = 0;
+        let replaceCount = 0;
+        for (const change of grouped.Modify) {
+            if (((_b = change.ResourceChange) === null || _b === void 0 ? void 0 : _b.Replacement) === 'True') {
+                replaceCount++;
+            }
+            else {
+                modifyCount++;
+            }
+        }
         let markdown = '## 📋 CloudFormation Change Set\n\n';
-        markdown += `**Summary:** ${addCount} to add, ${modifyCount} to modify, ${removeCount} to remove\n\n`;
+        const parts = [];
+        if (addCount > 0)
+            parts.push(`${addCount} to add`);
+        if (modifyCount > 0)
+            parts.push(`${modifyCount} to modify`);
+        if (replaceCount > 0)
+            parts.push(`${replaceCount} to replace`);
+        if (removeCount > 0)
+            parts.push(`${removeCount} to remove`);
+        markdown += `**Summary:** ${parts.join(', ')}\n\n`;
         if (summary.truncated) {
             markdown += `> ⚠️ **Warning:** Change set truncated. Showing ${summary.changes.length} of ${summary.totalChanges} total changes.\n\n`;
         }
@@ -60000,14 +60019,19 @@ function generateChangeSetMarkdown(changesSummary) {
             const rc = change.ResourceChange;
             if (!rc)
                 continue;
-            const symbols = {
-                Add: '🟢',
-                Modify: '🔵',
-                Remove: '🔴'
-            };
-            const symbol = symbols[rc.Action || ''] || '⚪';
-            // Create expandable section for each resource
-            const summary = `${symbol} <code>${rc.ResourceType}</code> <strong>${rc.LogicalResourceId}</strong>`;
+            // Determine symbol based on action and replacement
+            let symbol = '⚪';
+            if (rc.Action === 'Add') {
+                symbol = '🟢';
+            }
+            else if (rc.Action === 'Remove') {
+                symbol = '🔴';
+            }
+            else if (rc.Action === 'Modify') {
+                symbol = rc.Replacement === 'True' ? '🟡' : '🔵';
+            }
+            // Create expandable section - logical ID first, then resource type
+            const summary = `${symbol} <strong>${rc.LogicalResourceId}</strong> <code>${rc.ResourceType}</code>`;
             markdown += `<details>\n<summary>${summary}</summary>\n\n`;
             // Physical resource ID
             if (rc.PhysicalResourceId) {
@@ -60015,7 +60039,7 @@ function generateChangeSetMarkdown(changesSummary) {
             }
             // Replacement warning
             if (rc.Action === 'Modify' && rc.Replacement === 'True') {
-                markdown += `⚠️ **Resource will be replaced** (may cause downtime)\n\n`;
+                markdown += `⚠️ **This resource will be replaced** (potential downtime/data loss)\n\n`;
             }
             else if (rc.Action === 'Modify' && rc.Replacement === 'Conditional') {
                 markdown += `⚠️ **May require replacement**\n\n`;
@@ -60028,22 +60052,21 @@ function generateChangeSetMarkdown(changesSummary) {
                     if (!target)
                         continue;
                     const propName = target.Name || target.Attribute || 'Unknown';
-                    markdown += `- **${propName}**\n`;
                     if (target.BeforeValue && target.AfterValue) {
-                        markdown += `  - Before: \`${target.BeforeValue}\`\n`;
-                        markdown += `  - After: \`${target.AfterValue}\`\n`;
+                        markdown += `- **${propName}:** \`${target.BeforeValue}\` → \`${target.AfterValue}\`\n`;
                     }
                     else if (target.AfterValue) {
-                        markdown += `  - Value: \`${target.AfterValue}\`\n`;
+                        markdown += `- **${propName}:** (added) → \`${target.AfterValue}\`\n`;
                     }
                     else if (target.BeforeValue) {
-                        markdown += `  - Removed: \`${target.BeforeValue}\`\n`;
+                        markdown += `- **${propName}:** \`${target.BeforeValue}\` → (removed)\n`;
                     }
                     if (target.RequiresRecreation &&
                         target.RequiresRecreation !== 'Never') {
                         markdown += `  - ⚠️ Requires recreation: ${target.RequiresRecreation}\n`;
                     }
                 }
+                markdown += '\n';
             }
             // AfterContext for Add actions
             if (rc.Action === 'Add' && rc.AfterContext) {
@@ -60053,7 +60076,7 @@ function generateChangeSetMarkdown(changesSummary) {
                     markdown += JSON.stringify(afterProps, null, 2);
                     markdown += '\n```\n';
                 }
-                catch (_b) {
+                catch (_c) {
                     // Skip if can't parse
                 }
             }
@@ -60065,7 +60088,7 @@ function generateChangeSetMarkdown(changesSummary) {
                     markdown += JSON.stringify(beforeProps, null, 2);
                     markdown += '\n```\n';
                 }
-                catch (_c) {
+                catch (_d) {
                     // Skip if can't parse
                 }
             }
