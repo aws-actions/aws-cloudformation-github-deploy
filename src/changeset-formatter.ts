@@ -328,11 +328,26 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
     }
 
     const addCount = grouped.Add.length
-    const modifyCount = grouped.Modify.length
     const removeCount = grouped.Remove.length
 
+    // Count in-place modifications vs replacements
+    let modifyCount = 0
+    let replaceCount = 0
+    for (const change of grouped.Modify) {
+      if (change.ResourceChange?.Replacement === 'True') {
+        replaceCount++
+      } else {
+        modifyCount++
+      }
+    }
+
     let markdown = '## 📋 CloudFormation Change Set\n\n'
-    markdown += `**Summary:** ${addCount} to add, ${modifyCount} to modify, ${removeCount} to remove\n\n`
+    const parts = []
+    if (addCount > 0) parts.push(`${addCount} to add`)
+    if (modifyCount > 0) parts.push(`${modifyCount} to modify`)
+    if (replaceCount > 0) parts.push(`${replaceCount} to replace`)
+    if (removeCount > 0) parts.push(`${removeCount} to remove`)
+    markdown += `**Summary:** ${parts.join(', ')}\n\n`
 
     if (summary.truncated) {
       markdown += `> ⚠️ **Warning:** Change set truncated. Showing ${summary.changes.length} of ${summary.totalChanges} total changes.\n\n`
@@ -350,15 +365,18 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
       const rc = change.ResourceChange
       if (!rc) continue
 
-      const symbols: Record<string, string> = {
-        Add: '🟢',
-        Modify: '🔵',
-        Remove: '🔴'
+      // Determine symbol based on action and replacement
+      let symbol = '⚪'
+      if (rc.Action === 'Add') {
+        symbol = '🟢'
+      } else if (rc.Action === 'Remove') {
+        symbol = '🔴'
+      } else if (rc.Action === 'Modify') {
+        symbol = rc.Replacement === 'True' ? '🟡' : '🔵'
       }
-      const symbol = symbols[rc.Action || ''] || '⚪'
 
-      // Create expandable section for each resource
-      const summary = `${symbol} <code>${rc.ResourceType}</code> <strong>${rc.LogicalResourceId}</strong>`
+      // Create expandable section - logical ID first, then resource type
+      const summary = `${symbol} <strong>${rc.LogicalResourceId}</strong> <code>${rc.ResourceType}</code>`
       markdown += `<details>\n<summary>${summary}</summary>\n\n`
 
       // Physical resource ID
@@ -368,7 +386,7 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
 
       // Replacement warning
       if (rc.Action === 'Modify' && rc.Replacement === 'True') {
-        markdown += `⚠️ **Resource will be replaced** (may cause downtime)\n\n`
+        markdown += `⚠️ **This resource will be replaced** (potential downtime/data loss)\n\n`
       } else if (rc.Action === 'Modify' && rc.Replacement === 'Conditional') {
         markdown += `⚠️ **May require replacement**\n\n`
       }
@@ -381,15 +399,13 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
           if (!target) continue
 
           const propName = target.Name || target.Attribute || 'Unknown'
-          markdown += `- **${propName}**\n`
 
           if (target.BeforeValue && target.AfterValue) {
-            markdown += `  - Before: \`${target.BeforeValue}\`\n`
-            markdown += `  - After: \`${target.AfterValue}\`\n`
+            markdown += `- **${propName}:** \`${target.BeforeValue}\` → \`${target.AfterValue}\`\n`
           } else if (target.AfterValue) {
-            markdown += `  - Value: \`${target.AfterValue}\`\n`
+            markdown += `- **${propName}:** (added) → \`${target.AfterValue}\`\n`
           } else if (target.BeforeValue) {
-            markdown += `  - Removed: \`${target.BeforeValue}\`\n`
+            markdown += `- **${propName}:** \`${target.BeforeValue}\` → (removed)\n`
           }
 
           if (
@@ -399,6 +415,7 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
             markdown += `  - ⚠️ Requires recreation: ${target.RequiresRecreation}\n`
           }
         }
+        markdown += '\n'
       }
 
       // AfterContext for Add actions

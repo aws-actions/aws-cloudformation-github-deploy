@@ -447,22 +447,20 @@ describe('Change Set Formatter', () => {
     const markdown = generateChangeSetMarkdown(changesSummary)
 
     expect(markdown).toContain('## 📋 CloudFormation Change Set')
-    expect(markdown).toContain(
-      '**Summary:** 1 to add, 1 to modify, 0 to remove'
-    )
+    expect(markdown).toContain('**Summary:** 1 to add, 1 to replace')
     expect(markdown).toContain('<details>')
     expect(markdown).toContain('</details>')
     expect(markdown).toContain(
-      '<summary>🟢 <code>AWS::S3::Bucket</code> <strong>MyBucket</strong></summary>'
+      '<summary>🟢 <strong>MyBucket</strong> <code>AWS::S3::Bucket</code></summary>'
     )
     expect(markdown).toContain(
-      '<summary>🔵 <code>AWS::DynamoDB::Table</code> <strong>MyTable</strong></summary>'
+      '<summary>🟡 <strong>MyTable</strong> <code>AWS::DynamoDB::Table</code></summary>'
     )
     expect(markdown).toContain('**Physical ID:** `my-table-123`')
-    expect(markdown).toContain('⚠️ **Resource will be replaced**')
-    expect(markdown).toContain('**BillingMode**')
-    expect(markdown).toContain('Before: `PROVISIONED`')
-    expect(markdown).toContain('After: `PAY_PER_REQUEST`')
+    expect(markdown).toContain('⚠️ **This resource will be replaced**')
+    expect(markdown).toContain(
+      '**BillingMode:** `PROVISIONED` → `PAY_PER_REQUEST`'
+    )
     expect(markdown).toContain('⚠️ Requires recreation: Always')
   })
 })
