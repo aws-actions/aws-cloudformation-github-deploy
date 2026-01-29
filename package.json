@@ -32,7 +32,7 @@
     "@aws-sdk/client-cloudformation": "3.935.0",
     "@smithy/node-http-handler": "4.4.5",
     "https-proxy-agent": "7.0.6",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.1.1",
     "zod": "^4.1.12"
   },
   "devDependencies": {
@@ -53,7 +53,7 @@
     "husky": "9.1.7",
     "jest": "30.2.0",
     "jest-circus": "30.2.0",
-    "js-yaml": "4.1.0",
+    "js-yaml": "4.1.1",
     "lint-staged": "16.2.7",
     "prettier": "3.6.2",
     "ts-jest": "29.4.5",
