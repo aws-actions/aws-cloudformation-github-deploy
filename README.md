@@ -1,4 +1,4 @@
-## AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
+# AWS CloudFormation "Deploy CloudFormation Stack" Action for GitHub Actions
 
 ![Package](https://github.com/aws-actions/aws-cloudformation-github-deploy/workflows/Package/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -16,7 +16,177 @@ Deploys AWS CloudFormation Stacks.
     parameter-overrides: "MyParam1=myValue,MyParam2=${{ secrets.MY_SECRET_VALUE }}"
 ```
 
-The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `no-fail-on-empty-changeset: "1"` will override this behavior and not throw an error.
+The action can be passed a CloudFormation Stack `name` and a `template` file. The `template` file can be a local file existing in the working directory, or a URL to template that exists in an [Amazon S3](https://aws.amazon.com/s3/) bucket. It will create the Stack if it does not exist, or create a [Change Set](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html) to update the Stack. An update fails by default when the Change Set is empty. Setting `fail-on-empty-changeset: false` will override this behavior and not throw an error.
+
+## Enhanced Change Set Support
+
+This action supports three modes of operation for better change set management:
+
+### 1. Create & Execute (Default)
+
+```yaml
+- name: Deploy CloudFormation Stack
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    name: MyStack
+    template: myStack.yaml
+```
+
+### 2. Create Change Set Only (Review Mode)
+
+```yaml
+- name: Create Change Set for Review
+  id: create-changeset
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    mode: "create-only"
+    name: MyStack
+    template: myStack.yaml
+
+# Review the outputs
+- name: Display Change Set Information
+  run: |
+    echo "Change Set ID: ${{ steps.create-changeset.outputs.change-set-id }}"
+    echo "Has Changes: ${{ steps.create-changeset.outputs.has-changes }}"
+    echo "Changes Count: ${{ steps.create-changeset.outputs.changes-count }}"
+    echo "Changes Summary: ${{ steps.create-changeset.outputs.changes-summary }}"
+```
+
+### 3. Execute Existing Change Set
+
+```yaml
+- name: Execute Change Set
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    mode: "execute-only"
+    name: MyStack
+    execute-change-set-id: ${{ steps.create-changeset.outputs.change-set-id }}
+```
+
+### Drift-Aware Change Sets
+
+Create change sets that can revert resource drift:
+
+```yaml
+- name: Create Drift-Reverting Change Set
+  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  with:
+    mode: "create-only"
+    name: MyStack
+    template: myStack.yaml
+    deployment-mode: "REVERT_DRIFT"
+```
+
+### PR Review Workflow
+
+Automatically comment on pull requests with change set details:
+
+```yaml
+name: CloudFormation PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.yaml"
+      - "**.yml"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  review-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Create change set for PR review
+        id: create-cs
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          mode: "create-only"
+          name: pr-review-${{ github.event.pull_request.number }}
+          template: template.yaml
+          parameter-overrides: "Environment=preview"
+        continue-on-error: true
+
+      - name: Post change set review
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          CHANGES_MARKDOWN: ${{ steps.create-cs.outputs.changes-markdown }}
+        with:
+          script: |
+            const outcome = '${{ steps.create-cs.outcome }}';
+            const hasChanges = '${{ steps.create-cs.outputs.has-changes }}';
+            const changesMarkdown = process.env.CHANGES_MARKDOWN;
+
+            let comment = '';
+
+            if (outcome === 'failure') {
+              comment += '## 🔍 CloudFormation Change Set Review\n\n';
+              comment += '❌ **Failed to create change set**\n\n';
+              comment += `Check the [workflow logs](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.\n`;
+            } else if (hasChanges === 'false') {
+              comment += '## 🔍 CloudFormation Change Set Review\n\n';
+              comment += '✅ **No changes detected**\n\n';
+              comment += 'The change set is empty - no infrastructure changes will be made.\n';
+            } else {
+              comment += changesMarkdown + '\n\n';
+            }
+
+            comment += '\n---\n';
+            comment += `*Stack:* \`pr-review-${{ github.event.pull_request.number }}\` | `;
+            comment += `*Workflow:* [Run #${{ github.run_number }}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('CloudFormation Change Set')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+
+      - name: Cleanup PR review stack
+        if: always()
+        run: |
+          aws cloudformation delete-stack --stack-name pr-review-${{ github.event.pull_request.number }} || true
+```
+
+This workflow will:
+
+- Create a change set when PRs are opened or updated
+- Post a collapsible comment showing all resource changes
+- Update the same comment on subsequent pushes
+- Handle failures and empty change sets gracefully
+- Clean up the preview stack after review
 
 ### Inputs
 
@@ -31,6 +201,7 @@ Override multiple parameters separated by commas: `"MyParam1=myValue1,MyParam2=m
 Override a comma delimited list: `"MyParam1=myValue1,MyParam1=myValue2"` or `MyParam1="myValue1,myValue2"`
 
 Override parameters using a local JSON file: `"file:///${{ github.workspace }}/parameters.json"` with a file named `parameters.json` at the root of the repository:
+
 ```json
 [
   {
@@ -61,7 +232,7 @@ This action requires the following minimum set of permissions:
 
 > We recommend to read [AWS CloudFormation Security Best Practices](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html)
 
-```
+```json
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -73,7 +244,9 @@ This action requires the following minimum set of permissions:
                 "cloudformation:CreateChangeSet",
                 "cloudformation:DescribeChangeSet",
                 "cloudformation:DeleteChangeSet",
-                "cloudformation:ExecuteChangeSet"
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:DescribeEvents"
             ],
             "Resource": "*"
         }
@@ -81,7 +254,36 @@ This action requires the following minimum set of permissions:
 }
 ```
 
-> The policy above prevents the stack to be deleted by a policy for production
+### API Calls Made by This Action
+
+The action makes the following AWS CloudFormation API calls depending on the operation mode:
+
+**All Modes:**
+
+- `DescribeStacks` - Check if stack exists and get current status
+- `CreateChangeSet` - Create change set for stack creation or updates
+- `DescribeChangeSet` - Check change set status and retrieve changes
+
+**Create & Execute Mode (default):**
+
+- `ExecuteChangeSet` - Execute the created change set
+- `DescribeStacks` - Get final stack status and outputs after execution
+
+**Create Only Mode:**
+
+- No additional calls (change set left for manual review/execution)
+
+**Execute Only Mode:**
+
+- `ExecuteChangeSet` - Execute existing change set by ID
+- `DescribeStacks` - Get final stack status and outputs after execution
+
+**Error Reporting (when change set creation fails):**
+
+- `DescribeStackEvents` - Retrieve detailed error information for validation failures
+- `DeleteChangeSet` - Clean up failed change sets (unless `no-delete-failed-changeset` is set)
+
+> The policy above prevents the stack from being deleted - add `cloudformation:DeleteStack` if deletion is required for your use case
 
 ## Example
 
@@ -136,7 +338,7 @@ jobs:
       with:
         name: ${{ steps.env-name.outputs.environment }}-cluster
         template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
-        no-fail-on-empty-changeset: "1"
+        fail-on-empty-changeset: false
         parameter-overrides: >-
           AvailabilityZones=${{ github.event.inputs.region }}a,
           AvailabilityZones=${{ github.event.inputs.region }}c,
@@ -156,12 +358,13 @@ If you run in self-hosted environments and in secured environment where you need
 Additionally this action will always consider already configured proxy in the environment.
 
 Manually configured proxy:
+
 ```yaml
 uses: aws-actions/aws-cloudformation-github-deploy@v1
 with:
   name: eks-primary
   template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
-  no-fail-on-empty-changeset: "1"
+  fail-on-empty-changeset: false
   http-proxy: "http://companydomain.com:3128"
 ```
 
