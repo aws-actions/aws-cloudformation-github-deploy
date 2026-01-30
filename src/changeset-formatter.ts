@@ -17,85 +17,70 @@ interface ChangeSetSummary {
 }
 
 /**
- * Recursively diff JSON values and return formatted changes
+ * Generate a git-style diff view of JSON objects with recreation warnings
  */
-function diffJson(before: unknown, after: unknown, path = ''): string[] {
-  const lines: string[] = []
+function generateJsonDiff(
+  before: unknown,
+  after: unknown,
+  details?: Array<{ Target?: { Name?: string; RequiresRecreation?: string } }>
+): string {
+  const beforeJson = before ? JSON.stringify(before, null, 2) : '{}'
+  const afterJson = after ? JSON.stringify(after, null, 2) : '{}'
 
-  // Handle arrays
-  if (Array.isArray(before) || Array.isArray(after)) {
-    const beforeArr = Array.isArray(before) ? before : []
-    const afterArr = Array.isArray(after) ? after : []
+  if (beforeJson === afterJson) {
+    return '```json\n' + beforeJson + '\n```\n'
+  }
 
-    // Special case: array of {Key, Value} objects (Tags)
-    if (beforeArr[0]?.Key || afterArr[0]?.Key) {
-      const beforeMap = new Map(
-        beforeArr.map((t: { Key: string; Value: string }) => [t.Key, t.Value])
-      )
-      const afterMap = new Map(
-        afterArr.map((t: { Key: string; Value: string }) => [t.Key, t.Value])
-      )
-      const allKeys = new Set([...beforeMap.keys(), ...afterMap.keys()])
-
-      for (const key of Array.from(allKeys).sort()) {
-        const b = beforeMap.get(key)
-        const a = afterMap.get(key)
-        const prefix = path ? `${path}.${key}` : key
-        if (b && a && b !== a)
-          lines.push(`  - **${prefix}:** \`${b}\` → \`${a}\``)
-        else if (a && !b) lines.push(`  - **${prefix}:** (added) → \`${a}\``)
-        else if (b && !a) lines.push(`  - **${prefix}:** \`${b}\` → (removed)`)
-      }
-      return lines
-    }
-
-    // Generic array - show as JSON if different
-    if (JSON.stringify(beforeArr) !== JSON.stringify(afterArr)) {
-      if (beforeArr.length && afterArr.length) {
-        lines.push(
-          `  - **${path || 'value'}:** \`${JSON.stringify(beforeArr)}\` → \`${JSON.stringify(afterArr)}\``
-        )
-      } else if (afterArr.length) {
-        lines.push(
-          `  - **${path || 'value'}:** (added) → \`${JSON.stringify(afterArr)}\``
-        )
-      } else if (beforeArr.length) {
-        lines.push(
-          `  - **${path || 'value'}:** \`${JSON.stringify(beforeArr)}\` → (removed)`
-        )
+  // Build map of properties that require recreation
+  const recreationMap = new Map<string, string>()
+  if (details) {
+    for (const detail of details) {
+      const target = detail.Target
+      if (
+        target?.Name &&
+        target.RequiresRecreation &&
+        target.RequiresRecreation !== 'Never'
+      ) {
+        recreationMap.set(target.Name, target.RequiresRecreation)
       }
     }
-    return lines
   }
 
-  // Handle objects
-  if (
-    (before && typeof before === 'object') ||
-    (after && typeof after === 'object')
-  ) {
-    const beforeObj = before as Record<string, unknown>
-    const afterObj = after as Record<string, unknown>
-    const allKeys = new Set([
-      ...Object.keys(beforeObj || {}),
-      ...Object.keys(afterObj || {})
-    ])
-    for (const key of allKeys) {
-      const newPath = path ? `${path}.${key}` : key
-      lines.push(...diffJson(beforeObj?.[key], afterObj?.[key], newPath))
+  const beforeLines = beforeJson.split('\n')
+  const afterLines = afterJson.split('\n')
+
+  const diff: string[] = []
+  let i = 0
+  let j = 0
+
+  while (i < beforeLines.length || j < afterLines.length) {
+    const beforeLine = beforeLines[i]
+    const afterLine = afterLines[j]
+
+    if (beforeLine === afterLine) {
+      diff.push(' ' + beforeLine)
+      i++
+      j++
+    } else if (i < beforeLines.length && !afterLines.includes(beforeLines[i])) {
+      diff.push('-' + beforeLine)
+      i++
+    } else if (j < afterLines.length) {
+      let line = '+' + afterLine
+      // Check if this line contains a property that requires recreation
+      for (const [propName, recreationType] of recreationMap) {
+        if (afterLine.includes(`"${propName}"`)) {
+          line += ` ⚠️ Requires recreation: ${recreationType}`
+          break
+        }
+      }
+      diff.push(line)
+      j++
+    } else {
+      i++
     }
-    return lines
   }
 
-  // Primitives
-  if (before !== after) {
-    const prefix = path || 'value'
-    if (before && after)
-      lines.push(`  - **${prefix}:** \`${before}\` → \`${after}\``)
-    else if (after) lines.push(`  - **${prefix}:** (added) → \`${after}\``)
-    else if (before) lines.push(`  - **${prefix}:** \`${before}\` → (removed)`)
-  }
-
-  return lines
+  return '```diff\n' + diff.join('\n') + '\n```\n'
 }
 
 /**
@@ -473,90 +458,27 @@ export function generateChangeSetMarkdown(changesSummary: string): string {
         markdown += `⚠️ **May require replacement**\n\n`
       }
 
-      // Property changes
-      if (rc.Details && rc.Details.length > 0) {
-        markdown += '**Property Changes:**\n\n'
-        for (const detail of rc.Details) {
-          const target = detail.Target
-          if (!target) continue
-
-          const propName = target.Name || target.Attribute || 'Unknown'
-
-          // Try to parse as JSON and diff
-          let diffLines: string[] = []
-          try {
-            const before = target.BeforeValue
-              ? JSON.parse(target.BeforeValue)
-              : undefined
-            const after = target.AfterValue
-              ? JSON.parse(target.AfterValue)
-              : undefined
-            diffLines = diffJson(before, after, propName)
-          } catch {
-            // Not JSON, use simple string diff
-            if (target.BeforeValue && target.AfterValue) {
-              diffLines = [
-                `- **${propName}:** \`${target.BeforeValue}\` → \`${target.AfterValue}\``
-              ]
-            } else if (target.AfterValue) {
-              diffLines = [
-                `- **${propName}:** (added) → \`${target.AfterValue}\``
-              ]
-            } else if (target.BeforeValue) {
-              diffLines = [
-                `- **${propName}:** \`${target.BeforeValue}\` → (removed)`
-              ]
-            }
-          }
-
-          // Output the diff lines
-          if (diffLines.length > 0) {
-            if (diffLines.length === 1 && diffLines[0].startsWith('  - ')) {
-              // Single nested line from diffJson - promote to top level
-              markdown += `- ${diffLines[0].substring(4)}\n`
-            } else if (diffLines.length === 1) {
-              // Single line already formatted
-              markdown += `${diffLines[0]}\n`
-            } else {
-              // Multiple lines - show property name and indent children
-              markdown += `- **${propName}:**\n`
-              diffLines.forEach(line => {
-                markdown += `${line}\n`
-              })
-            }
-          }
-
-          if (
-            target.RequiresRecreation &&
-            target.RequiresRecreation !== 'Never'
-          ) {
-            markdown += `  - ⚠️ Requires recreation: ${target.RequiresRecreation}\n`
-          }
-        }
-        markdown += '\n'
-      }
-
-      // AfterContext for Add actions
-      if (rc.Action === 'Add' && rc.AfterContext) {
+      // Show diff view using BeforeContext/AfterContext when available
+      if (rc.BeforeContext || rc.AfterContext) {
         try {
-          const afterProps = JSON.parse(rc.AfterContext)
-          markdown += '\n**Properties:**\n```json\n'
-          markdown += JSON.stringify(afterProps, null, 2)
-          markdown += '\n```\n'
+          const before = rc.BeforeContext
+            ? JSON.parse(rc.BeforeContext)
+            : undefined
+          const after = rc.AfterContext
+            ? JSON.parse(rc.AfterContext)
+            : undefined
+          markdown += generateJsonDiff(before, after, rc.Details)
         } catch {
-          // Skip if can't parse
-        }
-      }
-
-      // BeforeContext for Remove actions
-      if (rc.Action === 'Remove' && rc.BeforeContext) {
-        try {
-          const beforeProps = JSON.parse(rc.BeforeContext)
-          markdown += '\n**Properties:**\n```json\n'
-          markdown += JSON.stringify(beforeProps, null, 2)
-          markdown += '\n```\n'
-        } catch {
-          // Skip if can't parse
+          // If parsing fails, fall back to showing raw JSON
+          if (rc.AfterContext) {
+            markdown += '\n**Properties:**\n```json\n'
+            markdown += rc.AfterContext
+            markdown += '\n```\n'
+          } else if (rc.BeforeContext) {
+            markdown += '\n**Properties:**\n```json\n'
+            markdown += rc.BeforeContext
+            markdown += '\n```\n'
+          }
         }
       }
 

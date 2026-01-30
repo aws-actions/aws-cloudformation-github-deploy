@@ -426,6 +426,16 @@ describe('Change Set Formatter', () => {
             ResourceType: 'AWS::DynamoDB::Table',
             Replacement: 'True',
             Scope: ['Properties'],
+            BeforeContext: JSON.stringify({
+              Properties: {
+                BillingMode: 'PROVISIONED'
+              }
+            }),
+            AfterContext: JSON.stringify({
+              Properties: {
+                BillingMode: 'PAY_PER_REQUEST'
+              }
+            }),
             Details: [
               {
                 Target: {
@@ -458,9 +468,189 @@ describe('Change Set Formatter', () => {
     )
     expect(markdown).toContain('**Physical ID:** `my-table-123`')
     expect(markdown).toContain('⚠️ **This resource will be replaced**')
-    expect(markdown).toContain(
-      '**BillingMode:** `PROVISIONED` → `PAY_PER_REQUEST`'
+    expect(markdown).toContain('```diff')
+    expect(markdown).toContain('⚠️ Requires recreation: Always')
+  })
+
+  test('displays AfterContext for Add actions in console output', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Add',
+            LogicalResourceId: 'NewBucket',
+            ResourceType: 'AWS::S3::Bucket',
+            AfterContext:
+              '{"BucketName":"my-bucket","Versioning":{"Status":"Enabled"}}'
+          }
+        }
+      ],
+      totalChanges: 1,
+      truncated: false
+    })
+
+    displayChangeSet(changesSummary, 1, true)
+
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining('Properties:')
     )
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining('BucketName')
+    )
+  })
+
+  test('displays BeforeContext for Remove actions in console output', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Remove',
+            LogicalResourceId: 'OldBucket',
+            ResourceType: 'AWS::S3::Bucket',
+            BeforeContext: '{"BucketName":"old-bucket"}'
+          }
+        }
+      ],
+      totalChanges: 1,
+      truncated: false
+    })
+
+    displayChangeSet(changesSummary, 1, true)
+
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining('Properties:')
+    )
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining('BucketName')
+    )
+  })
+
+  test('handles invalid JSON in AfterContext gracefully', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Add',
+            LogicalResourceId: 'NewResource',
+            ResourceType: 'AWS::Custom::Resource',
+            AfterContext: 'invalid-json{'
+          }
+        }
+      ],
+      totalChanges: 1,
+      truncated: false
+    })
+
+    displayChangeSet(changesSummary, 1, true)
+
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining('invalid-json{')
+    )
+  })
+
+  test('handles invalid JSON in BeforeContext gracefully', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Remove',
+            LogicalResourceId: 'OldResource',
+            ResourceType: 'AWS::Custom::Resource',
+            BeforeContext: 'invalid-json{'
+          }
+        }
+      ],
+      totalChanges: 1,
+      truncated: false
+    })
+
+    displayChangeSet(changesSummary, 1, true)
+
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining('invalid-json{')
+    )
+  })
+
+  test('generates diff view for resources with BeforeContext/AfterContext', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyTopic',
+            ResourceType: 'AWS::SNS::Topic',
+            Replacement: 'False',
+            BeforeContext: JSON.stringify({
+              Properties: {
+                DisplayName: 'old-name',
+                Tags: [{ Key: 'Env', Value: 'dev' }]
+              }
+            }),
+            AfterContext: JSON.stringify({
+              Properties: {
+                DisplayName: 'new-name',
+                Tags: [{ Key: 'Env', Value: 'prod' }]
+              }
+            })
+          }
+        }
+      ],
+      totalChanges: 1,
+      truncated: false
+    })
+
+    const markdown = generateChangeSetMarkdown(changesSummary)
+
+    expect(markdown).toContain('```diff')
+    expect(markdown).toContain('-')
+    expect(markdown).toContain('+')
+  })
+
+  test('shows recreation warnings in diff view', () => {
+    const changesSummary = JSON.stringify({
+      changes: [
+        {
+          Type: 'Resource',
+          ResourceChange: {
+            Action: 'Modify',
+            LogicalResourceId: 'MyParam',
+            ResourceType: 'AWS::SSM::Parameter',
+            Replacement: 'True',
+            BeforeContext: JSON.stringify({
+              Properties: {
+                Name: '/old/path',
+                Value: 'old'
+              }
+            }),
+            AfterContext: JSON.stringify({
+              Properties: {
+                Name: '/new/path',
+                Value: 'new'
+              }
+            }),
+            Details: [
+              {
+                Target: {
+                  Name: 'Name',
+                  RequiresRecreation: 'Always'
+                }
+              }
+            ]
+          }
+        }
+      ],
+      totalChanges: 1,
+      truncated: false
+    })
+
+    const markdown = generateChangeSetMarkdown(changesSummary)
+
+    expect(markdown).toContain('```diff')
     expect(markdown).toContain('⚠️ Requires recreation: Always')
   })
 
