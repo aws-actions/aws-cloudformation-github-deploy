@@ -9,7 +9,7 @@ Deploys AWS CloudFormation Stacks.
 
 ```yaml
 - name: Deploy to AWS CloudFormation
-  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  uses: aws-actions/aws-cloudformation-github-deploy@v2.0.0
   with:
     name: MyStack
     template: myStack.yaml
@@ -26,7 +26,7 @@ This action supports three modes of operation for better change set management:
 
 ```yaml
 - name: Deploy CloudFormation Stack
-  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  uses: aws-actions/aws-cloudformation-github-deploy@v2.0.0
   with:
     name: MyStack
     template: myStack.yaml
@@ -37,7 +37,7 @@ This action supports three modes of operation for better change set management:
 ```yaml
 - name: Create Change Set for Review
   id: create-changeset
-  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  uses: aws-actions/aws-cloudformation-github-deploy@v2.0.0
   with:
     mode: 'create-only'
     name: MyStack
@@ -56,7 +56,7 @@ This action supports three modes of operation for better change set management:
 
 ```yaml
 - name: Execute Change Set
-  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  uses: aws-actions/aws-cloudformation-github-deploy@v2.0.0
   with:
     mode: 'execute-only'
     name: MyStack
@@ -69,7 +69,7 @@ Create change sets that can revert resource drift:
 
 ```yaml
 - name: Create Drift-Reverting Change Set
-  uses: aws-actions/aws-cloudformation-github-deploy@v1
+  uses: aws-actions/aws-cloudformation-github-deploy@v2.0.0
   with:
     mode: 'create-only'
     name: MyStack
@@ -110,7 +110,7 @@ jobs:
 
       - name: Create change set for PR review
         id: create-cs
-        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        uses: aws-actions/aws-cloudformation-github-deploy@v2.0.0
         with:
           mode: 'create-only'
           name: pr-review-${{ github.event.pull_request.number }}
@@ -361,7 +361,7 @@ Additionally this action will always consider already configured proxy in the en
 Manually configured proxy:
 
 ```yaml
-uses: aws-actions/aws-cloudformation-github-deploy@v1
+uses: aws-actions/aws-cloudformation-github-deploy@v2.0.0
 with:
   name: eks-primary
   template: https://s3.amazonaws.com/aws-quickstart/quickstart-amazon-eks/templates/amazon-eks-master.template.yaml
