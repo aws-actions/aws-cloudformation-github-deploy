@@ -1,19 +1,35 @@
 import * as path from 'path'
 import * as core from '@actions/core'
-import * as aws from 'aws-sdk'
-import * as fs from 'fs'
-import { deployStack, getStackOutputs } from './deploy'
 import {
-  isUrl,
-  parseTags,
-  parseString,
-  parseNumber,
-  parseARNs,
-  parseParameters
-} from './utils'
+  CloudFormationClient,
+  CreateChangeSetCommandInput,
+  CreateStackCommandInput,
+  Capability,
+  CloudFormationServiceException
+} from '@aws-sdk/client-cloudformation'
+import * as fs from 'fs'
+import {
+  displayChangeSet,
+  generateChangeSetMarkdown
+} from './changeset-formatter'
+import {
+  deployStack,
+  getStackOutputs,
+  executeExistingChangeSet
+} from './deploy'
+import { isUrl, configureProxy, parseBoolean } from './utils'
+import { validateAndParseInputs } from './validation'
+import { NodeHttpHandler } from '@smithy/node-http-handler'
+import { EventMonitorImpl, EventMonitorConfig } from './event-streaming'
 
-export type CreateStackInput = aws.CloudFormation.Types.CreateStackInput
-export type CreateChangeSetInput = aws.CloudFormation.Types.CreateChangeSetInput
+// Validated by core.getInput() which throws if not set
+export type CreateStackInputWithName = CreateStackCommandInput & {
+  StackName: string
+  IncludeNestedStacksChangeSet?: boolean
+  DeploymentMode?: 'REVERT_DRIFT'
+}
+
+export type CreateChangeSetInput = CreateChangeSetCommandInput
 export type InputNoFailOnEmptyChanges = '1' | '0'
 export type InputCapabilities =
   | 'CAPABILITY_IAM'
@@ -25,125 +41,347 @@ export type Inputs = {
 }
 
 // The custom client configuration for the CloudFormation clients.
-const clientConfiguration = {
+let clientConfiguration = {
   customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
 }
-
 export async function run(): Promise<void> {
   try {
-    const cfn = new aws.CloudFormation({ ...clientConfiguration })
+    /* istanbul ignore next */
     const { GITHUB_WORKSPACE = __dirname } = process.env
 
-    // Get inputs
-    const template = core.getInput('template', { required: true })
-    const stackName = core.getInput('name', { required: true })
-    const capabilities = core.getInput('capabilities', {
-      required: false
-    })
-    const parametersFile = core.getInput('parameters-file', {
-      required: false
-    })
-    const parameterOverrides = core.getInput('parameter-overrides', {
-      required: false
-    })
-    const changesetPostfix = core.getInput('changeset-postfix', {
-      required: false
-    })
-    const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
-      required: false
-    })
-    const noExecuteChageSet = !!+core.getInput('no-execute-changeset', {
-      required: false
-    })
-    const noDeleteFailedChangeSet = !!+core.getInput(
-      'no-delete-failed-changeset',
-      {
+    // Collect all inputs
+    const rawInputs: Record<string, string | undefined> = {
+      mode: core.getInput('mode', { required: false }),
+      name: core.getInput('name', { required: true }),
+      template: core.getInput('template', { required: false }),
+      capabilities: core.getInput('capabilities', { required: false }),
+      'parameter-overrides': core.getInput('parameter-overrides', {
         required: false
+      }),
+      'parameters-file': core.getInput('parameters-file', {
+        required: false
+      }),
+      'fail-on-empty-changeset': core.getInput('fail-on-empty-changeset', {
+        required: false
+      }),
+      'no-fail-on-empty-changeset': core.getInput(
+        'no-fail-on-empty-changeset',
+        { required: false }
+      ),
+      'no-execute-changeset': core.getInput('no-execute-changeset', {
+        required: false
+      }),
+      'no-delete-failed-changeset': core.getInput(
+        'no-delete-failed-changeset',
+        { required: false }
+      ),
+      'disable-rollback': core.getInput('disable-rollback', {
+        required: false
+      }),
+      'timeout-in-minutes': core.getInput('timeout-in-minutes', {
+        required: false
+      }),
+      'notification-arns': core.getInput('notification-arns', {
+        required: false
+      }),
+      'role-arn': core.getInput('role-arn', { required: false }),
+      tags: core.getInput('tags', { required: false }),
+      'termination-protection': core.getInput('termination-protection', {
+        required: false
+      }),
+      'http-proxy': core.getInput('http-proxy', { required: false }),
+      'change-set-name': core.getInput('change-set-name', { required: false }),
+      'changeset-postfix': core.getInput('changeset-postfix', {
+        required: false
+      }),
+      'include-nested-stacks-change-set': core.getInput(
+        'include-nested-stacks-change-set',
+        { required: false }
+      ),
+      'deployment-mode': core.getInput('deployment-mode', { required: false }),
+      'execute-change-set-id': core.getInput('execute-change-set-id', {
+        required: false
+      })
+    }
+
+    // Validate and parse inputs
+    const inputs = validateAndParseInputs(rawInputs)
+
+    // Configures proxy
+    const agent = configureProxy(inputs['http-proxy'])
+    if (agent) {
+      clientConfiguration = {
+        ...clientConfiguration,
+        ...{
+          requestHandler: new NodeHttpHandler({
+            httpsAgent: agent
+          })
+        }
       }
-    )
-    const disableRollback = !!+core.getInput('disable-rollback', {
-      required: false
-    })
-    const timeoutInMinutes = parseNumber(
-      core.getInput('timeout-in-minutes', {
-        required: false
-      })
-    )
-    const notificationARNs = parseARNs(
-      core.getInput('notification-arns', {
-        required: false
-      })
-    )
-    const roleARN = parseString(
-      core.getInput('role-arn', {
-        required: false
-      })
-    )
-    const tags = parseTags(
-      core.getInput('tags', {
-        required: false
-      })
-    )
-    const terminationProtections = !!+core.getInput('termination-protection', {
-      required: false
-    })
+    }
+
+    const cfn = new CloudFormationClient({ ...clientConfiguration })
+
+    // Execute existing change set mode
+    if (inputs.mode === 'execute-only') {
+      // Calculate maxWaitTime for execute-only mode
+      const defaultMaxWaitTime = 21000 // 5 hours 50 minutes in seconds
+      const timeoutMinutes = inputs['timeout-in-minutes']
+      const maxWaitTime =
+        typeof timeoutMinutes === 'number'
+          ? timeoutMinutes * 60
+          : defaultMaxWaitTime
+
+      // Start event monitoring for execute-only mode
+      let eventMonitor: EventMonitorImpl | undefined
+      try {
+        const eventConfig: EventMonitorConfig = {
+          stackName: inputs.name,
+          changeSetName: inputs['execute-change-set-id']!,
+          client: cfn,
+          enableColors: true,
+          pollIntervalMs: 2000,
+          maxPollIntervalMs: 30000
+        }
+        eventMonitor = new EventMonitorImpl(eventConfig)
+        eventMonitor.startMonitoring().catch(err => {
+          core.warning(
+            `Event streaming failed: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          )
+        })
+        core.debug('Event streaming started for execute-only mode')
+      } catch (error) {
+        core.warning(
+          `Failed to start event streaming: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+      }
+
+      try {
+        const stackId = await executeExistingChangeSet(
+          cfn,
+          inputs.name,
+          inputs['execute-change-set-id']!,
+          maxWaitTime
+        )
+        core.setOutput('stack-id', stackId || 'UNKNOWN')
+
+        if (stackId) {
+          const outputs = await getStackOutputs(cfn, stackId)
+          for (const [key, value] of outputs) {
+            core.setOutput(key, value)
+          }
+        }
+      } finally {
+        if (eventMonitor) {
+          eventMonitor.stopMonitoring()
+          core.debug('Event streaming stopped')
+        }
+      }
+      return
+    }
 
     // Setup CloudFormation Stack
     let templateBody
     let templateUrl
 
-    if (isUrl(template)) {
+    if (isUrl(inputs.template!)) {
       core.debug('Using CloudFormation Stack from Amazon S3 Bucket')
-      templateUrl = template
+      templateUrl = inputs.template
     } else {
       core.debug('Loading CloudFormation Stack template')
-      const templateFilePath = path.isAbsolute(template)
-        ? template
-        : path.join(GITHUB_WORKSPACE, template)
+      const templateFilePath = path.isAbsolute(inputs.template!)
+        ? inputs.template!
+        : path.join(GITHUB_WORKSPACE, inputs.template!)
       templateBody = fs.readFileSync(templateFilePath, 'utf8')
     }
 
+    // Backward compat: no-fail-on-empty-changeset (inverted logic)
+    // If the deprecated no-fail-on-empty-changeset is set to "1", it means "don't fail"
+    // which maps to fail-on-empty-changeset = false
+    let failOnEmptyChangeset = inputs['fail-on-empty-changeset']
+    if (
+      !rawInputs['fail-on-empty-changeset'] &&
+      rawInputs['no-fail-on-empty-changeset']
+    ) {
+      const noFail = parseBoolean(rawInputs['no-fail-on-empty-changeset'])
+      failOnEmptyChangeset = !noFail
+      core.debug(
+        `Using deprecated no-fail-on-empty-changeset: ${rawInputs['no-fail-on-empty-changeset']} -> fail-on-empty-changeset: ${failOnEmptyChangeset}`
+      )
+    }
+
+    // Load parameters from parameters-file if provided, merge with parameter-overrides
+    let parameters = inputs['parameter-overrides'] || undefined
+    const parametersFile = inputs['parameters-file'] as string | undefined
+    if (parametersFile) {
+      core.debug(`Loading parameters from file: ${parametersFile}`)
+      const parametersFilePath = path.isAbsolute(parametersFile)
+        ? parametersFile
+        : path.join(GITHUB_WORKSPACE, parametersFile)
+      const fileContent = JSON.parse(
+        fs.readFileSync(parametersFilePath, 'utf8')
+      )
+      const fileParams = Object.entries(
+        (fileContent.Parameters || {}) as Record<string, string>
+      ).map(([key, value]) => ({
+        ParameterKey: key,
+        ParameterValue: String(value)
+      }))
+      if (parameters && parameters.length > 0) {
+        // Merge: overrides take precedence over file params
+        const overrideKeys = new Set(
+          parameters.map((p: { ParameterKey?: string }) => p.ParameterKey)
+        )
+        parameters = [
+          ...fileParams.filter(
+            (p: { ParameterKey: string }) => !overrideKeys.has(p.ParameterKey)
+          ),
+          ...parameters
+        ]
+      } else {
+        parameters = fileParams
+      }
+      core.debug(`Parameters after merge: ${JSON.stringify(parameters)}`)
+    }
+
     // CloudFormation Stack Parameter for the creation or update
-    const params: CreateStackInput = {
-      StackName: stackName,
-      Capabilities: [...capabilities.split(',').map(cap => cap.trim())],
-      RoleARN: roleARN,
-      NotificationARNs: notificationARNs,
-      DisableRollback: disableRollback,
-      TimeoutInMinutes: timeoutInMinutes,
+    const params: CreateStackInputWithName = {
+      StackName: inputs.name,
+      Capabilities: inputs.capabilities as Capability[],
+      RoleARN: inputs['role-arn'],
+      NotificationARNs: inputs['notification-arns'],
+      DisableRollback: inputs['disable-rollback'],
+      TimeoutInMinutes: inputs['timeout-in-minutes'],
       TemplateBody: templateBody,
       TemplateURL: templateUrl,
-      Tags: tags,
-      EnableTerminationProtection: terminationProtections
+      Tags: inputs.tags,
+      EnableTerminationProtection: inputs['termination-protection'],
+      IncludeNestedStacksChangeSet: inputs['include-nested-stacks-change-set'],
+      DeploymentMode: inputs['deployment-mode'],
+      Parameters: parameters
     }
 
-    if (parameterOverrides) {
-      params.Parameters = parseParameters(
-        parameterOverrides?.trim(),
-        parametersFile?.trim()
+    // Calculate maxWaitTime: use timeout-in-minutes if provided, otherwise default to 5h50m (safe for GitHub Actions 6h limit)
+    const defaultMaxWaitTime = 21000 // 5 hours 50 minutes in seconds
+    const timeoutMinutes = inputs['timeout-in-minutes']
+    const maxWaitTime =
+      typeof timeoutMinutes === 'number'
+        ? timeoutMinutes * 60
+        : defaultMaxWaitTime
+
+    // Backward compat: changeset-postfix falls back when change-set-name is not set
+    const changesetPostfix = (inputs['changeset-postfix'] as string) || '-CS'
+    const changeSetName =
+      inputs['change-set-name'] || `${params.StackName}${changesetPostfix}`
+
+    // Prepare event streaming configuration (but don't start yet)
+    let eventMonitor: EventMonitorImpl | undefined
+    const eventConfig: EventMonitorConfig = {
+      stackName: params.StackName,
+      changeSetName,
+      client: cfn,
+      enableColors: true,
+      pollIntervalMs: 2000,
+      maxPollIntervalMs: 30000
+    }
+
+    try {
+      const result = await deployStack(
+        cfn,
+        params,
+        changeSetName,
+        failOnEmptyChangeset,
+        inputs['no-execute-changeset'] || inputs.mode === 'create-only',
+        inputs['no-delete-failed-changeset'],
+        maxWaitTime,
+        // Start event monitoring right before changeset execution
+        () => {
+          try {
+            eventMonitor = new EventMonitorImpl(eventConfig)
+            eventMonitor.startMonitoring().catch(err => {
+              core.warning(
+                `Event streaming failed: ${
+                  err instanceof Error ? err.message : String(err)
+                }`
+              )
+            })
+            core.debug('Event streaming started')
+          } catch (error) {
+            core.warning(
+              `Failed to start event streaming: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            )
+          }
+        }
       )
-      core.debug(`Parameters: ${JSON.stringify(params.Parameters)}`)
-    }
 
-    const stackId = await deployStack(
-      cfn,
-      params,
-      noEmptyChangeSet,
-      noExecuteChageSet,
-      noDeleteFailedChangeSet,
-      changesetPostfix
-    )
-    core.setOutput('stack-id', stackId || 'UNKNOWN')
+      core.setOutput('stack-id', result.stackId || params.StackName)
 
-    if (stackId) {
-      const outputs = await getStackOutputs(cfn, stackId)
-      for (const [key, value] of outputs) {
-        core.setOutput(key, value)
-        console.log(`> Output ${key}: ${value}`)
+      // Set change set outputs when not executing
+      if (result.changeSetInfo) {
+        core.setOutput('change-set-id', result.changeSetInfo.changeSetId || '')
+        core.setOutput(
+          'change-set-name',
+          result.changeSetInfo.changeSetName || ''
+        )
+        core.setOutput(
+          'has-changes',
+          result.changeSetInfo.hasChanges.toString()
+        )
+        core.setOutput(
+          'changes-count',
+          result.changeSetInfo.changesCount.toString()
+        )
+        core.setOutput('changes-summary', result.changeSetInfo.changesSummary)
+
+        // Display formatted change set with colors and expandable groups
+        displayChangeSet(
+          result.changeSetInfo.changesSummary,
+          result.changeSetInfo.changesCount,
+          true // Enable colors for GitHub Actions
+        )
+
+        // Generate markdown output for PR comments
+        const markdown = generateChangeSetMarkdown(
+          result.changeSetInfo.changesSummary
+        )
+        core.setOutput('changes-markdown', markdown)
+      }
+
+      if (result.stackId) {
+        const outputs = await getStackOutputs(cfn, result.stackId)
+        for (const [key, value] of outputs) {
+          core.setOutput(key, value)
+        }
+      }
+    } finally {
+      // Always stop event monitoring when deployment completes or fails
+      if (eventMonitor) {
+        eventMonitor.stopMonitoring()
+        core.debug('Event streaming stopped')
       }
     }
   } catch (err) {
-    core.setFailed(err.message)
+    if (
+      err instanceof CloudFormationServiceException &&
+      err.message?.includes(
+        'Member must have length less than or equal to 51200'
+      )
+    ) {
+      core.setFailed(
+        'Template size exceeds CloudFormation limit (51,200 bytes). Consider using a template URL from S3 instead of inline template content.'
+      )
+    } else {
+      // @ts-expect-error: Object is of type 'unknown'
+      core.setFailed(err.message || 'Unknown error occurred')
+    }
+
+    // @ts-expect-error: Object is of type 'unknown'
     core.debug(err.stack)
   }
 }
