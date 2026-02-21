@@ -1,236 +1,431 @@
 "use strict";
-exports.id = 605;
-exports.ids = [605];
+exports.id = 346;
+exports.ids = [346];
 exports.modules = {
 
-/***/ 1509:
+/***/ 6707:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.checkUrl = void 0;
-const property_provider_1 = __webpack_require__(8857);
-const LOOPBACK_CIDR_IPv4 = "127.0.0.0/8";
-const LOOPBACK_CIDR_IPv6 = "::1/128";
-const ECS_CONTAINER_HOST = "169.254.170.2";
-const EKS_CONTAINER_HOST_IPv4 = "169.254.170.23";
-const EKS_CONTAINER_HOST_IPv6 = "[fd00:ec2::23]";
-const checkUrl = (url, logger) => {
-    if (url.protocol === "https:") {
-        return;
-    }
-    if (url.hostname === ECS_CONTAINER_HOST ||
-        url.hostname === EKS_CONTAINER_HOST_IPv4 ||
-        url.hostname === EKS_CONTAINER_HOST_IPv6) {
-        return;
-    }
-    if (url.hostname.includes("[")) {
-        if (url.hostname === "[::1]" || url.hostname === "[0000:0000:0000:0000:0000:0000:0000:0001]") {
-            return;
-        }
-    }
-    else {
-        if (url.hostname === "localhost") {
-            return;
-        }
-        const ipComponents = url.hostname.split(".");
-        const inRange = (component) => {
-            const num = parseInt(component, 10);
-            return 0 <= num && num <= 255;
-        };
-        if (ipComponents[0] === "127" &&
-            inRange(ipComponents[1]) &&
-            inRange(ipComponents[2]) &&
-            inRange(ipComponents[3]) &&
-            ipComponents.length === 4) {
-            return;
-        }
-    }
-    throw new property_provider_1.CredentialsProviderError(`URL not accepted. It must either be HTTPS or match one of the following:
-  - loopback CIDR 127.0.0.0/8 or [::1/128]
-  - ECS container host 169.254.170.2
-  - EKS container host 169.254.170.23 or [fd00:ec2::23]`, { logger });
-};
-exports.checkUrl = checkUrl;
 
+var utilEndpoints = __webpack_require__(9674);
+var urlParser = __webpack_require__(4494);
 
-/***/ }),
-
-/***/ 8712:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.fromHttp = void 0;
-const tslib_1 = __webpack_require__(1860);
-const client_1 = __webpack_require__(5152);
-const node_http_handler_1 = __webpack_require__(2402);
-const property_provider_1 = __webpack_require__(8857);
-const promises_1 = tslib_1.__importDefault(__webpack_require__(1943));
-const checkUrl_1 = __webpack_require__(1509);
-const requestHelpers_1 = __webpack_require__(8914);
-const retry_wrapper_1 = __webpack_require__(1122);
-const AWS_CONTAINER_CREDENTIALS_RELATIVE_URI = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI";
-const DEFAULT_LINK_LOCAL_HOST = "http://169.254.170.2";
-const AWS_CONTAINER_CREDENTIALS_FULL_URI = "AWS_CONTAINER_CREDENTIALS_FULL_URI";
-const AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE = "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE";
-const AWS_CONTAINER_AUTHORIZATION_TOKEN = "AWS_CONTAINER_AUTHORIZATION_TOKEN";
-const fromHttp = (options = {}) => {
-    options.logger?.debug("@aws-sdk/credential-provider-http - fromHttp");
-    let host;
-    const relative = options.awsContainerCredentialsRelativeUri ?? process.env[AWS_CONTAINER_CREDENTIALS_RELATIVE_URI];
-    const full = options.awsContainerCredentialsFullUri ?? process.env[AWS_CONTAINER_CREDENTIALS_FULL_URI];
-    const token = options.awsContainerAuthorizationToken ?? process.env[AWS_CONTAINER_AUTHORIZATION_TOKEN];
-    const tokenFile = options.awsContainerAuthorizationTokenFile ?? process.env[AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE];
-    const warn = options.logger?.constructor?.name === "NoOpLogger" || !options.logger?.warn
-        ? console.warn
-        : options.logger.warn.bind(options.logger);
-    if (relative && full) {
-        warn("@aws-sdk/credential-provider-http: " +
-            "you have set both awsContainerCredentialsRelativeUri and awsContainerCredentialsFullUri.");
-        warn("awsContainerCredentialsFullUri will take precedence.");
-    }
-    if (token && tokenFile) {
-        warn("@aws-sdk/credential-provider-http: " +
-            "you have set both awsContainerAuthorizationToken and awsContainerAuthorizationTokenFile.");
-        warn("awsContainerAuthorizationToken will take precedence.");
-    }
-    if (full) {
-        host = full;
-    }
-    else if (relative) {
-        host = `${DEFAULT_LINK_LOCAL_HOST}${relative}`;
-    }
-    else {
-        throw new property_provider_1.CredentialsProviderError(`No HTTP credential provider host provided.
-Set AWS_CONTAINER_CREDENTIALS_FULL_URI or AWS_CONTAINER_CREDENTIALS_RELATIVE_URI.`, { logger: options.logger });
-    }
-    const url = new URL(host);
-    (0, checkUrl_1.checkUrl)(url, options.logger);
-    const requestHandler = node_http_handler_1.NodeHttpHandler.create({
-        requestTimeout: options.timeout ?? 1000,
-        connectionTimeout: options.timeout ?? 1000,
-    });
-    return (0, retry_wrapper_1.retryWrapper)(async () => {
-        const request = (0, requestHelpers_1.createGetRequest)(url);
-        if (token) {
-            request.headers.Authorization = token;
-        }
-        else if (tokenFile) {
-            request.headers.Authorization = (await promises_1.default.readFile(tokenFile)).toString();
-        }
-        try {
-            const result = await requestHandler.handle(request);
-            return (0, requestHelpers_1.getCredentials)(result.response).then((creds) => (0, client_1.setCredentialFeature)(creds, "CREDENTIALS_HTTP", "z"));
-        }
-        catch (e) {
-            throw new property_provider_1.CredentialsProviderError(String(e), { logger: options.logger });
-        }
-    }, options.maxRetries ?? 3, options.timeout ?? 1000);
-};
-exports.fromHttp = fromHttp;
-
-
-/***/ }),
-
-/***/ 8914:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createGetRequest = createGetRequest;
-exports.getCredentials = getCredentials;
-const property_provider_1 = __webpack_require__(8857);
-const protocol_http_1 = __webpack_require__(2356);
-const smithy_client_1 = __webpack_require__(1411);
-const util_stream_1 = __webpack_require__(4252);
-function createGetRequest(url) {
-    return new protocol_http_1.HttpRequest({
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: Number(url.port),
-        path: url.pathname,
-        query: Array.from(url.searchParams.entries()).reduce((acc, [k, v]) => {
-            acc[k] = v;
-            return acc;
-        }, {}),
-        fragment: url.hash,
-    });
-}
-async function getCredentials(response, logger) {
-    const stream = (0, util_stream_1.sdkStreamMixin)(response.body);
-    const str = await stream.transformToString();
-    if (response.statusCode === 200) {
-        const parsed = JSON.parse(str);
-        if (typeof parsed.AccessKeyId !== "string" ||
-            typeof parsed.SecretAccessKey !== "string" ||
-            typeof parsed.Token !== "string" ||
-            typeof parsed.Expiration !== "string") {
-            throw new property_provider_1.CredentialsProviderError("HTTP credential provider response not of the required format, an object matching: " +
-                "{ AccessKeyId: string, SecretAccessKey: string, Token: string, Expiration: string(rfc3339) }", { logger });
-        }
-        return {
-            accessKeyId: parsed.AccessKeyId,
-            secretAccessKey: parsed.SecretAccessKey,
-            sessionToken: parsed.Token,
-            expiration: (0, smithy_client_1.parseRfc3339DateTime)(parsed.Expiration),
-        };
-    }
-    if (response.statusCode >= 400 && response.statusCode < 500) {
-        let parsedBody = {};
-        try {
-            parsedBody = JSON.parse(str);
-        }
-        catch (e) { }
-        throw Object.assign(new property_provider_1.CredentialsProviderError(`Server responded with status: ${response.statusCode}`, { logger }), {
-            Code: parsedBody.Code,
-            Message: parsedBody.Message,
-        });
-    }
-    throw new property_provider_1.CredentialsProviderError(`Server responded with status: ${response.statusCode}`, { logger });
-}
-
-
-/***/ }),
-
-/***/ 1122:
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.retryWrapper = void 0;
-const retryWrapper = (toRetry, maxRetries, delayMs) => {
-    return async () => {
-        for (let i = 0; i < maxRetries; ++i) {
-            try {
-                return await toRetry();
-            }
-            catch (e) {
-                await new Promise((resolve) => setTimeout(resolve, delayMs));
+const isVirtualHostableS3Bucket = (value, allowSubDomains = false) => {
+    if (allowSubDomains) {
+        for (const label of value.split(".")) {
+            if (!isVirtualHostableS3Bucket(label)) {
+                return false;
             }
         }
-        return await toRetry();
+        return true;
+    }
+    if (!utilEndpoints.isValidHostLabel(value)) {
+        return false;
+    }
+    if (value.length < 3 || value.length > 63) {
+        return false;
+    }
+    if (value !== value.toLowerCase()) {
+        return false;
+    }
+    if (utilEndpoints.isIpAddress(value)) {
+        return false;
+    }
+    return true;
+};
+
+const ARN_DELIMITER = ":";
+const RESOURCE_DELIMITER = "/";
+const parseArn = (value) => {
+    const segments = value.split(ARN_DELIMITER);
+    if (segments.length < 6)
+        return null;
+    const [arn, partition, service, region, accountId, ...resourcePath] = segments;
+    if (arn !== "arn" || partition === "" || service === "" || resourcePath.join(ARN_DELIMITER) === "")
+        return null;
+    const resourceId = resourcePath.map((resource) => resource.split(RESOURCE_DELIMITER)).flat();
+    return {
+        partition,
+        service,
+        region,
+        accountId,
+        resourceId,
     };
 };
-exports.retryWrapper = retryWrapper;
+
+var partitions = [
+	{
+		id: "aws",
+		outputs: {
+			dnsSuffix: "amazonaws.com",
+			dualStackDnsSuffix: "api.aws",
+			implicitGlobalRegion: "us-east-1",
+			name: "aws",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$",
+		regions: {
+			"af-south-1": {
+				description: "Africa (Cape Town)"
+			},
+			"ap-east-1": {
+				description: "Asia Pacific (Hong Kong)"
+			},
+			"ap-east-2": {
+				description: "Asia Pacific (Taipei)"
+			},
+			"ap-northeast-1": {
+				description: "Asia Pacific (Tokyo)"
+			},
+			"ap-northeast-2": {
+				description: "Asia Pacific (Seoul)"
+			},
+			"ap-northeast-3": {
+				description: "Asia Pacific (Osaka)"
+			},
+			"ap-south-1": {
+				description: "Asia Pacific (Mumbai)"
+			},
+			"ap-south-2": {
+				description: "Asia Pacific (Hyderabad)"
+			},
+			"ap-southeast-1": {
+				description: "Asia Pacific (Singapore)"
+			},
+			"ap-southeast-2": {
+				description: "Asia Pacific (Sydney)"
+			},
+			"ap-southeast-3": {
+				description: "Asia Pacific (Jakarta)"
+			},
+			"ap-southeast-4": {
+				description: "Asia Pacific (Melbourne)"
+			},
+			"ap-southeast-5": {
+				description: "Asia Pacific (Malaysia)"
+			},
+			"ap-southeast-6": {
+				description: "Asia Pacific (New Zealand)"
+			},
+			"ap-southeast-7": {
+				description: "Asia Pacific (Thailand)"
+			},
+			"aws-global": {
+				description: "aws global region"
+			},
+			"ca-central-1": {
+				description: "Canada (Central)"
+			},
+			"ca-west-1": {
+				description: "Canada West (Calgary)"
+			},
+			"eu-central-1": {
+				description: "Europe (Frankfurt)"
+			},
+			"eu-central-2": {
+				description: "Europe (Zurich)"
+			},
+			"eu-north-1": {
+				description: "Europe (Stockholm)"
+			},
+			"eu-south-1": {
+				description: "Europe (Milan)"
+			},
+			"eu-south-2": {
+				description: "Europe (Spain)"
+			},
+			"eu-west-1": {
+				description: "Europe (Ireland)"
+			},
+			"eu-west-2": {
+				description: "Europe (London)"
+			},
+			"eu-west-3": {
+				description: "Europe (Paris)"
+			},
+			"il-central-1": {
+				description: "Israel (Tel Aviv)"
+			},
+			"me-central-1": {
+				description: "Middle East (UAE)"
+			},
+			"me-south-1": {
+				description: "Middle East (Bahrain)"
+			},
+			"mx-central-1": {
+				description: "Mexico (Central)"
+			},
+			"sa-east-1": {
+				description: "South America (Sao Paulo)"
+			},
+			"us-east-1": {
+				description: "US East (N. Virginia)"
+			},
+			"us-east-2": {
+				description: "US East (Ohio)"
+			},
+			"us-west-1": {
+				description: "US West (N. California)"
+			},
+			"us-west-2": {
+				description: "US West (Oregon)"
+			}
+		}
+	},
+	{
+		id: "aws-cn",
+		outputs: {
+			dnsSuffix: "amazonaws.com.cn",
+			dualStackDnsSuffix: "api.amazonwebservices.com.cn",
+			implicitGlobalRegion: "cn-northwest-1",
+			name: "aws-cn",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^cn\\-\\w+\\-\\d+$",
+		regions: {
+			"aws-cn-global": {
+				description: "aws-cn global region"
+			},
+			"cn-north-1": {
+				description: "China (Beijing)"
+			},
+			"cn-northwest-1": {
+				description: "China (Ningxia)"
+			}
+		}
+	},
+	{
+		id: "aws-eusc",
+		outputs: {
+			dnsSuffix: "amazonaws.eu",
+			dualStackDnsSuffix: "api.amazonwebservices.eu",
+			implicitGlobalRegion: "eusc-de-east-1",
+			name: "aws-eusc",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^eusc\\-(de)\\-\\w+\\-\\d+$",
+		regions: {
+			"eusc-de-east-1": {
+				description: "AWS European Sovereign Cloud (Germany)"
+			}
+		}
+	},
+	{
+		id: "aws-iso",
+		outputs: {
+			dnsSuffix: "c2s.ic.gov",
+			dualStackDnsSuffix: "api.aws.ic.gov",
+			implicitGlobalRegion: "us-iso-east-1",
+			name: "aws-iso",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^us\\-iso\\-\\w+\\-\\d+$",
+		regions: {
+			"aws-iso-global": {
+				description: "aws-iso global region"
+			},
+			"us-iso-east-1": {
+				description: "US ISO East"
+			},
+			"us-iso-west-1": {
+				description: "US ISO WEST"
+			}
+		}
+	},
+	{
+		id: "aws-iso-b",
+		outputs: {
+			dnsSuffix: "sc2s.sgov.gov",
+			dualStackDnsSuffix: "api.aws.scloud",
+			implicitGlobalRegion: "us-isob-east-1",
+			name: "aws-iso-b",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^us\\-isob\\-\\w+\\-\\d+$",
+		regions: {
+			"aws-iso-b-global": {
+				description: "aws-iso-b global region"
+			},
+			"us-isob-east-1": {
+				description: "US ISOB East (Ohio)"
+			},
+			"us-isob-west-1": {
+				description: "US ISOB West"
+			}
+		}
+	},
+	{
+		id: "aws-iso-e",
+		outputs: {
+			dnsSuffix: "cloud.adc-e.uk",
+			dualStackDnsSuffix: "api.cloud-aws.adc-e.uk",
+			implicitGlobalRegion: "eu-isoe-west-1",
+			name: "aws-iso-e",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^eu\\-isoe\\-\\w+\\-\\d+$",
+		regions: {
+			"aws-iso-e-global": {
+				description: "aws-iso-e global region"
+			},
+			"eu-isoe-west-1": {
+				description: "EU ISOE West"
+			}
+		}
+	},
+	{
+		id: "aws-iso-f",
+		outputs: {
+			dnsSuffix: "csp.hci.ic.gov",
+			dualStackDnsSuffix: "api.aws.hci.ic.gov",
+			implicitGlobalRegion: "us-isof-south-1",
+			name: "aws-iso-f",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^us\\-isof\\-\\w+\\-\\d+$",
+		regions: {
+			"aws-iso-f-global": {
+				description: "aws-iso-f global region"
+			},
+			"us-isof-east-1": {
+				description: "US ISOF EAST"
+			},
+			"us-isof-south-1": {
+				description: "US ISOF SOUTH"
+			}
+		}
+	},
+	{
+		id: "aws-us-gov",
+		outputs: {
+			dnsSuffix: "amazonaws.com",
+			dualStackDnsSuffix: "api.aws",
+			implicitGlobalRegion: "us-gov-west-1",
+			name: "aws-us-gov",
+			supportsDualStack: true,
+			supportsFIPS: true
+		},
+		regionRegex: "^us\\-gov\\-\\w+\\-\\d+$",
+		regions: {
+			"aws-us-gov-global": {
+				description: "aws-us-gov global region"
+			},
+			"us-gov-east-1": {
+				description: "AWS GovCloud (US-East)"
+			},
+			"us-gov-west-1": {
+				description: "AWS GovCloud (US-West)"
+			}
+		}
+	}
+];
+var version = "1.1";
+var partitionsInfo = {
+	partitions: partitions,
+	version: version
+};
+
+let selectedPartitionsInfo = partitionsInfo;
+let selectedUserAgentPrefix = "";
+const partition = (value) => {
+    const { partitions } = selectedPartitionsInfo;
+    for (const partition of partitions) {
+        const { regions, outputs } = partition;
+        for (const [region, regionData] of Object.entries(regions)) {
+            if (region === value) {
+                return {
+                    ...outputs,
+                    ...regionData,
+                };
+            }
+        }
+    }
+    for (const partition of partitions) {
+        const { regionRegex, outputs } = partition;
+        if (new RegExp(regionRegex).test(value)) {
+            return {
+                ...outputs,
+            };
+        }
+    }
+    const DEFAULT_PARTITION = partitions.find((partition) => partition.id === "aws");
+    if (!DEFAULT_PARTITION) {
+        throw new Error("Provided region was not found in the partition array or regex," +
+            " and default partition with id 'aws' doesn't exist.");
+    }
+    return {
+        ...DEFAULT_PARTITION.outputs,
+    };
+};
+const setPartitionInfo = (partitionsInfo, userAgentPrefix = "") => {
+    selectedPartitionsInfo = partitionsInfo;
+    selectedUserAgentPrefix = userAgentPrefix;
+};
+const useDefaultPartitionInfo = () => {
+    setPartitionInfo(partitionsInfo, "");
+};
+const getUserAgentPrefix = () => selectedUserAgentPrefix;
+
+const awsEndpointFunctions = {
+    isVirtualHostableS3Bucket: isVirtualHostableS3Bucket,
+    parseArn: parseArn,
+    partition: partition,
+};
+utilEndpoints.customEndpointFunctions.aws = awsEndpointFunctions;
+
+const resolveDefaultAwsRegionalEndpointsConfig = (input) => {
+    if (typeof input.endpointProvider !== "function") {
+        throw new Error("@aws-sdk/util-endpoint - endpointProvider and endpoint missing in config for this client.");
+    }
+    const { endpoint } = input;
+    if (endpoint === undefined) {
+        input.endpoint = async () => {
+            return toEndpointV1(input.endpointProvider({
+                Region: typeof input.region === "function" ? await input.region() : input.region,
+                UseDualStack: typeof input.useDualstackEndpoint === "function"
+                    ? await input.useDualstackEndpoint()
+                    : input.useDualstackEndpoint,
+                UseFIPS: typeof input.useFipsEndpoint === "function" ? await input.useFipsEndpoint() : input.useFipsEndpoint,
+                Endpoint: undefined,
+            }, { logger: input.logger }));
+        };
+    }
+    return input;
+};
+const toEndpointV1 = (endpoint) => urlParser.parseUrl(endpoint.url);
+
+Object.defineProperty(exports, "EndpointError", ({
+    enumerable: true,
+    get: function () { return utilEndpoints.EndpointError; }
+}));
+Object.defineProperty(exports, "isIpAddress", ({
+    enumerable: true,
+    get: function () { return utilEndpoints.isIpAddress; }
+}));
+Object.defineProperty(exports, "resolveEndpoint", ({
+    enumerable: true,
+    get: function () { return utilEndpoints.resolveEndpoint; }
+}));
+exports.awsEndpointFunctions = awsEndpointFunctions;
+exports.getUserAgentPrefix = getUserAgentPrefix;
+exports.partition = partition;
+exports.resolveDefaultAwsRegionalEndpointsConfig = resolveDefaultAwsRegionalEndpointsConfig;
+exports.setPartitionInfo = setPartitionInfo;
+exports.toEndpointV1 = toEndpointV1;
+exports.useDefaultPartitionInfo = useDefaultPartitionInfo;
 
 
 /***/ }),
 
-/***/ 8605:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-var __webpack_unused_export__;
-
-__webpack_unused_export__ = ({ value: true });
-exports.fromHttp = void 0;
-var fromHttp_1 = __webpack_require__(8712);
-Object.defineProperty(exports, "fromHttp", ({ enumerable: true, get: function () { return fromHttp_1.fromHttp; } }));
-
-
-/***/ }),
-
-/***/ 2402:
+/***/ 2764:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -973,6 +1168,13 @@ exports.NodeHttp2Handler = NodeHttp2Handler;
 exports.NodeHttpHandler = NodeHttpHandler;
 exports.streamCollector = streamCollector;
 
+
+/***/ }),
+
+/***/ 9955:
+/***/ ((module) => {
+
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/nested-clients","version":"3.993.0","description":"Nested clients for AWS SDK packages.","main":"./dist-cjs/index.js","module":"./dist-es/index.js","types":"./dist-types/index.d.ts","scripts":{"build":"yarn lint && concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline nested-clients","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","lint":"node ../../scripts/validation/submodules-linter.js --pkg nested-clients","test":"yarn g:vitest run","test:watch":"yarn g:vitest watch"},"engines":{"node":">=20.0.0"},"sideEffects":false,"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"^3.973.11","@aws-sdk/middleware-host-header":"^3.972.3","@aws-sdk/middleware-logger":"^3.972.3","@aws-sdk/middleware-recursion-detection":"^3.972.3","@aws-sdk/middleware-user-agent":"^3.972.11","@aws-sdk/region-config-resolver":"^3.972.3","@aws-sdk/types":"^3.973.1","@aws-sdk/util-endpoints":"3.993.0","@aws-sdk/util-user-agent-browser":"^3.972.3","@aws-sdk/util-user-agent-node":"^3.972.9","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.23.2","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.16","@smithy/middleware-retry":"^4.4.33","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.10","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.11.5","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.32","@smithy/util-defaults-mode-node":"^4.2.35","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["./signin.d.ts","./signin.js","./sso-oidc.d.ts","./sso-oidc.js","./sts.d.ts","./sts.js","dist-*/**"],"browser":{"./dist-es/submodules/signin/runtimeConfig":"./dist-es/submodules/signin/runtimeConfig.browser","./dist-es/submodules/sso-oidc/runtimeConfig":"./dist-es/submodules/sso-oidc/runtimeConfig.browser","./dist-es/submodules/sts/runtimeConfig":"./dist-es/submodules/sts/runtimeConfig.browser"},"react-native":{},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"packages/nested-clients"},"exports":{"./package.json":"./package.json","./sso-oidc":{"types":"./dist-types/submodules/sso-oidc/index.d.ts","module":"./dist-es/submodules/sso-oidc/index.js","node":"./dist-cjs/submodules/sso-oidc/index.js","import":"./dist-es/submodules/sso-oidc/index.js","require":"./dist-cjs/submodules/sso-oidc/index.js"},"./sts":{"types":"./dist-types/submodules/sts/index.d.ts","module":"./dist-es/submodules/sts/index.js","node":"./dist-cjs/submodules/sts/index.js","import":"./dist-es/submodules/sts/index.js","require":"./dist-cjs/submodules/sts/index.js"},"./signin":{"types":"./dist-types/submodules/signin/index.d.ts","module":"./dist-es/submodules/signin/index.js","node":"./dist-cjs/submodules/signin/index.js","import":"./dist-es/submodules/signin/index.js","require":"./dist-cjs/submodules/signin/index.js"}}}');
 
 /***/ })
 
