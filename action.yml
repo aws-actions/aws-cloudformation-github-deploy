@@ -167,5 +167,5 @@ outputs:
       Markdown-formatted change set summary for PR comments
       (only when no-execute-changeset is true)
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
