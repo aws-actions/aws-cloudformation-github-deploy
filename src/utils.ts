@@ -223,17 +223,13 @@ export async function withRetry<T>(
       if (isThrottling) {
         if (retryCount >= maxRetries) {
           throw new Error(
-            `Maximum retry attempts (${maxRetries}) reached. Last error: ${
-              (error as Error).message
-            }`
+            `Maximum retry attempts (${maxRetries}) reached. Last error: ${(error as Error).message}`
           )
         }
 
         retryCount++
         core.info(
-          `Rate limit exceeded. Attempt ${retryCount}/${maxRetries}. Waiting ${
-            delay / 1000
-          } seconds before retry...`
+          `Rate limit exceeded. Attempt ${retryCount}/${maxRetries}. Waiting ${delay / 1000} seconds before retry...`
         )
         await new Promise(resolve => setTimeout(resolve, delay))
         delay = Math.min(delay * 2, 30000) // Exponential backoff, max 30s

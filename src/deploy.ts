@@ -109,9 +109,7 @@ export async function executeExistingChangeSet(
   } catch (error) {
     if (error instanceof Error && error.message.includes('Timeout after')) {
       core.warning(
-        `Stack operation exceeded ${
-          maxWaitTime / 60
-        } minutes but may still be in progress. ` +
+        `Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
           `Check AWS CloudFormation console for stack '${stackName}' status.`
       )
       const stack = await getStack(cfn, stackName)
@@ -222,9 +220,7 @@ export async function cleanupChangeSet(
             })
           )
           core.info(
-            `Retrieved ${
-              events.OperationEvents?.length || 0
-            } events for change set`
+            `Retrieved ${events.OperationEvents?.length || 0} events for change set`
           )
           const validationEvents = events.OperationEvents?.filter(
             event => event.EventType === 'VALIDATION_ERROR'
@@ -353,9 +349,7 @@ export async function updateStack(
     // Handle timeout gracefully
     if (error instanceof Error && error.message.includes('Timeout after')) {
       core.warning(
-        `Stack operation exceeded ${
-          maxWaitTime / 60
-        } minutes but may still be in progress. ` +
+        `Stack operation exceeded ${maxWaitTime / 60} minutes but may still be in progress. ` +
           `Check AWS CloudFormation console for stack '${params.StackName}' status.`
       )
       // Try to get current stack ID
@@ -384,9 +378,7 @@ export async function updateStack(
       if (eventsResponse.OperationEvents?.length) {
         const failureEvent = eventsResponse.OperationEvents[0]
         throw new Error(
-          `Stack execution failed: ${
-            failureEvent.ResourceStatusReason || failureEvent.ResourceStatus
-          }`
+          `Stack execution failed: ${failureEvent.ResourceStatusReason || failureEvent.ResourceStatus}`
         )
       }
     }

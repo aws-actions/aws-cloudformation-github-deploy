@@ -140,17 +140,13 @@ export async function run(): Promise<void> {
         eventMonitor = new EventMonitorImpl(eventConfig)
         eventMonitor.startMonitoring().catch(err => {
           core.warning(
-            `Event streaming failed: ${
-              err instanceof Error ? err.message : String(err)
-            }`
+            `Event streaming failed: ${err instanceof Error ? err.message : String(err)}`
           )
         })
         core.debug('Event streaming started for execute-only mode')
       } catch (error) {
         core.warning(
-          `Failed to start event streaming: ${
-            error instanceof Error ? error.message : String(error)
-          }`
+          `Failed to start event streaming: ${error instanceof Error ? error.message : String(error)}`
         )
       }
 
@@ -247,17 +243,13 @@ export async function run(): Promise<void> {
             eventMonitor = new EventMonitorImpl(eventConfig)
             eventMonitor.startMonitoring().catch(err => {
               core.warning(
-                `Event streaming failed: ${
-                  err instanceof Error ? err.message : String(err)
-                }`
+                `Event streaming failed: ${err instanceof Error ? err.message : String(err)}`
               )
             })
             core.debug('Event streaming started')
           } catch (error) {
             core.warning(
-              `Failed to start event streaming: ${
-                error instanceof Error ? error.message : String(error)
-              }`
+              `Failed to start event streaming: ${error instanceof Error ? error.message : String(error)}`
             )
           }
         },

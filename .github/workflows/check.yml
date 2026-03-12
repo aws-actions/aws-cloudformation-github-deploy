@@ -1,25 +1,26 @@
+---
 on:
   push:
-    branches: [master]
+    branches: ['master']
   pull_request:
-    branches: [master]
+    branches: ['master']
 
-name: Check
+name: 'Check'
 
 permissions:
-  contents: read
+  contents: 'read'
 
 jobs:
   check:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
+    name: 'Run Unit Tests'
+    runs-on: 'ubuntu-latest'
     steps:
-      - uses: actions/checkout@master
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@v4
+      - uses: 'actions/checkout@master'
+      - name: 'Use Node.js 20.x'
+        uses: 'actions/setup-node@v4'
         with:
-          node-version: 20.x
-      - name: Run tests
+          node-version: '20.x'
+      - name: 'Run tests'
         run: |
           npm ci
           npm test

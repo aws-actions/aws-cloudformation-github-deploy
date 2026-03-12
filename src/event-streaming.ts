@@ -564,9 +564,7 @@ export class EventPollerImpl implements EventPoller {
       // Handle timeout errors (before network errors since ETIMEDOUT can be both)
       if (this.isTimeoutError(error)) {
         core.warning(
-          `Timeout error during event polling: ${
-            error instanceof Error ? error.message : String(error)
-          }`
+          `Timeout error during event polling: ${error instanceof Error ? error.message : String(error)}`
         )
         // Increase interval on timeout to reduce load
         this.increaseInterval()
@@ -576,9 +574,7 @@ export class EventPollerImpl implements EventPoller {
       // Handle network connectivity issues
       if (this.isNetworkError(error)) {
         core.warning(
-          `Network connectivity issue during event polling: ${
-            error instanceof Error ? error.message : String(error)
-          }`
+          `Network connectivity issue during event polling: ${error instanceof Error ? error.message : String(error)}`
         )
         // Increase interval for network issues to avoid overwhelming failing connections
         this.increaseInterval()
@@ -600,18 +596,14 @@ export class EventPollerImpl implements EventPoller {
         }
 
         core.warning(
-          `AWS service error during event polling: ${
-            error instanceof Error ? error.message : String(error)
-          }`
+          `AWS service error during event polling: ${error instanceof Error ? error.message : String(error)}`
         )
         throw error
       }
 
       // Log unknown errors as warnings and re-throw
       core.warning(
-        `Unknown error during event polling: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+        `Unknown error during event polling: ${error instanceof Error ? error.message : String(error)}`
       )
       throw error
     }
@@ -789,9 +781,7 @@ export class EventPollerImpl implements EventPoller {
    * Create unique identifier for an event
    */
   private createEventId(event: StackEvent): string {
-    return `${event.Timestamp?.getTime()}-${event.LogicalResourceId}-${
-      event.ResourceStatus
-    }`
+    return `${event.Timestamp?.getTime()}-${event.LogicalResourceId}-${event.ResourceStatus}`
   }
 
   /**
@@ -1079,9 +1069,7 @@ export class EventMonitorImpl implements EventMonitor {
       }
     } catch (error) {
       core.warning(
-        `Event formatting error: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+        `Event formatting error: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }
@@ -1144,9 +1132,7 @@ export class EventMonitorImpl implements EventMonitor {
       core.info(summary)
     } catch (error) {
       core.warning(
-        `Error displaying final summary: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+        `Error displaying final summary: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }

@@ -1,7 +1,19 @@
+---
+extends: 'default'
+
 rules:
+  line-length:
+    max: 150
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+  braces:
+    min-spaces-inside: 1
+    max-spaces-inside: 1
+  truthy:
+    allowed-values: ['true', 'false', 'on']
+    check-keys: true
+  new-lines:
+    type: 'unix'
   quoted-strings:
-    required: only-when-needed
-    extra-allowed: ['{|}']
-  key-duplicates: {}
-  octal-values:
-    forbid-implicit-octal: true
+    quote-type: 'any'
+    required: true

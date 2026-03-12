@@ -1,14 +1,15 @@
-printWidth: 80
+---
+printWidth: 120
 tabWidth: 2
 useTabs: false
 singleQuote: true
 semi: false
-trailingComma: none
+trailingComma: 'none'
 bracketSpacing: true
-arrowParens: avoid
+arrowParens: 'avoid'
 
 overrides:
   - files: '*.md'
     options:
-      proseWrap: preserve
-      embeddedLanguageFormatting: off
+      proseWrap: 'preserve'
+      embeddedLanguageFormatting: 'off'
