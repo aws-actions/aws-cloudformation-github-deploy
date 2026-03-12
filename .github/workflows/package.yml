@@ -1,28 +1,29 @@
+---
 on:
   push:
     branches:
-      - master
+      - 'master'
 
-name: Package
+name: 'Package'
 
 permissions:
-  contents: write
+  contents: 'write'
 
 jobs:
   check:
-    name: Package distribution file
-    runs-on: ubuntu-latest
+    name: 'Package distribution file'
+    runs-on: 'ubuntu-latest'
     steps:
-      - name: Checkout
-        uses: actions/checkout@master
+      - name: 'Checkout'
+        uses: 'actions/checkout@master'
         with:
-          ref: master
-      - name: Package
+          ref: 'master'
+      - name: 'Package'
         run: |
           npm ci
           npm test
           npm run all
-      - name: Commit
+      - name: 'Commit'
         run: |
           git config --global user.name "GitHub Actions"
           git add dist/

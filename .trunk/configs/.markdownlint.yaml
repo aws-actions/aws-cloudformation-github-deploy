@@ -11,11 +11,8 @@ MD025: false
 # Allow trailng punctuation
 MD026: false
 
-# Allow inline HTML
-MD033: false
-
-# Allow inline HTML
-MD036: false
+# Bare URL used
+MD034: false
 
 # Table column style
 MD060: false
