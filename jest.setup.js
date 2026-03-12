@@ -1,38 +1,12 @@
-// Mock @actions/core to suppress all output during tests
+// Mock @actions/core to avoid fs constants issue
 jest.mock('@actions/core', () => ({
+  getInput: jest.fn(),
+  setOutput: jest.fn(),
+  setFailed: jest.fn(),
   debug: jest.fn(),
   info: jest.fn(),
   warning: jest.fn(),
   error: jest.fn(),
-  setFailed: jest.fn(),
-  setOutput: jest.fn(),
-  getInput: jest.fn(),
-  getBooleanInput: jest.fn()
+  startGroup: jest.fn(),
+  endGroup: jest.fn()
 }))
-
-// Suppress console output during tests to make test results clearer
-const originalConsole = global.console
-
-beforeAll(() => {
-  global.console = {
-    ...originalConsole,
-    log: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
-  }
-})
-
-afterAll(() => {
-  global.console = originalConsole
-})
-
-// Clean up any lingering timers after each test
-afterEach(() => {
-  // Clear all timers
-  jest.clearAllTimers()
-
-  // Use fake timers to ensure no real timers are left running
-  jest.useRealTimers()
-})

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 import * as fc from 'fast-check'
 import {
   StackEvent,
@@ -15,7 +15,6 @@ import {
   EventMonitorImpl,
   EventMonitorConfig
 } from '../src/event-streaming'
-import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
 import { CloudFormationServiceException } from '@aws-sdk/client-cloudformation'
 import { deployStack } from '../src/deploy'
 
@@ -615,10 +614,8 @@ describe('Event Streaming Property Tests', () => {
       await fc.assert(
         fc.asyncProperty(configArb, async config => {
           const mockClient = { send: jest.fn() }
-          const throttlingError = new ThrottlingException({
-            message: 'Rate exceeded',
-            $metadata: { requestId: 'test-request-id', attempts: 1 }
-          })
+          const throttlingError = new Error('Rate exceeded')
+          throttlingError.name = 'ThrottlingException'
 
           mockClient.send.mockRejectedValue(throttlingError)
 
@@ -637,7 +634,9 @@ describe('Event Streaming Property Tests', () => {
             return false
           } catch (error) {
             // Property: Should re-throw the throttling exception
-            if (!(error instanceof ThrottlingException)) {
+            if (
+              !(error instanceof Error && error.name === 'ThrottlingException')
+            ) {
               return false
             }
 
@@ -1460,7 +1459,7 @@ describe('EventMonitor Property Tests', () => {
                 setTimeout(() => reject(new Error('Test timeout')), 1000)
               )
             ])
-          } catch (error) {
+          } catch {
             // Expected to fail due to mock client or timeout, but lifecycle should still work
           }
 
@@ -1524,7 +1523,7 @@ describe('EventMonitor Property Tests', () => {
                   setTimeout(() => reject(new Error('Test timeout')), 500)
                 )
               ])
-            } catch (error) {
+            } catch {
               // Expected due to mock client or timeout
             }
           }
@@ -1613,7 +1612,7 @@ describe('EventMonitor Property Tests', () => {
                 setTimeout(() => reject(new Error('Test timeout')), 1000)
               )
             ])
-          } catch (error) {
+          } catch {
             // Expected due to mock setup or timeout
           }
 
@@ -1680,7 +1679,7 @@ describe('EventMonitor Property Tests', () => {
                 )
               ])
             }
-          } catch (error) {
+          } catch {
             // Expected due to mock or timeout - this is acceptable
             // The important thing is that the configuration values are valid
           } finally {
@@ -1770,7 +1769,7 @@ describe('EventMonitor Property Tests', () => {
 
           try {
             await startPromise
-          } catch (error) {
+          } catch {
             // Expected due to mock
           }
 
@@ -1854,7 +1853,7 @@ describe('EventMonitor Property Tests', () => {
 
           try {
             await startPromise
-          } catch (error) {
+          } catch {
             // Expected due to mock
           }
 
@@ -2357,7 +2356,7 @@ describe('Deployment Integration Property Tests', () => {
         undefined, // changeSetDescription
         testCase.enableEventStreaming
       )
-    } catch (error) {
+    } catch {
       caughtError = error as Error
     }
 

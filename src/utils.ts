@@ -1,11 +1,11 @@
 import * as fs from 'fs'
 import { Parameter } from '@aws-sdk/client-cloudformation'
-import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { Tag } from '@aws-sdk/client-cloudformation'
 import * as yaml from 'js-yaml'
 import * as core from '@actions/core'
-import { OutputFormat } from './main'
+
+export type OutputFormat = 'json' | 'yaml'
 
 export function formatError(error: unknown, format: OutputFormat): string {
   // Handle waiter result objects that contain state and reason
@@ -16,52 +16,30 @@ export function formatError(error: unknown, format: OutputFormat): string {
     'reason' in error
   ) {
     const waiterError = error as { state: string; reason: unknown }
-    if (format === 'yaml') {
-      return yaml.dump({
-        deploymentResult: {
-          state: waiterError.state,
-          reason: waiterError.reason
-        }
-      })
+    const data = {
+      deploymentResult: {
+        state: waiterError.state,
+        reason: waiterError.reason
+      }
     }
-    return JSON.stringify(
-      {
-        deploymentResult: {
-          state: waiterError.state,
-          reason: waiterError.reason
-        }
-      },
-      null,
-      2
-    )
+    return format === 'yaml' ? yaml.dump(data) : JSON.stringify(data, null, 2)
   }
 
   // Handle standard Error objects
   if (error instanceof Error) {
-    // Check if the error message is a JSON string and parse it
     let errorData: unknown
     try {
       errorData = JSON.parse(error.message)
     } catch {
-      // Not JSON, use as-is
       errorData = {
         message: error.message,
         stack: error.stack
       }
     }
 
-    if (format === 'yaml') {
-      return yaml.dump({
-        error: errorData
-      })
-    }
-    return JSON.stringify(
-      {
-        error: errorData
-      },
-      null,
-      2
-    )
+    return format === 'yaml'
+      ? yaml.dump({ error: errorData })
+      : JSON.stringify({ error: errorData }, null, 2)
   }
 
   // Handle string errors that might be JSON
@@ -70,22 +48,12 @@ export function formatError(error: unknown, format: OutputFormat): string {
     try {
       errorData = JSON.parse(error)
     } catch {
-      // Not JSON, use as-is
       errorData = { message: error }
     }
 
-    if (format === 'yaml') {
-      return yaml.dump({
-        error: errorData
-      })
-    }
-    return JSON.stringify(
-      {
-        error: errorData
-      },
-      null,
-      2
-    )
+    return format === 'yaml'
+      ? yaml.dump({ error: errorData })
+      : JSON.stringify({ error: errorData }, null, 2)
   }
 
   // Handle other types of errors
@@ -94,22 +62,12 @@ export function formatError(error: unknown, format: OutputFormat): string {
   try {
     errorData = JSON.parse(errorMessage)
   } catch {
-    // Not JSON, use as-is
     errorData = { message: errorMessage }
   }
 
-  if (format === 'yaml') {
-    return yaml.dump({
-      error: errorData
-    })
-  }
-  return JSON.stringify(
-    {
-      error: errorData
-    },
-    null,
-    2
-  )
+  return format === 'yaml'
+    ? yaml.dump({ error: errorData })
+    : JSON.stringify({ error: errorData }, null, 2)
 }
 
 export function isUrl(s: string): boolean {
@@ -117,17 +75,15 @@ export function isUrl(s: string): boolean {
 
   try {
     url = new URL(s)
-  } catch (_) {
+  } catch {
     return false
   }
 
   return url.protocol === 'https:'
 }
 
-export function parseTags(s: string | undefined): Tag[] | undefined {
-  if (!s) {
-    return undefined
-  }
+export function parseTags(s?: string): Tag[] | undefined {
+  if (!s || s.trim().length === 0) return undefined
 
   try {
     const parsed = yaml.load(s)
@@ -151,73 +107,46 @@ export function parseTags(s: string | undefined): Tag[] | undefined {
         Value: String(Value ?? '')
       }))
     }
-  } catch (_) {
+  } catch {
     return undefined
   }
 }
 
-export function parseARNs(s: string): string[] | undefined {
-  return s?.length > 0 ? s.split(',') : undefined
+export function parseARNs(s?: string): string[] | undefined {
+  return s?.length ? s.split(',') : undefined
 }
 
-export function parseString(s: string): string | undefined {
-  return s?.length > 0 ? s : undefined
+export function parseString(s?: string): string | undefined {
+  return s?.length ? s : undefined
 }
 
-export function parseNumber(s: string): number | undefined {
-  return parseInt(s) || undefined
+export function parseNumber(s?: string): number | undefined {
+  if (!s) return undefined
+  const num = parseInt(s, 10)
+  return isNaN(num) ? undefined : num
 }
 
-type CFParameterValue = string | string[] | boolean
-type CFParameterObject = Record<string, CFParameterValue>
+export function parseBoolean(s?: string | boolean): boolean {
+  if (typeof s === 'boolean') return s
+  if (!s) return false
+  if (s === 'true') return true
+  if (s === 'false') return false
+  return !!+s // Legacy: "1" -> true, "0" -> false
+}
+
 export function parseParameters(
-  parameterOverrides: string | CFParameterObject
-): Parameter[] {
-  // Case 1: Handle native YAML/JSON objects
-  if (parameterOverrides && typeof parameterOverrides !== 'string') {
-    return Object.keys(parameterOverrides).map(key => {
-      const value = parameterOverrides[key]
-      return {
-        ParameterKey: key,
-        ParameterValue:
-          typeof value === 'string' ? value : formatParameterValue(value)
-      }
-    })
-  }
+  parameterOverrides?: string
+): Parameter[] | undefined {
+  if (!parameterOverrides) return undefined
 
-  // Case 2: Empty string
-  if (!parameterOverrides) {
-    return []
-  }
+  // Case 1: Empty string
+  if (parameterOverrides.trim().length === 0) return undefined
 
-  // Case 3: Try parsing as YAML
-  try {
-    const parsed = yaml.load(parameterOverrides)
-    if (!parsed) {
-      return []
-    }
-
-    if (Array.isArray(parsed)) {
-      // Handle array format
-      return parsed.map(param => ({
-        ParameterKey: param.ParameterKey,
-        ParameterValue: formatParameterValue(param.ParameterValue)
-      }))
-    } else if (typeof parsed === 'object') {
-      // Handle object format
-      return Object.entries(parsed).map(([key, value]) => ({
-        ParameterKey: key,
-        ParameterValue: formatParameterValue(value)
-      }))
-    }
-  } catch (_) {
-    // YAML parsing failed, continue to other cases
-  }
-
-  // Case 4: Try URL to JSON file
+  // Case 2: Try URL to JSON file
   try {
     const path = new URL(parameterOverrides)
     const rawParameters = fs.readFileSync(path, 'utf-8')
+
     return JSON.parse(rawParameters)
   } catch (err) {
     // @ts-expect-error: Object is of type 'unknown'
@@ -226,7 +155,7 @@ export function parseParameters(
     }
   }
 
-  // Case 5: String format "key=value,key2=value2"
+  // Case 3: String format "key=value,key2=value2"
   const parameters = new Map<string, string>()
   parameterOverrides
     .trim()
@@ -246,26 +175,28 @@ export function parseParameters(
       parameters.set(key, param)
     })
 
-  return [...parameters.keys()].map(key => ({
-    ParameterKey: key,
-    ParameterValue: parameters.get(key)
-  }))
+  return [...parameters.keys()].map(key => {
+    return {
+      ParameterKey: key,
+      ParameterValue: parameters.get(key)
+    }
+  })
 }
 
-function formatParameterValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return ''
+export function parseDeploymentMode(s: string): 'REVERT_DRIFT' | undefined {
+  const parsed = parseString(s)
+
+  if (!parsed) {
+    return undefined
   }
 
-  if (Array.isArray(value)) {
-    return value.join(',')
+  if (parsed === 'REVERT_DRIFT') {
+    return parsed
   }
 
-  if (typeof value === 'object') {
-    return JSON.stringify(value)
-  }
-
-  return String(value)
+  throw new Error(
+    `Invalid deployment-mode: ${parsed}. Only 'REVERT_DRIFT' is supported.`
+  )
 }
 
 export async function withRetry<T>(
@@ -280,7 +211,16 @@ export async function withRetry<T>(
     try {
       return await operation()
     } catch (error: unknown) {
-      if (error instanceof ThrottlingException) {
+      // Check for CloudFormation throttling errors
+      // CloudFormation uses error.name === 'Throttling' with message 'Rate exceeded'
+      const isThrottling =
+        error instanceof Error &&
+        (error.name === 'Throttling' ||
+          error.name === 'ThrottlingException' ||
+          error.name === 'TooManyRequestsException' ||
+          error.message.includes('Rate exceeded'))
+
+      if (isThrottling) {
         if (retryCount >= maxRetries) {
           throw new Error(
             `Maximum retry attempts (${maxRetries}) reached. Last error: ${
@@ -296,17 +236,17 @@ export async function withRetry<T>(
           } seconds before retry...`
         )
         await new Promise(resolve => setTimeout(resolve, delay))
-        delay *= 2 // Exponential backoff
-        continue
+        delay = Math.min(delay * 2, 30000) // Exponential backoff, max 30s
+      } else {
+        throw error
       }
-      throw error
     }
   }
 }
 
 export function configureProxy(
   proxyServer: string | undefined
-): HttpsProxyAgent | undefined {
+): HttpsProxyAgent<string> | undefined {
   const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy
 
   if (proxyFromEnv || proxyServer) {

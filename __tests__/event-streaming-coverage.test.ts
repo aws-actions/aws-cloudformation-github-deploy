@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 import * as core from '@actions/core'
 import {
   EventMonitorImpl,
@@ -12,7 +12,6 @@ import {
   StackEvent
 } from '../src/event-streaming'
 import { CloudFormationClient } from '@aws-sdk/client-cloudformation'
-import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
 
 describe('Event Streaming Coverage Tests', () => {
   let mockCoreInfo: jest.SpyInstance
@@ -34,7 +33,7 @@ describe('Event Streaming Coverage Tests', () => {
   describe('EventMonitorImpl error handling coverage', () => {
     test('should handle already active monitoring', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -96,16 +95,14 @@ describe('Event Streaming Coverage Tests', () => {
     }, 10000)
 
     test('should handle throttling exceptions in polling loop', async () => {
-      const throttlingError = new ThrottlingException({
-        message: 'Rate exceeded',
-        $metadata: { requestId: 'test-request-id', attempts: 1 }
-      })
+      const throttlingError = new Error('Rate exceeded')
+      throttlingError.name = 'ThrottlingException'
 
       const mockClient = {
         send: jest
           .fn()
           .mockRejectedValueOnce(throttlingError)
-          .mockResolvedValue({ StackEvents: [] })
+          .mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -216,7 +213,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle error in displayFinalSummary', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -256,7 +253,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle error in main startMonitoring try-catch', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -713,9 +710,9 @@ describe('Event Streaming Coverage Tests', () => {
       const mockClient = {
         send: jest
           .fn()
-          .mockResolvedValueOnce({ StackEvents: [] })
+          .mockResolvedValueOnce({ OperationEvents: [] })
           .mockResolvedValueOnce({
-            StackEvents: [
+            OperationEvents: [
               {
                 Timestamp: new Date(),
                 LogicalResourceId: 'TestStack',
@@ -769,7 +766,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle no events detected scenario (empty changeset)', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -796,7 +793,7 @@ describe('Event Streaming Coverage Tests', () => {
 
     test('should handle no events final status logging', async () => {
       const mockClient = {
-        send: jest.fn().mockResolvedValue({ StackEvents: [] })
+        send: jest.fn().mockResolvedValue({ OperationEvents: [] })
       }
 
       const config: EventMonitorConfig = {
@@ -821,13 +818,11 @@ describe('Event Streaming Coverage Tests', () => {
     }, 10000)
 
     test('should handle throttling backoff calculation', async () => {
+      const throttlingError = new Error('Rate exceeded')
+      throttlingError.name = 'ThrottlingException'
+
       const mockClient = {
-        send: jest.fn().mockRejectedValue(
-          new ThrottlingException({
-            message: 'Rate exceeded',
-            $metadata: { requestId: 'test-request-id', attempts: 1 }
-          })
-        )
+        send: jest.fn().mockRejectedValue(throttlingError)
       }
 
       const config: EventMonitorConfig = {

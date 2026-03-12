@@ -1,8 +1,7 @@
 import {
   CloudFormationClient,
-  DescribeStackEventsCommand
+  DescribeEventsCommand
 } from '@aws-sdk/client-cloudformation'
-import { ThrottlingException } from '@aws-sdk/client-marketplace-catalog'
 import * as core from '@actions/core'
 
 // Core event streaming interfaces and types
@@ -10,6 +9,7 @@ import * as core from '@actions/core'
 /**
  * CloudFormation Stack Event interface
  * Represents a single event from CloudFormation stack operations
+ * Includes both StackEvent and OperationEvent fields
  */
 export interface StackEvent {
   Timestamp?: Date
@@ -18,6 +18,19 @@ export interface StackEvent {
   ResourceStatus?: string
   ResourceStatusReason?: string
   PhysicalResourceId?: string
+  // OperationEvent specific fields
+  EventType?: string
+  DetailedStatus?: string
+  OperationId?: string
+  OperationType?: string
+  OperationStatus?: string
+  HookType?: string
+  HookStatus?: string
+  HookStatusReason?: string
+  HookFailureMode?: string
+  HookInvocationPoint?: string
+  ValidationName?: string
+  ValidationFailureMode?: string
 }
 
 /**
@@ -25,6 +38,7 @@ export interface StackEvent {
  */
 export interface EventMonitorConfig {
   stackName: string
+  changeSetName?: string
   client: CloudFormationClient
   enableColors: boolean
   pollIntervalMs: number
@@ -80,6 +94,11 @@ export interface FormattedEvent {
   status: string
   message?: string
   isError: boolean
+  eventType?: string
+  detailedStatus?: string
+  hookInfo?: string
+  validationInfo?: string
+  operationInfo?: string
 }
 
 /**
@@ -454,6 +473,7 @@ export class ErrorExtractorImpl implements ErrorExtractor {
 export class EventPollerImpl implements EventPoller {
   private client: CloudFormationClient
   private stackName: string
+  private changeSetName?: string
   private currentIntervalMs: number
   private readonly initialIntervalMs: number
   private readonly maxIntervalMs: number
@@ -465,10 +485,12 @@ export class EventPollerImpl implements EventPoller {
     client: CloudFormationClient,
     stackName: string,
     initialIntervalMs = 2000,
-    maxIntervalMs = 30000
+    maxIntervalMs = 30000,
+    changeSetName?: string
   ) {
     this.client = client
     this.stackName = stackName
+    this.changeSetName = changeSetName
     this.initialIntervalMs = initialIntervalMs
     this.maxIntervalMs = maxIntervalMs
     this.currentIntervalMs = initialIntervalMs
@@ -478,19 +500,20 @@ export class EventPollerImpl implements EventPoller {
 
   /**
    * Poll for new events since last check
+   * Uses DescribeEvents API with time-based client-side filtering
    * Implements exponential backoff and handles API throttling
    * Includes comprehensive error handling for network issues and API failures
    */
   async pollEvents(): Promise<StackEvent[]> {
     try {
-      const command = new DescribeStackEventsCommand({
+      const command = new DescribeEventsCommand({
         StackName: this.stackName
       })
 
       const response = await this.client.send(command)
-      const allEvents = response.StackEvents || []
+      const allEvents = response.OperationEvents || []
 
-      // Filter for new events only
+      // Filter for new events only (client-side filtering by time)
       const newEvents = this.filterNewEvents(allEvents)
 
       if (newEvents.length > 0) {
@@ -512,7 +535,13 @@ export class EventPollerImpl implements EventPoller {
       return newEvents
     } catch (error) {
       // Handle specific AWS API errors
-      if (error instanceof ThrottlingException) {
+      // CloudFormation throttling uses error.name === 'Throttling'
+      if (
+        error instanceof Error &&
+        (error.name === 'Throttling' ||
+          error.name === 'ThrottlingException' ||
+          error.name === 'TooManyRequestsException')
+      ) {
         core.warning(`CloudFormation API throttling detected, backing off...`)
         // Double the interval on throttling
         this.currentIntervalMs = Math.min(
@@ -817,7 +846,8 @@ export class EventMonitorImpl implements EventMonitor {
       config.client,
       config.stackName,
       config.pollIntervalMs,
-      config.maxPollIntervalMs
+      config.maxPollIntervalMs,
+      config.changeSetName
     )
 
     this.formatter = new EventFormatterImpl(colorFormatter, errorExtractor)
@@ -961,7 +991,13 @@ export class EventMonitorImpl implements EventMonitor {
         consecutiveErrors++
 
         // Handle polling errors gracefully with progressive backoff
-        if (error instanceof ThrottlingException) {
+        // CloudFormation throttling uses error.name === 'Throttling'
+        if (
+          error instanceof Error &&
+          (error.name === 'Throttling' ||
+            error.name === 'ThrottlingException' ||
+            error.name === 'TooManyRequestsException')
+        ) {
           core.warning(
             `CloudFormation API throttling (attempt ${consecutiveErrors}/${maxConsecutiveErrors}), backing off...`
           )
@@ -1184,7 +1220,10 @@ export class EventFormatterImpl implements EventFormatter {
     const resourceInfo = this.formatResourceInfo(event)
 
     // Format status with appropriate coloring
-    const status = this.formatStatus(event.ResourceStatus || 'UNKNOWN')
+    // For operation-level events, use OperationStatus instead of ResourceStatus
+    const statusValue =
+      event.ResourceStatus || event.OperationStatus || 'UNKNOWN'
+    const status = this.formatStatus(statusValue)
 
     // Check if this is an error event and extract error message
     const isError = this.errorExtractor.isErrorEvent(event)
@@ -1200,12 +1239,55 @@ export class EventFormatterImpl implements EventFormatter {
       message = event.ResourceStatusReason
     }
 
+    // Format OperationEvent specific fields
+    const eventType = event.EventType
+    const detailedStatus = event.DetailedStatus
+
+    // Format hook information if present
+    let hookInfo: string | undefined
+    if (event.HookType || event.HookStatus) {
+      const parts: string[] = []
+      if (event.HookType) parts.push(`Hook: ${event.HookType}`)
+      if (event.HookStatus) parts.push(`Status: ${event.HookStatus}`)
+      if (event.HookFailureMode)
+        parts.push(`FailureMode: ${event.HookFailureMode}`)
+      if (event.HookInvocationPoint)
+        parts.push(`Point: ${event.HookInvocationPoint}`)
+      hookInfo = parts.join(', ')
+      if (event.HookStatusReason) {
+        hookInfo += ` - ${event.HookStatusReason}`
+      }
+    }
+
+    // Format validation information if present
+    let validationInfo: string | undefined
+    if (event.ValidationName) {
+      validationInfo = `Validation: ${event.ValidationName}`
+      if (event.ValidationFailureMode) {
+        validationInfo += ` (${event.ValidationFailureMode})`
+      }
+    }
+
+    // Format operation information if present
+    let operationInfo: string | undefined
+    if (event.OperationType || event.OperationStatus) {
+      const parts: string[] = []
+      if (event.OperationType) parts.push(event.OperationType)
+      if (event.OperationStatus) parts.push(event.OperationStatus)
+      operationInfo = parts.join(': ')
+    }
+
     return {
       timestamp,
       resourceInfo,
       status,
       message,
-      isError
+      isError,
+      eventType,
+      detailedStatus,
+      hookInfo,
+      validationInfo,
+      operationInfo
     }
   }
 
@@ -1251,8 +1333,19 @@ export class EventFormatterImpl implements EventFormatter {
   /**
    * Format resource information with truncation and type display
    * Handles long resource names by truncating them appropriately
+   * For operation-level events without resource info, returns empty string
    */
   private formatResourceInfo(event: StackEvent): string {
+    // For operation-level events without resource details, return empty
+    // (operation info will be shown separately)
+    if (
+      !event.ResourceType &&
+      !event.LogicalResourceId &&
+      event.OperationType
+    ) {
+      return ''
+    }
+
     const resourceType = event.ResourceType || 'Unknown'
     const logicalId = event.LogicalResourceId || 'Unknown'
     const physicalId = event.PhysicalResourceId
@@ -1327,11 +1420,41 @@ export class EventFormatterImpl implements EventFormatter {
       parts.push(formattedEvent.timestamp)
     }
 
-    // Add resource information
-    parts.push(formattedEvent.resourceInfo)
+    // Add event type if present (for non-standard events)
+    if (
+      formattedEvent.eventType &&
+      formattedEvent.eventType !== 'STACK_EVENT'
+    ) {
+      parts.push(`[${formattedEvent.eventType}]`)
+    }
+
+    // Add resource information (skip if empty for operation-level events)
+    if (formattedEvent.resourceInfo) {
+      parts.push(formattedEvent.resourceInfo)
+    }
 
     // Add status
     parts.push(formattedEvent.status)
+
+    // Add detailed status if present
+    if (formattedEvent.detailedStatus) {
+      parts.push(`(${formattedEvent.detailedStatus})`)
+    }
+
+    // Add operation info if present
+    if (formattedEvent.operationInfo) {
+      parts.push(`[${formattedEvent.operationInfo}]`)
+    }
+
+    // Add hook information if present
+    if (formattedEvent.hookInfo) {
+      parts.push(`[${formattedEvent.hookInfo}]`)
+    }
+
+    // Add validation information if present
+    if (formattedEvent.validationInfo) {
+      parts.push(`[${formattedEvent.validationInfo}]`)
+    }
 
     // Add message if available
     if (formattedEvent.message) {

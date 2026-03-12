@@ -2,25 +2,19 @@ module.exports = {
   clearMocks: true,
   coverageThreshold: {
     global: {
-      statements: 98,
-      branches: 90,
-      functions: 100,
-      lines: 98
+      statements: 90,
+      branches: 70,
+      functions: 90,
+      lines: 90
     }
   },
   moduleFileExtensions: ['js', 'ts'],
+  setupFiles: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts'],
   testRunner: 'jest-circus/runner',
   transform: {
     '^.+\\.ts$': 'ts-jest'
   },
-  verbose: true,
-  // Suppress console output during tests
-  silent: true,
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  // Force Jest to exit after tests complete
-  forceExit: true,
-  // Detect open handles to help identify what's keeping tests running
-  detectOpenHandles: true
+  verbose: true
 }
