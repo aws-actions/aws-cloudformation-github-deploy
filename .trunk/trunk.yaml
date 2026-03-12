@@ -3,31 +3,33 @@
 # To learn more about the format of this file, see https://docs.trunk.io/reference/trunk-yaml
 version: 0.1
 cli:
+  # yamllint disable-line rule:quoted-strings
   version: 1.25.0
+
 # Trunk provides extensibility via plugins. (https://docs.trunk.io/plugins)
 plugins:
   sources:
-    - id: trunk
-      ref: v1.7.6
-      uri: https://github.com/trunk-io/plugins
+    - id: 'trunk'
+      ref: 'v1.7.6'
+      uri: 'https://github.com/trunk-io/plugins'
 # Many linters and tools depend on runtimes - configure them here. (https://docs.trunk.io/runtimes)
 runtimes:
   enabled:
-    - python@3.10.8
-    - node@22.16.0
+    - 'python@3.10.8'
+    - 'node@22.16.0'
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
   enabled:
-    - taplo@0.10.0
-    - actionlint@1.7.11
-    - checkov@3.2.508
-    - eslint@9.39.1
-    - git-diff-check
-    - markdownlint@0.48.0
-    - osv-scanner@2.3.3
-    - prettier@3.8.1
-    - trufflehog@3.93.8
-    - yamllint@1.38.0
+    - 'taplo@0.10.0'
+    - 'actionlint@1.7.11'
+    - 'checkov@3.2.508'
+    - 'eslint@9.39.1'
+    - 'git-diff-check'
+    - 'markdownlint@0.48.0'
+    - 'osv-scanner@2.3.3'
+    - 'prettier@3.8.1'
+    - 'trufflehog@3.93.8'
+    - 'yamllint@1.38.0'
   definitions:
     - name: 'eslint'
       runtime: 'node'
@@ -37,7 +39,7 @@ lint:
         - name: 'lint'
           run: 'node_modules/.bin/eslint --output-file ${tmpfile} --format json ${target}'
   ignore:
-    - linters: [prettier]
+    - linters: ['prettier']
       paths:
         - '**/*.ts' # eslint-plugin-prettier handles TS formatting via eslint
         - '**/*.tsx'
@@ -48,7 +50,7 @@ lint:
         - 'dist/**' # Bundled output, not source code
 actions:
   enabled:
-    - trunk-announce
-    - trunk-check-pre-push
-    - trunk-fmt-pre-commit
-    - trunk-upgrade-available
+    - 'trunk-announce'
+    - 'trunk-check-pre-push'
+    - 'trunk-fmt-pre-commit'
+    - 'trunk-upgrade-available'

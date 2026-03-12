@@ -12,6 +12,8 @@ rules:
   truthy:
     allowed-values: ['true', 'false', 'on']
     check-keys: true
+  comments:
+    min-spaces-from-content: 1
   new-lines:
     type: 'unix'
   quoted-strings:
