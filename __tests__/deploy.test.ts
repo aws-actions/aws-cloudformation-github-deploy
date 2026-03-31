@@ -1,9 +1,11 @@
 import {
   CloudFormationClient,
+  CloudFormationServiceException,
   DescribeStacksCommand,
   DescribeChangeSetCommand,
   DescribeEventsCommand,
   CreateChangeSetCommand,
+  DeleteStackCommand,
   ExecuteChangeSetCommand,
   StackStatus,
   ChangeSetStatus,
@@ -13,6 +15,7 @@ import { mockClient } from 'aws-sdk-client-mock'
 import {
   waitUntilStackOperationComplete,
   updateStack,
+  deployStack,
   executeExistingChangeSet
 } from '../src/deploy'
 import * as core from '@actions/core'
@@ -562,6 +565,312 @@ describe('Deploy error scenarios', () => {
       )
 
       expect(result.stackId).toBe('test-stack-id')
+    })
+  })
+
+  describe('deployStack', () => {
+    it('deletes and recreates stack in ROLLBACK_COMPLETE state', async () => {
+      // First call: getStack returns ROLLBACK_COMPLETE
+      // Second call: waitUntilStackDeleteComplete sees DELETE_COMPLETE
+      // Third call: waitUntilStackOperationComplete after execute
+      mockCfnClient
+        .on(DescribeStacksCommand)
+        .resolvesOnce({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.ROLLBACK_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+        .resolvesOnce({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.DELETE_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+        .resolves({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'new-stack-id',
+              StackStatus: StackStatus.CREATE_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+
+      mockCfnClient.on(DeleteStackCommand).resolves({})
+      mockCfnClient
+        .on(CreateChangeSetCommand)
+        .resolves({ Id: 'test-cs-id', StackId: 'new-stack-id' })
+      mockCfnClient.on(DescribeChangeSetCommand).resolves({
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [{ Type: 'Resource' }]
+      })
+      mockCfnClient.on(ExecuteChangeSetCommand).resolves({})
+
+      const result = await deployStack(
+        cfn,
+        {
+          StackName: 'TestStack',
+          TemplateBody: '{}',
+          Capabilities: []
+        },
+        'test-cs',
+        false,
+        false,
+        false,
+        60
+      )
+
+      expect(mockCfnClient.commandCalls(DeleteStackCommand)).toHaveLength(1)
+      expect(core.info).toHaveBeenCalledWith(
+        expect.stringContaining('ROLLBACK_COMPLETE')
+      )
+      expect(result.stackId).toBe('new-stack-id')
+    })
+
+    it('does not delete stack when not in ROLLBACK_COMPLETE state', async () => {
+      mockCfnClient.on(DescribeStacksCommand).resolves({
+        Stacks: [
+          {
+            StackName: 'TestStack',
+            StackId: 'test-stack-id',
+            StackStatus: StackStatus.CREATE_COMPLETE,
+            CreationTime: new Date()
+          }
+        ]
+      })
+
+      mockCfnClient
+        .on(CreateChangeSetCommand)
+        .resolves({ Id: 'test-cs-id', StackId: 'test-stack-id' })
+      mockCfnClient.on(DescribeChangeSetCommand).resolves({
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [{ Type: 'Resource' }]
+      })
+      mockCfnClient.on(ExecuteChangeSetCommand).resolves({})
+
+      await deployStack(
+        cfn,
+        {
+          StackName: 'TestStack',
+          TemplateBody: '{}',
+          Capabilities: []
+        },
+        'test-cs',
+        false,
+        false,
+        false,
+        60
+      )
+
+      expect(mockCfnClient.commandCalls(DeleteStackCommand)).toHaveLength(0)
+    })
+
+    it('handles delete completing when stack disappears', async () => {
+      mockCfnClient
+        .on(DescribeStacksCommand)
+        .resolvesOnce({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.ROLLBACK_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+        .resolvesOnce({ Stacks: [] })
+        .resolves({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'new-stack-id',
+              StackStatus: StackStatus.CREATE_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+
+      mockCfnClient.on(DeleteStackCommand).resolves({})
+      mockCfnClient
+        .on(CreateChangeSetCommand)
+        .resolves({ Id: 'test-cs-id', StackId: 'new-stack-id' })
+      mockCfnClient.on(DescribeChangeSetCommand).resolves({
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [{ Type: 'Resource' }]
+      })
+      mockCfnClient.on(ExecuteChangeSetCommand).resolves({})
+
+      const result = await deployStack(
+        cfn,
+        { StackName: 'TestStack', TemplateBody: '{}', Capabilities: [] },
+        'test-cs',
+        false,
+        false,
+        false,
+        60
+      )
+
+      expect(mockCfnClient.commandCalls(DeleteStackCommand)).toHaveLength(1)
+      expect(result.stackId).toBe('new-stack-id')
+    })
+
+    it('handles delete completing via ValidationError', async () => {
+      const validationError = new CloudFormationServiceException({
+        name: 'ValidationError',
+        $fault: 'client',
+        $metadata: { httpStatusCode: 400 },
+        message: 'Stack does not exist'
+      })
+      validationError.name = 'ValidationError'
+
+      mockCfnClient
+        .on(DescribeStacksCommand)
+        .resolvesOnce({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.ROLLBACK_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+        .rejectsOnce(validationError)
+        .resolves({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'new-stack-id',
+              StackStatus: StackStatus.CREATE_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+
+      mockCfnClient.on(DeleteStackCommand).resolves({})
+      mockCfnClient
+        .on(CreateChangeSetCommand)
+        .resolves({ Id: 'test-cs-id', StackId: 'new-stack-id' })
+      mockCfnClient.on(DescribeChangeSetCommand).resolves({
+        Status: ChangeSetStatus.CREATE_COMPLETE,
+        Changes: [{ Type: 'Resource' }]
+      })
+      mockCfnClient.on(ExecuteChangeSetCommand).resolves({})
+
+      const result = await deployStack(
+        cfn,
+        { StackName: 'TestStack', TemplateBody: '{}', Capabilities: [] },
+        'test-cs',
+        false,
+        false,
+        false,
+        60
+      )
+
+      expect(result.stackId).toBe('new-stack-id')
+    })
+
+    it('throws error when stack deletion fails', async () => {
+      mockCfnClient
+        .on(DescribeStacksCommand)
+        .resolvesOnce({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.ROLLBACK_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+        .resolves({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.DELETE_FAILED,
+              CreationTime: new Date()
+            }
+          ]
+        })
+
+      mockCfnClient.on(DeleteStackCommand).resolves({})
+
+      await expect(
+        deployStack(
+          cfn,
+          { StackName: 'TestStack', TemplateBody: '{}', Capabilities: [] },
+          'test-cs',
+          false,
+          false,
+          false,
+          60
+        )
+      ).rejects.toThrow('Stack deletion failed for TestStack')
+    })
+
+    it('times out waiting for stack deletion', async () => {
+      mockCfnClient
+        .on(DescribeStacksCommand)
+        .resolvesOnce({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.ROLLBACK_COMPLETE,
+              CreationTime: new Date()
+            }
+          ]
+        })
+        .resolves({
+          Stacks: [
+            {
+              StackName: 'TestStack',
+              StackId: 'test-stack-id',
+              StackStatus: StackStatus.DELETE_IN_PROGRESS,
+              CreationTime: new Date()
+            }
+          ]
+        })
+
+      mockCfnClient.on(DeleteStackCommand).resolves({})
+
+      const realDateNow = Date.now
+      let callCount = 0
+      Date.now = jest.fn(() => {
+        callCount++
+        // First call is the startTime capture, subsequent calls exceed maxWaitTime
+        return callCount <= 1 ? 0 : 2 * 1000 + 1
+      })
+
+      const realSetTimeout = global.setTimeout
+      global.setTimeout = ((fn: () => void) =>
+        realSetTimeout(fn, 0)) as unknown as typeof setTimeout
+
+      await expect(
+        deployStack(
+          cfn,
+          { StackName: 'TestStack', TemplateBody: '{}', Capabilities: [] },
+          'test-cs',
+          false,
+          false,
+          false,
+          2
+        )
+      ).rejects.toThrow('Timeout waiting for stack deletion after 2 seconds')
+
+      Date.now = realDateNow
+      global.setTimeout = realSetTimeout
     })
   })
 })

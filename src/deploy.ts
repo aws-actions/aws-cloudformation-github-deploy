@@ -4,6 +4,7 @@ import {
   Stack,
   DescribeChangeSetCommand,
   DeleteChangeSetCommand,
+  DeleteStackCommand,
   waitUntilChangeSetCreateComplete,
   CreateChangeSetCommand,
   ExecuteChangeSetCommand,
@@ -83,6 +84,53 @@ export async function waitUntilStackOperationComplete(
   }
 
   throw new Error(`Timeout after ${maxWaitTime} seconds`)
+}
+
+async function waitUntilStackDeleteComplete(
+  params: {
+    client: CloudFormationClient
+    maxWaitTime: number
+    minDelay: number
+  },
+  input: { StackName: string }
+): Promise<void> {
+  const { client, maxWaitTime, minDelay } = params
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < maxWaitTime * 1000) {
+    try {
+      const result = await client.send(new DescribeStacksCommand(input))
+      const stack = result.Stacks?.[0]
+
+      if (!stack) {
+        return
+      }
+
+      if (stack.StackStatus === 'DELETE_COMPLETE') {
+        return
+      }
+
+      if (stack.StackStatus === 'DELETE_FAILED') {
+        throw new Error(`Stack deletion failed for ${input.StackName}`)
+      }
+
+      core.debug(`Stack delete in progress, waiting ${minDelay} seconds...`)
+      await new Promise(resolve => setTimeout(resolve, minDelay * 1000))
+    } catch (error) {
+      if (
+        error instanceof CloudFormationServiceException &&
+        error.$metadata.httpStatusCode === 400 &&
+        error.name === 'ValidationError'
+      ) {
+        return
+      }
+      throw error
+    }
+  }
+
+  throw new Error(
+    `Timeout waiting for stack deletion after ${maxWaitTime} seconds`
+  )
 }
 
 export async function executeExistingChangeSet(
@@ -482,7 +530,19 @@ export async function deployStack(
   maxWaitTime = 21000,
   onChangeSetReady?: () => void
 ): Promise<{ stackId?: string; changeSetInfo?: ChangeSetInfo }> {
-  const stack = await getStack(cfn, params.StackName)
+  let stack = await getStack(cfn, params.StackName)
+
+  if (stack?.StackStatus === 'ROLLBACK_COMPLETE') {
+    core.info(
+      `Stack ${params.StackName} is in ROLLBACK_COMPLETE state. Deleting stack and recreating.`
+    )
+    await cfn.send(new DeleteStackCommand({ StackName: params.StackName }))
+    await waitUntilStackDeleteComplete(
+      { client: cfn, maxWaitTime, minDelay: 5 },
+      { StackName: params.StackName }
+    )
+    stack = undefined
+  }
 
   if (!stack) {
     core.debug(`Creating CloudFormation Stack via Change Set`)
