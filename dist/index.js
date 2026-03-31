@@ -62848,6 +62848,39 @@ function waitUntilStackOperationComplete(params, input) {
         throw new Error(`Timeout after ${maxWaitTime} seconds`);
     });
 }
+function waitUntilStackDeleteComplete(params, input) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        const { client, maxWaitTime, minDelay } = params;
+        const startTime = Date.now();
+        while (Date.now() - startTime < maxWaitTime * 1000) {
+            try {
+                const result = yield client.send(new client_cloudformation_1.DescribeStacksCommand(input));
+                const stack = (_a = result.Stacks) === null || _a === void 0 ? void 0 : _a[0];
+                if (!stack) {
+                    return;
+                }
+                if (stack.StackStatus === 'DELETE_COMPLETE') {
+                    return;
+                }
+                if (stack.StackStatus === 'DELETE_FAILED') {
+                    throw new Error(`Stack deletion failed for ${input.StackName}`);
+                }
+                core.debug(`Stack delete in progress, waiting ${minDelay} seconds...`);
+                yield new Promise(resolve => setTimeout(resolve, minDelay * 1000));
+            }
+            catch (error) {
+                if (error instanceof client_cloudformation_1.CloudFormationServiceException &&
+                    error.$metadata.httpStatusCode === 400 &&
+                    error.name === 'ValidationError') {
+                    return;
+                }
+                throw error;
+            }
+        }
+        throw new Error(`Timeout waiting for stack deletion after ${maxWaitTime} seconds`);
+    });
+}
 function executeExistingChangeSet(cfn_1, stackName_1, changeSetId_1) {
     return __awaiter(this, arguments, void 0, function* (cfn, stackName, changeSetId, maxWaitTime = 21000) {
         core.debug(`Executing existing change set: ${changeSetId}`);
@@ -63103,7 +63136,13 @@ function buildUpdateChangeSetParams(params, changeSetName) {
 }
 function deployStack(cfn_1, params_1, changeSetName_1, failOnEmptyChangeSet_1, noExecuteChangeSet_1, noDeleteFailedChangeSet_1) {
     return __awaiter(this, arguments, void 0, function* (cfn, params, changeSetName, failOnEmptyChangeSet, noExecuteChangeSet, noDeleteFailedChangeSet, maxWaitTime = 21000, onChangeSetReady) {
-        const stack = yield getStack(cfn, params.StackName);
+        let stack = yield getStack(cfn, params.StackName);
+        if ((stack === null || stack === void 0 ? void 0 : stack.StackStatus) === 'ROLLBACK_COMPLETE') {
+            core.info(`Stack ${params.StackName} is in ROLLBACK_COMPLETE state. Deleting stack and recreating.`);
+            yield cfn.send(new client_cloudformation_1.DeleteStackCommand({ StackName: params.StackName }));
+            yield waitUntilStackDeleteComplete({ client: cfn, maxWaitTime, minDelay: 5 }, { StackName: params.StackName });
+            stack = undefined;
+        }
         if (!stack) {
             core.debug(`Creating CloudFormation Stack via Change Set`);
             const createParams = buildCreateChangeSetParams(params, changeSetName);
