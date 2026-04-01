@@ -243,6 +243,7 @@ This action requires the following minimum set of permissions:
         "cloudformation:CreateChangeSet",
         "cloudformation:DescribeChangeSet",
         "cloudformation:DeleteChangeSet",
+        "cloudformation:DeleteStack",
         "cloudformation:ExecuteChangeSet",
         "cloudformation:DescribeEvents"
       ],
@@ -281,11 +282,13 @@ The action makes the following AWS CloudFormation API calls depending on the ope
 - `DescribeEvents` - Retrieve detailed error information for validation failures
 - `DeleteChangeSet` - Clean up failed change sets (unless `no-delete-failed-changeset` is set)
 
+**ROLLBACK_COMPLETE Recovery:**
+
+- `DeleteStack` - Automatically delete stacks stuck in `ROLLBACK_COMPLETE` state before recreating
+
 **Event Streaming (during stack operations):**
 
 - `DescribeEvents` - Monitor real-time CloudFormation events during deployment
-
-> The policy above prevents the stack from being deleted - add `cloudformation:DeleteStack` if deletion is required for your use case
 
 ## Example
 
