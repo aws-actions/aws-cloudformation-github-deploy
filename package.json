@@ -1,6 +1,6 @@
 {
   "name": "aws-actions-aws-cloudformation-github-deploy",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Deploys a AWS CloudFormation stack",
   "main": "lib/main.js",
   "scripts": {
