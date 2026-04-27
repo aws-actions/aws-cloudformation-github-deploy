@@ -74685,12 +74685,29 @@ class EventPollerImpl {
     pollEvents() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const command = new client_cloudformation_1.DescribeEventsCommand({
-                    StackName: this.stackName
-                });
-                const response = yield this.client.send(command);
-                const allEvents = response.OperationEvents || [];
-                // Filter for new events only (client-side filtering by time)
+                let allEvents = [];
+                let nextToken;
+                let hitSeenEvent = false;
+                // Paginate, but stop early when we hit an event we've already seen
+                // (API returns newest-first, so older = already processed)
+                do {
+                    const command = new client_cloudformation_1.DescribeEventsCommand({
+                        StackName: this.stackName,
+                        NextToken: nextToken
+                    });
+                    const response = yield this.client.send(command);
+                    const pageEvents = response.OperationEvents || [];
+                    for (const event of pageEvents) {
+                        const eventId = event.EventId || this.createEventId(event);
+                        if (this.seenEventIds.has(eventId)) {
+                            hitSeenEvent = true;
+                            break;
+                        }
+                        allEvents.push(event);
+                    }
+                    nextToken = hitSeenEvent ? undefined : response.NextToken;
+                } while (nextToken);
+                // Filter for deployment time window
                 const newEvents = this.filterNewEvents(allEvents);
                 if (newEvents.length > 0) {
                     // Reset interval when new events are found
@@ -74856,14 +74873,9 @@ class EventPollerImpl {
             if (event.Timestamp && event.Timestamp < deploymentStartWithBuffer) {
                 continue;
             }
-            // Create unique event ID from timestamp + resource + status
-            const eventId = this.createEventId(event);
+            const eventId = event.EventId || this.createEventId(event);
             if (!this.seenEventIds.has(eventId)) {
-                // Check if event is newer than our last seen timestamp
-                if (!this.lastEventTimestamp ||
-                    (event.Timestamp && event.Timestamp > this.lastEventTimestamp)) {
-                    newEvents.push(event);
-                }
+                newEvents.push(event);
             }
         }
         // Sort by timestamp (oldest first) for proper display order
@@ -74878,7 +74890,7 @@ class EventPollerImpl {
      */
     updateEventTracking(newEvents) {
         for (const event of newEvents) {
-            const eventId = this.createEventId(event);
+            const eventId = event.EventId || this.createEventId(event);
             this.seenEventIds.add(eventId);
             // Update last seen timestamp
             if (event.Timestamp &&
