@@ -13,6 +13,7 @@ import {
   ExecuteChangeSetCommand,
   DescribeStacksCommand
 } from '@aws-sdk/client-cloudformation'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { mockClient } from 'aws-sdk-client-mock'
 import { FileHandle } from 'fs/promises'
 import 'aws-sdk-client-mock-jest'
@@ -60,6 +61,7 @@ const mockStackId =
   'arn:aws:cloudformation:us-east-1:123456789012:stack/myteststack/466df9e0-0dff-08e3-8e2f-5088487c4896'
 
 const mockCfnClient = mockClient(CloudFormationClient)
+const mockS3Client = mockClient(S3Client)
 
 // Helper function to create complete inputs
 const createInputs = (overrides: Partial<Inputs> = {}): Inputs => ({
@@ -81,6 +83,8 @@ const createInputs = (overrides: Partial<Inputs> = {}): Inputs => ({
   'change-set-name': '',
   'include-nested-stacks-change-set': '0',
   'deployment-mode': '',
+  's3-bucket': '',
+  's3-prefix': '',
   'execute-change-set-id': '',
   ...overrides
 })
@@ -135,12 +139,10 @@ describe('Deploy CloudFormation Stack', () => {
         }
       )
 
+    mockS3Client.reset().on(PutObjectCommand).resolves({})
+
     mockCfnClient
       .reset()
-      .on(CreateChangeSetCommand)
-      .resolves({
-        StackId: mockStackId
-      })
       .on(CreateChangeSetCommand)
       .resolves({
         StackId: mockStackId
@@ -1553,5 +1555,74 @@ describe('Deploy CloudFormation Stack', () => {
     expect(core.setFailed).toHaveBeenCalledTimes(0)
     expect(core.setOutput).toHaveBeenCalledWith('has-changes', 'false')
     expect(core.setOutput).toHaveBeenCalledWith('changes-count', '0')
+  })
+
+  test('uploads template to S3 when s3-bucket is provided', async () => {
+    const inputs = createInputs({
+      's3-bucket': 'my-deploy-bucket'
+    })
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+
+    await run()
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockS3Client).toHaveReceivedCommandTimes(PutObjectCommand, 1)
+    expect(mockS3Client).toHaveReceivedCommandWith(PutObjectCommand, {
+      Bucket: 'my-deploy-bucket',
+      Key: 'template.yaml',
+      Body: mockTemplate
+    })
+    expect(mockCfnClient).toHaveReceivedCommandWith(CreateChangeSetCommand, {
+      StackName: 'MockStack',
+      TemplateURL: 'https://my-deploy-bucket.s3.amazonaws.com/template.yaml',
+      TemplateBody: undefined
+    })
+  })
+
+  test('uploads template to S3 with prefix when s3-prefix is provided', async () => {
+    const inputs = createInputs({
+      's3-bucket': 'my-deploy-bucket',
+      's3-prefix': 'cfn-templates'
+    })
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+
+    await run()
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockS3Client).toHaveReceivedCommandTimes(PutObjectCommand, 1)
+    expect(mockS3Client).toHaveReceivedCommandWith(PutObjectCommand, {
+      Bucket: 'my-deploy-bucket',
+      Key: 'cfn-templates/template.yaml',
+      Body: mockTemplate
+    })
+    expect(mockCfnClient).toHaveReceivedCommandWith(CreateChangeSetCommand, {
+      StackName: 'MockStack',
+      TemplateURL:
+        'https://my-deploy-bucket.s3.amazonaws.com/cfn-templates/template.yaml',
+      TemplateBody: undefined
+    })
+  })
+
+  test('does not upload to S3 when template is a URL', async () => {
+    const inputs = createInputs({
+      template:
+        'https://s3.amazonaws.com/templates/myTemplate.template?versionId=123ab1cdeKdOW5IH4GAcYbEngcpTJTDW',
+      's3-bucket': 'my-deploy-bucket'
+    })
+
+    jest.spyOn(core, 'getInput').mockImplementation((name: string) => {
+      return inputs[name]
+    })
+
+    await run()
+
+    expect(core.setFailed).toHaveBeenCalledTimes(0)
+    expect(mockS3Client).toHaveReceivedCommandTimes(PutObjectCommand, 0)
   })
 })

@@ -68,6 +68,8 @@ const createSchema = baseSchema.extend({
         `Invalid deployment-mode: ${val}. Only 'REVERT_DRIFT' is supported.`
       )
     }),
+  's3-bucket': z.string().optional().transform(emptyToUndefined),
+  's3-prefix': z.string().optional().transform(emptyToUndefined),
   'execute-change-set-id': z
     .string()
     .optional()
@@ -99,7 +101,9 @@ const executeSchema = baseSchema.extend({
   'include-nested-stacks-change-set': z
     .string()
     .optional()
-    .transform(emptyToUndefined)
+    .transform(emptyToUndefined),
+  's3-bucket': z.string().optional().transform(emptyToUndefined),
+  's3-prefix': z.string().optional().transform(emptyToUndefined)
 })
 
 export function validateAndParseInputs(

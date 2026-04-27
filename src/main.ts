@@ -7,6 +7,7 @@ import {
   Capability,
   CloudFormationServiceException
 } from '@aws-sdk/client-cloudformation'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import * as fs from 'fs'
 import {
   displayChangeSet,
@@ -89,6 +90,8 @@ export async function run(): Promise<void> {
         { required: false }
       ),
       'deployment-mode': core.getInput('deployment-mode', { required: false }),
+      's3-bucket': core.getInput('s3-bucket', { required: false }),
+      's3-prefix': core.getInput('s3-prefix', { required: false }),
       'execute-change-set-id': core.getInput('execute-change-set-id', {
         required: false
       })
@@ -186,7 +189,29 @@ export async function run(): Promise<void> {
       const templateFilePath = path.isAbsolute(inputs.template!)
         ? inputs.template!
         : path.join(GITHUB_WORKSPACE, inputs.template!)
-      templateBody = fs.readFileSync(templateFilePath, 'utf8')
+      const templateContent = fs.readFileSync(templateFilePath, 'utf8')
+
+      if (inputs['s3-bucket']) {
+        core.debug('Uploading CloudFormation template to S3')
+        const s3 = new S3Client({ ...clientConfiguration })
+        const fileName = path.basename(templateFilePath)
+        const s3Key = inputs['s3-prefix']
+          ? `${inputs['s3-prefix']}/${fileName}`
+          : fileName
+
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: inputs['s3-bucket'],
+            Key: s3Key,
+            Body: templateContent
+          })
+        )
+
+        templateUrl = `https://${inputs['s3-bucket']}.s3.amazonaws.com/${s3Key}`
+        core.info(`Template uploaded to S3: ${templateUrl}`)
+      } else {
+        templateBody = templateContent
+      }
     }
 
     // CloudFormation Stack Parameter for the creation or update

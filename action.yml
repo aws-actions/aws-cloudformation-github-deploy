@@ -66,6 +66,12 @@ inputs:
   execute-change-set-id:
     description: "Execute an existing change set by ID or name instead of creating a new one. When provided, only 'name' (stack name) is required."
     required: false
+  s3-bucket:
+    description: "The name of the S3 bucket where the template will be uploaded before creating the change set. When provided, the template file is uploaded to S3 and TemplateURL is used instead of TemplateBody, avoiding the 51,200 byte inline limit."
+    required: false
+  s3-prefix:
+    description: "A prefix to use for the S3 object key when uploading the template. The final key will be '<s3-prefix>/<template-filename>'. Defaults to no prefix."
+    required: false
   deployment-mode:
     description: "The deployment mode for the change set. Use 'REVERT_DRIFT' to create a change set that reverts drift. Defaults to standard deployment."
     required: false
