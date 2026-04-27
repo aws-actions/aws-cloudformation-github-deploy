@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-04-27
+
+### Features
+
+- **S3 Template Upload**: Added `s3-bucket` and `s3-prefix` inputs to automatically upload large templates to S3 before creating change sets, avoiding the 51,200 byte inline template limit (#180, #196)
+
+### Bug Fixes
+
+- **Incomplete Event Monitoring**: Fixed event streaming dropping concurrent events that shared the same timestamp. Now uses API-provided `EventId` for deduplication and paginates through all events (#195, #197)
+
 ## [2.1.0] - 2026-04-01
 
 ### Features
