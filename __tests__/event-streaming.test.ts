@@ -326,6 +326,63 @@ describe('EventPoller Implementation', () => {
       const retrievedTime = eventPoller.getDeploymentStartTime()
       expect(retrievedTime).toEqual(testTime)
     })
+
+    it('should not drop events with the same timestamp', () => {
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
+      const sameTime = new Date('2023-01-01T10:00:00Z')
+      const events: StackEvent[] = [
+        {
+          EventId: 'evt-1',
+          Timestamp: sameTime,
+          LogicalResourceId: 'Resource1',
+          ResourceStatus: 'UPDATE_IN_PROGRESS'
+        },
+        {
+          EventId: 'evt-2',
+          Timestamp: sameTime,
+          LogicalResourceId: 'Resource2',
+          ResourceStatus: 'UPDATE_IN_PROGRESS'
+        }
+      ]
+
+      let newEvents = eventPoller['filterNewEvents'](events)
+      expect(newEvents).toHaveLength(2)
+      eventPoller['updateEventTracking'](newEvents)
+
+      // Third event at same timestamp arrives later
+      const laterBatch: StackEvent[] = [
+        ...events,
+        {
+          EventId: 'evt-3',
+          Timestamp: sameTime,
+          LogicalResourceId: 'Resource3',
+          ResourceStatus: 'UPDATE_IN_PROGRESS'
+        }
+      ]
+      newEvents = eventPoller['filterNewEvents'](laterBatch)
+      expect(newEvents).toHaveLength(1)
+      expect(newEvents[0].LogicalResourceId).toBe('Resource3')
+    })
+
+    it('should use EventId for dedup when available', () => {
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
+      const event: StackEvent = {
+        EventId: 'unique-uuid-123',
+        Timestamp: new Date('2023-01-01T10:00:00Z'),
+        LogicalResourceId: 'Resource1',
+        ResourceStatus: 'CREATE_IN_PROGRESS'
+      }
+
+      let newEvents = eventPoller['filterNewEvents']([event])
+      expect(newEvents).toHaveLength(1)
+      eventPoller['updateEventTracking'](newEvents)
+
+      // Same EventId should be deduped
+      newEvents = eventPoller['filterNewEvents']([event])
+      expect(newEvents).toHaveLength(0)
+    })
   })
 
   describe('API integration', () => {
@@ -349,7 +406,10 @@ describe('EventPoller Implementation', () => {
 
       expect(mockClient.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          input: { StackName: 'test-stack', ChangeSetName: undefined }
+          input: {
+            StackName: 'test-stack',
+            NextToken: undefined
+          }
         })
       )
       expect(events).toHaveLength(1)
@@ -382,6 +442,54 @@ describe('EventPoller Implementation', () => {
       mockClient.send.mockRejectedValue(genericError)
 
       await expect(eventPoller.pollEvents()).rejects.toThrow(genericError)
+    })
+
+    it('should paginate and stop when hitting a seen EventId', async () => {
+      eventPoller.setDeploymentStartTime(new Date('2022-12-31T23:59:59Z'))
+
+      // First poll: seed with one event
+      mockClient.send.mockResolvedValueOnce({
+        OperationEvents: [
+          {
+            EventId: 'evt-old',
+            Timestamp: new Date('2023-01-01T10:00:00Z'),
+            LogicalResourceId: 'Resource1',
+            ResourceStatus: 'CREATE_IN_PROGRESS'
+          }
+        ]
+      })
+      await eventPoller.pollEvents()
+
+      // Second poll: page 1 has new event + NextToken, page 2 starts with the old event
+      mockClient.send
+        .mockResolvedValueOnce({
+          OperationEvents: [
+            {
+              EventId: 'evt-new',
+              Timestamp: new Date('2023-01-01T10:01:00Z'),
+              LogicalResourceId: 'Resource2',
+              ResourceStatus: 'CREATE_COMPLETE'
+            }
+          ],
+          NextToken: 'page2'
+        })
+        .mockResolvedValueOnce({
+          OperationEvents: [
+            {
+              EventId: 'evt-old',
+              Timestamp: new Date('2023-01-01T10:00:00Z'),
+              LogicalResourceId: 'Resource1',
+              ResourceStatus: 'CREATE_IN_PROGRESS'
+            }
+          ],
+          NextToken: 'page3'
+        })
+
+      const events = await eventPoller.pollEvents()
+      // Should stop at page 2 (hit seen event), not fetch page 3
+      expect(mockClient.send).toHaveBeenCalledTimes(3) // 1 initial + 2 second poll
+      expect(events).toHaveLength(1)
+      expect(events[0].LogicalResourceId).toBe('Resource2')
     })
   })
 

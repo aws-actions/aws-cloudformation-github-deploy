@@ -12,6 +12,7 @@ import * as core from '@actions/core'
  * Includes both StackEvent and OperationEvent fields
  */
 export interface StackEvent {
+  EventId?: string
   Timestamp?: Date
   LogicalResourceId?: string
   ResourceType?: string
@@ -506,14 +507,34 @@ export class EventPollerImpl implements EventPoller {
    */
   async pollEvents(): Promise<StackEvent[]> {
     try {
-      const command = new DescribeEventsCommand({
-        StackName: this.stackName
-      })
+      let allEvents: StackEvent[] = []
+      let nextToken: string | undefined
+      let hitSeenEvent = false
 
-      const response = await this.client.send(command)
-      const allEvents = response.OperationEvents || []
+      // Paginate, but stop early when we hit an event we've already seen
+      // (API returns newest-first, so older = already processed)
+      do {
+        const command = new DescribeEventsCommand({
+          StackName: this.stackName,
+          NextToken: nextToken
+        })
 
-      // Filter for new events only (client-side filtering by time)
+        const response = await this.client.send(command)
+        const pageEvents = response.OperationEvents || []
+
+        for (const event of pageEvents) {
+          const eventId = event.EventId || this.createEventId(event)
+          if (this.seenEventIds.has(eventId)) {
+            hitSeenEvent = true
+            break
+          }
+          allEvents.push(event)
+        }
+
+        nextToken = hitSeenEvent ? undefined : response.NextToken
+      } while (nextToken)
+
+      // Filter for deployment time window
       const newEvents = this.filterNewEvents(allEvents)
 
       if (newEvents.length > 0) {
@@ -746,17 +767,10 @@ export class EventPollerImpl implements EventPoller {
         continue
       }
 
-      // Create unique event ID from timestamp + resource + status
-      const eventId = this.createEventId(event)
+      const eventId = event.EventId || this.createEventId(event)
 
       if (!this.seenEventIds.has(eventId)) {
-        // Check if event is newer than our last seen timestamp
-        if (
-          !this.lastEventTimestamp ||
-          (event.Timestamp && event.Timestamp > this.lastEventTimestamp)
-        ) {
-          newEvents.push(event)
-        }
+        newEvents.push(event)
       }
     }
 
@@ -772,7 +786,7 @@ export class EventPollerImpl implements EventPoller {
    */
   private updateEventTracking(newEvents: StackEvent[]): void {
     for (const event of newEvents) {
-      const eventId = this.createEventId(event)
+      const eventId = event.EventId || this.createEventId(event)
       this.seenEventIds.add(eventId)
 
       // Update last seen timestamp
