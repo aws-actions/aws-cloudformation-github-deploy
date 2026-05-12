@@ -75147,15 +75147,16 @@ class EventMonitorImpl {
         }).length;
     }
     /**
-     * Check if any event indicates a terminal stack state
-     * Only considers the main stack events, not individual resources
+     * Check if any event indicates a terminal stack state.
+     * Only considers events for the root stack itself, not nested stack resources.
      */
     hasTerminalEvent(events) {
         return events.some(event => {
             const status = event.ResourceStatus || '';
             const resourceType = event.ResourceType || '';
-            // Only check terminal states for the main CloudFormation stack
-            if (resourceType === 'AWS::CloudFormation::Stack') {
+            const logicalId = event.LogicalResourceId || '';
+            if (resourceType === 'AWS::CloudFormation::Stack' &&
+                logicalId === this.config.stackName) {
                 return exports.TERMINAL_STACK_STATES.includes(status);
             }
             return false;
