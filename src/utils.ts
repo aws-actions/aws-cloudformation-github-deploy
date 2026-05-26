@@ -118,6 +118,24 @@ export function parseParameters(
   })
 }
 
+export function parseRetryMode(
+  s?: string
+): 'standard' | 'adaptive' | undefined {
+  const parsed = parseString(s)
+
+  if (!parsed) {
+    return undefined
+  }
+
+  if (parsed === 'standard' || parsed === 'adaptive') {
+    return parsed
+  }
+
+  throw new Error(
+    `Invalid retry-mode: ${parsed}. Supported values: 'standard', 'adaptive'.`
+  )
+}
+
 export function parseDeploymentMode(s: string): 'REVERT_DRIFT' | undefined {
   const parsed = parseString(s)
 

@@ -75609,6 +75609,8 @@ function run() {
                 'deployment-mode': core.getInput('deployment-mode', { required: false }),
                 's3-bucket': core.getInput('s3-bucket', { required: false }),
                 's3-prefix': core.getInput('s3-prefix', { required: false }),
+                'max-attempts': core.getInput('max-attempts', { required: false }),
+                'retry-mode': core.getInput('retry-mode', { required: false }),
                 'execute-change-set-id': core.getInput('execute-change-set-id', {
                     required: false
                 })
@@ -75623,6 +75625,12 @@ function run() {
                         httpsAgent: agent
                     })
                 });
+            }
+            if (inputs['max-attempts']) {
+                clientConfiguration = Object.assign(Object.assign({}, clientConfiguration), { maxAttempts: inputs['max-attempts'] });
+            }
+            if (inputs['retry-mode']) {
+                clientConfiguration = Object.assign(Object.assign({}, clientConfiguration), { retryMode: inputs['retry-mode'] });
             }
             const cfn = new client_cloudformation_1.CloudFormationClient(Object.assign({}, clientConfiguration));
             // Execute existing change set mode
@@ -75858,6 +75866,7 @@ exports.parseString = parseString;
 exports.parseNumber = parseNumber;
 exports.parseBoolean = parseBoolean;
 exports.parseParameters = parseParameters;
+exports.parseRetryMode = parseRetryMode;
 exports.parseDeploymentMode = parseDeploymentMode;
 exports.withRetry = withRetry;
 exports.configureProxy = configureProxy;
@@ -75969,6 +75978,16 @@ function parseParameters(parameterOverrides) {
         };
     });
 }
+function parseRetryMode(s) {
+    const parsed = parseString(s);
+    if (!parsed) {
+        return undefined;
+    }
+    if (parsed === 'standard' || parsed === 'adaptive') {
+        return parsed;
+    }
+    throw new Error(`Invalid retry-mode: ${parsed}. Supported values: 'standard', 'adaptive'.`);
+}
 function parseDeploymentMode(s) {
     const parsed = parseString(s);
     if (!parsed) {
@@ -76048,7 +76067,9 @@ const baseSchema = zod_1.z.object({
         .enum(['create-and-execute', 'create-only', 'execute-only'])
         .default('create-and-execute'),
     name: zod_1.z.string().min(1, 'Stack name is required'),
-    'http-proxy': zod_1.z.string().optional().transform(emptyToUndefined)
+    'http-proxy': zod_1.z.string().optional().transform(emptyToUndefined),
+    'max-attempts': zod_1.z.string().optional().transform(utils_1.parseNumber),
+    'retry-mode': zod_1.z.string().optional().transform(utils_1.parseRetryMode)
 });
 const createSchema = baseSchema.extend({
     mode: zod_1.z.enum(['create-and-execute', 'create-only']),

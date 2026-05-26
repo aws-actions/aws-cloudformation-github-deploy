@@ -72,6 +72,12 @@ inputs:
   s3-prefix:
     description: "A prefix to use for the S3 object key when uploading the template. The final key will be '<s3-prefix>/<template-filename>'. Defaults to no prefix."
     required: false
+  max-attempts:
+    description: "The maximum number of retry attempts for AWS API calls. Defaults to the AWS SDK default (3)."
+    required: false
+  retry-mode:
+    description: "The retry mode for AWS API calls. Supported values: 'standard', 'adaptive'. Defaults to the AWS SDK default ('standard')."
+    required: false
   deployment-mode:
     description: "The deployment mode for the change set. Use 'REVERT_DRIFT' to create a change set that reverts drift. Defaults to standard deployment."
     required: false
