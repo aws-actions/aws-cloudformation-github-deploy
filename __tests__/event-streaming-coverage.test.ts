@@ -715,7 +715,7 @@ describe('Event Streaming Coverage Tests', () => {
             OperationEvents: [
               {
                 Timestamp: new Date(),
-                LogicalResourceId: 'TestStack',
+                LogicalResourceId: 'test-stack',
                 ResourceType: 'AWS::CloudFormation::Stack',
                 ResourceStatus: 'CREATE_COMPLETE'
               }
@@ -743,6 +743,41 @@ describe('Event Streaming Coverage Tests', () => {
       expect(mockCoreDebug).toHaveBeenCalledWith(
         'Event monitoring polling loop completed normally'
       )
+    }, 10000)
+
+    test('should not stop monitoring when a nested stack reaches terminal state', async () => {
+      const mockClient = {
+        send: jest.fn().mockResolvedValue({
+          OperationEvents: [
+            {
+              Timestamp: new Date(),
+              LogicalResourceId: 'NestedStack1',
+              ResourceType: 'AWS::CloudFormation::Stack',
+              ResourceStatus: 'CREATE_COMPLETE'
+            }
+          ]
+        })
+      }
+
+      const config: EventMonitorConfig = {
+        stackName: 'my-parent-stack',
+        client: mockClient as any,
+        enableColors: true,
+        pollIntervalMs: 50,
+        maxPollIntervalMs: 1000
+      }
+
+      const monitor = new EventMonitorImpl(config)
+
+      const monitorPromise = monitor.startMonitoring()
+
+      // Wait long enough for several polls to have processed the nested stack event
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      expect(monitor.isMonitoring()).toBe(true)
+
+      monitor.stopMonitoring()
+      await monitorPromise
     }, 10000)
 
     test('should handle empty events array in formatEvents', () => {

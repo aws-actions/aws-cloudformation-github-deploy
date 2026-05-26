@@ -1111,16 +1111,19 @@ export class EventMonitorImpl implements EventMonitor {
   }
 
   /**
-   * Check if any event indicates a terminal stack state
-   * Only considers the main stack events, not individual resources
+   * Check if any event indicates a terminal stack state.
+   * Only considers events for the root stack itself, not nested stack resources.
    */
   private hasTerminalEvent(events: StackEvent[]): boolean {
     return events.some(event => {
       const status = event.ResourceStatus || ''
       const resourceType = event.ResourceType || ''
+      const logicalId = event.LogicalResourceId || ''
 
-      // Only check terminal states for the main CloudFormation stack
-      if (resourceType === 'AWS::CloudFormation::Stack') {
+      if (
+        resourceType === 'AWS::CloudFormation::Stack' &&
+        logicalId === this.config.stackName
+      ) {
         return TERMINAL_STACK_STATES.includes(status as TerminalStackState)
       }
 
