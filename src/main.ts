@@ -92,6 +92,8 @@ export async function run(): Promise<void> {
       'deployment-mode': core.getInput('deployment-mode', { required: false }),
       's3-bucket': core.getInput('s3-bucket', { required: false }),
       's3-prefix': core.getInput('s3-prefix', { required: false }),
+      'max-attempts': core.getInput('max-attempts', { required: false }),
+      'retry-mode': core.getInput('retry-mode', { required: false }),
       'execute-change-set-id': core.getInput('execute-change-set-id', {
         required: false
       })
@@ -110,6 +112,20 @@ export async function run(): Promise<void> {
             httpsAgent: agent
           })
         }
+      }
+    }
+
+    if (inputs['max-attempts']) {
+      clientConfiguration = {
+        ...clientConfiguration,
+        ...{ maxAttempts: inputs['max-attempts'] }
+      }
+    }
+
+    if (inputs['retry-mode']) {
+      clientConfiguration = {
+        ...clientConfiguration,
+        ...{ retryMode: inputs['retry-mode'] }
       }
     }
 

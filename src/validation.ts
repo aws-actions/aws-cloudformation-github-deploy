@@ -4,7 +4,8 @@ import {
   parseNumber,
   parseTags,
   parseParameters,
-  parseBoolean
+  parseBoolean,
+  parseRetryMode
 } from './utils'
 
 // Helper transformers
@@ -16,7 +17,9 @@ const baseSchema = z.object({
     .enum(['create-and-execute', 'create-only', 'execute-only'])
     .default('create-and-execute'),
   name: z.string().min(1, 'Stack name is required'),
-  'http-proxy': z.string().optional().transform(emptyToUndefined)
+  'http-proxy': z.string().optional().transform(emptyToUndefined),
+  'max-attempts': z.string().optional().transform(parseNumber),
+  'retry-mode': z.string().optional().transform(parseRetryMode)
 })
 
 const createSchema = baseSchema.extend({
