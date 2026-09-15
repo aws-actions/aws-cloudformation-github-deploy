@@ -4,6 +4,7 @@ import {
   isUrl,
   parseParameters,
   parseBoolean,
+  parseRetryMode,
   withRetry
 } from '../src/utils'
 import * as path from 'path'
@@ -470,6 +471,30 @@ describe('withRetry', () => {
 
     await expect(withRetry(operation)).rejects.toThrow('Other error')
     expect(operation).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('parseRetryMode', () => {
+  test('returns "standard" for valid input', () => {
+    expect(parseRetryMode('standard')).toBe('standard')
+  })
+
+  test('returns "adaptive" for valid input', () => {
+    expect(parseRetryMode('adaptive')).toBe('adaptive')
+  })
+
+  test('throws on invalid input', () => {
+    expect(() => parseRetryMode('exponential')).toThrow(
+      "Invalid retry-mode: exponential. Supported values: 'standard', 'adaptive'."
+    )
+  })
+
+  test('returns undefined for empty string', () => {
+    expect(parseRetryMode('')).toBeUndefined()
+  })
+
+  test('returns undefined for undefined', () => {
+    expect(parseRetryMode(undefined)).toBeUndefined()
   })
 })
 
